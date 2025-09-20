@@ -1,0 +1,513 @@
+# IntelliBoard iOS Development Rules
+
+## 📋 Project Overview
+You are working on IntelliBoard, an iOS application written in Swift that provides intelligent keyboard functionality with AI-powered recommendations, custom keys, and voice recognition. The project uses Core Data for persistence, CloudKit for sync, and integrates machine learning models for smart text prediction.
+
+## 🏗️ Project Structure
+- **IntelliBoard/**: Main iOS app target
+- **IntelliBoardExtension/**: Keyboard extension target  
+- **IntelliBoardTests/**: Unit tests (target device: Jake（4）)
+- **ModelTests/**: ML model testing and validation
+- **docs/**: Project documentation and guidelines
+
+## 🔄 Code Refactoring Strategy (循序渐进)
+
+### 1. Readability-First Refactoring (代码可读性重构)
+- **NEVER change existing logic** during readability refactoring
+- Focus only on improving code clarity and structure
+- Remove debugging logs, redundant methods, and reorganize method ordering
+- Clean up temporary test code
+- Improve variable/method naming for clarity
+
+### 2. Logic Refactoring (逻辑重构)  
+- **Stay focused** on the specific refactoring goal
+- Do NOT extend refactoring to unrelated logic areas
+- Make targeted changes only
+
+### 3. Controlled Variable Method (控制变量法)
+- **One refactoring per cycle**: Refactor only one logical component at a time
+- **Always add unit tests** after each refactoring cycle
+- If unit tests are missing, create them before proceeding
+- **Verify tests pass** before moving to the next refactoring cycle
+- Never batch multiple refactoring changes together
+
+### 4. Progressive Validation (逐步验证)
+- Run tests after each change using: `xcodebuild test -scheme IntelliBoard -destination 'platform=iOS Simulator,name=iPhone 16'`
+- Document refactoring purpose and process
+- Communicate changes with team
+
+## 🆕 Adding New Features (添加新特性)
+
+### Development Approach
+1. **Generate minimal feature code** - implement core functionality only, avoid feature creep
+2. **Code Design Principles** - Please keep the code clean and adhere to the design of interface segregation. Avoid adding too many methods and interface parameters whenever possible.
+3. **Write focused unit tests** - cover basic success/failure scenarios  
+4. **Run tests immediately** - ensure functionality works before expansion
+5. **Use simple algorithms initially** - add `//TODO` comments for future optimization
+6. **Add proper file headers** - include author and creation time for new files, modification time for edits
+7. **Requirement Document** - When creating a new feature, also organize the requirement document into an md file and place it in the same directory.
+
+### Testing Requirements
+- Unit tests go in `IntelliBoardTests/` directory
+- Target device: Jake（4） (real device)
+- Focus on core scenarios first, expand coverage later
+- Use XCTest framework with proper setup/teardown
+
+### Example Test Command
+```bash
+xcodebuild -workspace IntelliBoard.xcworkspace -scheme IntelliBoard -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' build -derivedDataPath /tmp/xcode_build 2>&1 | tail -10
+```
+
+## 🐛 Debugging Guidelines (调试问题)
+
+### Problem-Focused Debugging
+1. **Confirm approach with user** - present ONE solution approach, not multiple options
+2. **Control variables** - make only ONE change at a time (either add debug logs OR modify logic, never both)
+3. **Don't modify tested infrastructure** - avoid changing working base code (model loading, configuration, etc.)
+4. **Ignore linker errors** - focus on functional issues
+5. **Add prefixes to logs** - ensure debug output is clearly tagged
+6. **Code Changes** - When there are unconfirmed code changes, please list the diff of the modified code after making adjustments.
+7. **Avoid Hardcoding** - Reject the use of hardcoded solutions to address problems. Please adopt more intelligent and robust designs instead.
+
+### When Multiple Solutions Exist
+- **Always ask user to choose** which approach to take
+- Present options clearly: "Option A (add debug logs) or Option B (modify logic) or C (innovative method)?"
+- Wait for confirmation before implementing
+
+### Testing During Debug
+- Write unit tests to isolate issues when helpful
+- Use `IntelliBoardTests/` directory  
+- Target real device: Jake（4）
+- Auto-run tests and analyze logs for problem identification
+
+## 📝 Code Style & Standards
+
+### Swift Conventions
+- Use clear, descriptive naming
+- Prefer `let` over `var` when possible
+- Use guard statements for early returns
+- Follow Apple's Swift style guide
+- Add meaningful comments for complex logic
+
+### File Organization
+- Group related functionality together
+- Use proper access control (private, internal, public)
+- Keep files focused on single responsibility
+- Add file headers with author/creation info
+
+### Error Handling
+- Use proper Swift error handling with `throws/try/catch`
+- Provide meaningful error messages
+- Log errors with appropriate detail level
+
+## 🧪 Testing Philosophy
+
+### Unit Test Strategy
+- Test one component/function at a time
+- Use descriptive test names: `testLoginSuccess()`, `testLoginFailure()`
+- Set up proper test fixtures in `setUp()`
+- Clean up in `tearDown()`
+- Use expectations for async operations
+
+### Test Coverage Priority
+1. Core business logic first
+2. Edge cases and error conditions
+3. Integration points between components
+4. UI interactions (when applicable)
+
+## 🔍 Code Review Checklist
+
+Before submitting changes:
+- [ ] Tests pass on target device
+- [ ] Code follows project conventions
+- [ ] No debug logs in production code
+- [ ] Proper error handling implemented
+- [ ] Documentation updated if needed
+- [ ] Single responsibility maintained
+- [ ] No feature creep beyond original scope
+
+## 🚫 What NOT to Do
+
+- Don't implement multiple features simultaneously
+- Don't refactor unrelated code during feature development  
+- Don't skip unit tests "for later"
+- Don't ignore test failures
+- Don't modify working infrastructure code during debugging
+- Don't add complex error handling in initial implementation
+- Don't create multiple solution variants without user confirmation
+
+## 💡 Best Practices
+
+- Start simple, iterate quickly
+- Write tests before expanding functionality
+- Use version control effectively with clear commit messages
+- Document complex algorithms and business logic
+- Keep user experience as top priority
+- Maintain backwards compatibility when possible
+- Use dependency injection for testability
+
+---
+
+*Remember: Quality over speed. It's better to implement one feature well with proper tests than to rush multiple incomplete features.*
+
+Commenting on Design and Changes: It is essential to document the reasons behind decisions as much as possible. For example, record why modifications were made, why a particular condition was added, and the rationale behind specific implementations. This is especially important for unconventional logic, where the reasoning should be clearly explained.
+
+
+# IntelliBoard Code Design Rules
+
+## 🔍 Problem-Solving Approach (问题解决方法)
+
+### Root Cause Analysis (根因分析)
+- **NEVER apply patches to fix symptoms** - always identify and address the root cause
+- When encountering issues, trace back to the fundamental problem rather than applying quick fixes
+- Document the root cause analysis process for future reference
+
+### Multi-Retry Problem Resolution (多次重试问题解决)
+- If a problem persists after multiple attempts, **STOP and re-read the complete codebase**
+- Perform comprehensive logic analysis before attempting another fix
+- Map out the complete data flow and state transitions
+- Consider architectural issues rather than implementation details
+
+## 🏗️ Architecture & Design Patterns (架构与设计模式)
+
+### State Management (状态管理)
+- For **complex state management**, use **State Machine** design patterns
+- Implement clear state transitions with defined triggers and guards
+- Document all possible states and their relationships
+- Use enum-based state definitions in Swift for type safety
+
+### Extensibility Requirements (扩展性要求)
+- When extensibility is mentioned as a requirement, **ALWAYS use appropriate design patterns**:
+  - **Strategy Pattern**: For algorithm variations
+  - **Observer Pattern**: For event handling and notifications
+  - **Factory Pattern**: For object creation with multiple types
+  - **Builder Pattern**: For complex object construction
+  - **Adapter Pattern**: For interface compatibility
+  - **Decorator Pattern**: For feature enhancement
+
+### Design Pattern Consistency (设计模式一致性)
+- **Record all design patterns used** in the project history
+- When adding new features, **maintain consistency** with existing design patterns
+- **NEVER degrade existing design** - always enhance or maintain the current architectural level
+- Create a design pattern registry document to track usage
+
+## 📋 Implementation Guidelines (实现指南)
+
+### Code Quality Standards
+```swift
+// ✅ Good: Root cause solution with state machine
+enum KeyboardState {
+    case inactive
+    case loading
+    case active(mode: KeyboardMode)
+    case error(KeyboardError)
+}
+
+class KeyboardStateMachine {
+    private var currentState: KeyboardState = .inactive
+    
+    func transition(to newState: KeyboardState, trigger: StateTrigger) {
+        // Validate transition and update state
+    }
+}
+
+// ❌ Bad: Patch-based solution
+class KeyboardManager {
+    func handleError() {
+        // Quick fix without understanding root cause
+        if someCondition {
+            // Band-aid solution
+        }
+    }
+}
+```
+
+### Design Pattern Documentation
+- Maintain a `DESIGN_PATTERNS.md` file listing:
+  - Pattern name and location
+  - Use case and rationale
+  - Related components
+  - Extension points
+
+### Refactoring Strategy
+- Follow the established **循序渐进 (step-by-step)** refactoring approach
+- **Phase 1**: Readability improvements (no logic changes)
+- **Phase 2**: Logic refactoring (focused on specific goals)
+- **Phase 3**: Architecture enhancement (design pattern application)
+
+## 🚫 Anti-Patterns to Avoid
+
+### Patch-Driven Development
+- Avoid multiple conditional patches for the same issue
+- Don't add flags or switches to bypass problems
+- Never ignore compiler warnings or deprecation notices
+
+### Design Degradation
+- Don't simplify existing sophisticated patterns for convenience
+- Avoid mixing different architectural styles in the same module
+- Never remove abstraction layers without proper refactoring
+
+## ✅ Success Criteria
+
+### Code Review Checklist
+- [ ] Root cause identified and addressed
+- [ ] Appropriate design pattern selected and implemented
+- [ ] Consistency with existing architectural decisions
+- [ ] Extensibility requirements properly addressed
+- [ ] State management follows established patterns
+- [ ] No patch-based solutions introduced
+
+### Quality Metrics
+- **Maintainability**: Code follows established patterns
+- **Extensibility**: New features integrate seamlessly
+- **Consistency**: Architecture remains coherent
+- **Robustness**: Root causes addressed, not symptoms
+
+---
+
+*Remember: Quality architecture is built through consistent application of sound design principles, not through accumulation of quick fixes.*
+
+
+
+# IntelliBoard Testing Rules
+
+## 📝 Test Case Documentation (测试用例记录)
+
+### Problem Documentation Requirements (问题记录要求)
+- **ALWAYS document issues discussed in chat** - create or update test case files (e.g., `测试用例.md`)
+- Record the following for each issue:
+  - **Problem description**: Clear statement of the bug/issue/exception
+  - **Reproduction steps**: How to trigger the problem
+  - **Expected behavior**: What should happen
+  - **Actual behavior**: What currently happens
+  - **Verification method**: How to confirm the fix works
+  - **Test environment**: iOS version, device, specific conditions
+
+### Test Case File Structure
+```markdown
+# 测试用例.md
+
+## [Module Name] - [Issue ID/Date]
+
+### 问题描述
+- Brief description of the issue
+
+### 复现步骤
+1. Step 1
+2. Step 2
+3. Step 3
+
+### 预期行为
+- What should happen
+
+### 实际行为
+- What currently happens
+
+### 验证方法
+- How to verify the fix
+- Specific test commands or UI actions
+
+### 测试环境
+- iOS version: 
+- Device: 
+- Build configuration: 
+```
+
+## 🔍 Pre-Refactoring Validation (重构前验证)
+
+### Mandatory Pre-Refactoring Checks
+- **ALWAYS search for and read existing test case files** before starting refactoring
+- Look for files named: `测试用例.md`, `test-cases.md`, `验证用例.md`, `手工用例.md`
+- **MUST verify all documented test cases** before completing refactoring
+- Create a pre-refactoring checklist based on existing test cases
+
+### Unit Test Discovery and Execution
+- **Automatically check for existing unit tests** in the module being refactored
+- Search patterns:
+  - `*Tests.swift` files in the same directory or test directory
+  - Test methods starting with `test*`
+  - XCTest framework usage
+- **Run all relevant unit tests** before and after refactoring
+- Use command: `xcodebuild test -scheme IntelliBoard -destination 'platform=iOS Simulator,name=iPhone 16'`
+
+### Test Execution Workflow
+```swift
+// Pre-refactoring test execution example
+func preRefactoringValidation() {
+    // 1. Discover existing tests
+    // 2. Run baseline tests
+    // 3. Document current test results
+    // 4. Proceed with refactoring
+    // 5. Re-run tests
+    // 6. Verify no regressions
+}
+```
+
+## 🧪 Unit Test Creation (单元测试补充)
+
+### Core Module Testing Requirements
+- **MUST create unit tests** for resolved issues in core/foundational modules
+- Prioritize testing for:
+  - **Public APIs**: All public methods and properties
+  - **Business logic**: Core algorithms and decision-making code
+  - **Data processing**: Tokenization, parsing, transformation logic
+  - **Error handling**: Exception cases and edge conditions
+  - **Integration points**: Module interfaces and dependencies
+
+### Test Categories by Module Type
+```swift
+// Core/Foundation modules (MUST have tests)
+- Tokenizers (RobertaTokenizer, etc.)
+- Embedding services
+- Data managers
+- Utility helpers
+- Configuration handlers
+
+// UI modules (SHOULD have tests for logic)
+- View controllers (business logic only)
+- Custom views (interaction logic)
+- Navigation managers
+
+// Extension modules (CONDITIONAL testing)
+- Keyboard extensions (core functionality)
+- Widget extensions (data processing)
+```
+
+### Unit Test Structure Standards
+```swift
+import XCTest
+@testable import IntelliBoard
+
+class [ModuleName]Tests: XCTestCase {
+    var sut: [SystemUnderTest]!
+    
+    override func setUp() {
+        super.setUp()
+        sut = [SystemUnderTest]()
+    }
+    
+    override func tearDown() {
+        sut = nil
+        super.tearDown()
+    }
+    
+    // MARK: - Success Cases
+    func testSuccess_[SpecificScenario]() {
+        // Given
+        // When
+        // Then
+    }
+    
+    // MARK: - Failure Cases
+    func testFailure_[SpecificScenario]() {
+        // Given
+        // When
+        // Then
+    }
+    
+    // MARK: - Edge Cases
+    func testEdgeCase_[SpecificScenario]() {
+        // Given
+        // When
+        // Then
+    }
+}
+```
+
+## 🔄 Continuous Testing Workflow (持续测试流程)
+
+### Testing Integration with Development Cycle
+1. **Issue Discovery**: Document in test case file
+2. **Pre-Development**: Review existing test cases
+3. **During Development**: Run relevant tests continuously
+4. **Post-Development**: Create new unit tests for fixes
+5. **Pre-Commit**: Run full test suite
+6. **Post-Refactoring**: Validate all documented test cases
+
+### Automated Test Execution
+```bash
+# Test discovery and execution script
+#!/bin/bash
+echo "🔍 Discovering test files..."
+find . -name "*Tests.swift" -type f
+
+echo "📋 Checking for test case documentation..."
+find . -name "*测试用例*.md" -o -name "*test-case*.md" -type f
+
+echo "🧪 Running unit tests..."
+xcodebuild test -scheme IntelliBoard -destination 'platform=iOS Simulator,name=iPhone 16'
+
+echo "✅ Test execution complete"
+```
+
+## 📊 Test Coverage and Quality Metrics
+
+### Coverage Requirements
+- **Core modules**: Minimum 80% code coverage
+- **Business logic**: Minimum 90% branch coverage
+- **Public APIs**: 100% method coverage
+- **Critical paths**: 100% coverage with edge cases
+
+### Test Quality Standards
+- **Test naming**: Descriptive names indicating scenario and expected outcome
+- **Test isolation**: Each test should be independent
+- **Test data**: Use meaningful test data, avoid magic numbers
+- **Assertions**: Clear, specific assertions with meaningful messages
+- **Performance**: Tests should complete within reasonable time limits
+
+### Test Maintenance
+- **Regular review**: Update tests when requirements change
+- **Deprecation handling**: Remove tests for deprecated functionality
+- **Refactoring**: Keep tests maintainable and readable
+- **Documentation**: Comment complex test scenarios
+
+## 🚨 Critical Testing Scenarios
+
+### Must-Test Scenarios for IntelliBoard
+```swift
+// Tokenization accuracy
+func testTokenization_ChineseText_ProducesCorrectTokens()
+func testTokenization_SpecialCharacters_HandledCorrectly()
+func testTokenization_EmptyInput_ReturnsEmptyResult()
+
+// Embedding generation
+func testEmbedding_ValidInput_GeneratesConsistentVectors()
+func testEmbedding_InvalidInput_HandlesGracefully()
+
+// Recommendation engine
+func testRecommendation_UserInput_ReturnsRelevantSuggestions()
+func testRecommendation_EmptyQuery_ReturnsDefaultSuggestions()
+
+// Data persistence
+func testCoreData_SaveOperation_PersistsCorrectly()
+func testCoreData_FetchOperation_RetrievesCorrectData()
+```
+
+## ✅ Testing Checklist
+
+### Before Starting Development
+- [ ] Read all existing test case documentation
+- [ ] Identify relevant unit tests
+- [ ] Run baseline test suite
+- [ ] Document current test state
+
+### During Development
+- [ ] Run tests frequently during implementation
+- [ ] Update test cases as issues are resolved
+- [ ] Add new test cases for edge cases discovered
+
+### After Development
+- [ ] Create unit tests for core/foundational fixes
+- [ ] Verify all documented test cases pass
+- [ ] Update test documentation
+- [ ] Run full regression test suite
+
+### Before Code Commit
+- [ ] All unit tests pass
+- [ ] All documented test cases verified
+- [ ] New test cases added for fixes
+- [ ] Test coverage meets requirements
+
+---
+
+*Remember: Testing is not just about finding bugs - it's about building confidence in the system's reliability and maintainability.*
