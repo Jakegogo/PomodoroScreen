@@ -1,6 +1,7 @@
 import Cocoa
 import UniformTypeIdentifiers
 import AVFoundation
+import ServiceManagement
 
 class SettingsWindow: NSWindow {
     
@@ -14,6 +15,16 @@ class SettingsWindow: NSWindow {
     private var breakTimeSlider: NSSlider!
     private var breakTimeLabel: NSTextField!
     private var showCancelRestButtonCheckbox: NSButton!
+    
+    // 熬夜限制设置 UI 控件
+    private var stayUpLimitCheckbox: NSButton!
+    private var stayUpHourPopUpButton: NSPopUpButton!
+    private var stayUpMinutePopUpButton: NSPopUpButton!
+    private var stayUpTimeLabel: NSTextField!
+    private var stayUpColonLabel: NSTextField!
+    
+    // 开机自启动设置 UI 控件
+    private var launchAtLoginCheckbox: NSButton!
     
     // 自动处理设置 UI 控件
     private var idleRestartCheckbox: NSButton!
@@ -69,8 +80,16 @@ class SettingsWindow: NSWindow {
     // 背景设置值
     var backgroundFiles: [BackgroundFile] = [] // 背景文件列表
     
+    // 熬夜限制设置值
+    var stayUpLimitEnabled: Bool = false // 是否启用熬夜限制
+    var stayUpLimitHour: Int = 23 // 熬夜限制小时（21-1）
+    var stayUpLimitMinute: Int = 0 // 熬夜限制分钟（0, 15, 30, 45）
+    
+    // 开机自启动设置值
+    var launchAtLoginEnabled: Bool = false // 是否启用开机自启动
+    
     // 回调
-    var onSettingsChanged: ((Bool, Int, Int, Bool, Int, Bool, Bool, Bool, Bool, Bool, Bool, Int, Int, Bool, Bool, [BackgroundFile]) -> Void)?
+    var onSettingsChanged: ((Bool, Int, Int, Bool, Int, Bool, Bool, Bool, Bool, Bool, Bool, Int, Int, Bool, Bool, [BackgroundFile], Bool, Int, Int) -> Void)?
     
     override init(contentRect: NSRect, styleMask style: NSWindow.StyleMask, backing backingStoreType: NSWindow.BackingStoreType, defer flag: Bool) {
         super.init(contentRect: contentRect, styleMask: style, backing: backingStoreType, defer: flag)
@@ -169,6 +188,13 @@ class SettingsWindow: NSWindow {
         showCancelRestButtonCheckbox.frame = NSRect(x: 20, y: yPosition, width: 340, height: 25)
         showCancelRestButtonCheckbox.state = showCancelRestButton ? .on : .off
         basicView.addSubview(showCancelRestButtonCheckbox)
+        yPosition -= 50
+        
+        // 开机自启动设置
+        launchAtLoginCheckbox = NSButton(checkboxWithTitle: "开机时自动启动应用", target: self, action: #selector(launchAtLoginChanged))
+        launchAtLoginCheckbox.frame = NSRect(x: 20, y: yPosition, width: 200, height: 25)
+        launchAtLoginCheckbox.state = launchAtLoginEnabled ? .on : .off
+        basicView.addSubview(launchAtLoginCheckbox)
         
         tabView.addTabViewItem(basicTabItem)
     }
@@ -214,20 +240,7 @@ class SettingsWindow: NSWindow {
         autoView.addSubview(idleTimeLabel)
         yPosition -= 60
         
-        // 锁屏自动重新计时设置
-        screenLockRestartCheckbox = NSButton(checkboxWithTitle: "进入锁屏时自动处理", target: self, action: #selector(screenLockRestartChanged))
-        screenLockRestartCheckbox.frame = NSRect(x: 20, y: yPosition, width: 200, height: 25)
-        screenLockRestartCheckbox.state = screenLockRestartEnabled ? .on : .off
-        autoView.addSubview(screenLockRestartCheckbox)
-        
-        screenLockActionSegmentedControl = NSSegmentedControl(labels: ["重新计时", "暂停计时"], trackingMode: .selectOne, target: self, action: #selector(screenLockActionChanged))
-        screenLockActionSegmentedControl.frame = NSRect(x: 240, y: yPosition, width: 150, height: 25)
-        screenLockActionSegmentedControl.selectedSegment = screenLockActionIsRestart ? 0 : 1
-        screenLockActionSegmentedControl.isEnabled = screenLockRestartEnabled
-        autoView.addSubview(screenLockActionSegmentedControl)
-        yPosition -= 60
-        
-        // 屏保自动重新计时设置
+        // 屏保自动重新计时设置 - 移到第二位
         screensaverRestartCheckbox = NSButton(checkboxWithTitle: "进入屏保时自动处理", target: self, action: #selector(screensaverRestartChanged))
         screensaverRestartCheckbox.frame = NSRect(x: 20, y: yPosition, width: 200, height: 25)
         screensaverRestartCheckbox.state = screensaverRestartEnabled ? .on : .off
@@ -238,6 +251,19 @@ class SettingsWindow: NSWindow {
         screensaverActionSegmentedControl.selectedSegment = screensaverActionIsRestart ? 0 : 1
         screensaverActionSegmentedControl.isEnabled = screensaverRestartEnabled
         autoView.addSubview(screensaverActionSegmentedControl)
+        yPosition -= 60
+        
+        // 锁屏自动重新计时设置 - 移到第三位
+        screenLockRestartCheckbox = NSButton(checkboxWithTitle: "进入锁屏时自动处理", target: self, action: #selector(screenLockRestartChanged))
+        screenLockRestartCheckbox.frame = NSRect(x: 20, y: yPosition, width: 200, height: 25)
+        screenLockRestartCheckbox.state = screenLockRestartEnabled ? .on : .off
+        autoView.addSubview(screenLockRestartCheckbox)
+        
+        screenLockActionSegmentedControl = NSSegmentedControl(labels: ["重新计时", "暂停计时"], trackingMode: .selectOne, target: self, action: #selector(screenLockActionChanged))
+        screenLockActionSegmentedControl.frame = NSRect(x: 240, y: yPosition, width: 150, height: 25)
+        screenLockActionSegmentedControl.selectedSegment = screenLockActionIsRestart ? 0 : 1
+        screenLockActionSegmentedControl.isEnabled = screenLockRestartEnabled
+        autoView.addSubview(screenLockActionSegmentedControl)
         
         tabView.addTabViewItem(autoTabItem)
     }
@@ -301,6 +327,69 @@ class SettingsWindow: NSWindow {
         accumulateRestTimeCheckbox.frame = NSRect(x: 20, y: yPosition, width: 340, height: 25)
         accumulateRestTimeCheckbox.state = accumulateRestTime ? .on : .off
         planView.addSubview(accumulateRestTimeCheckbox)
+        yPosition -= 50
+        
+        // 熬夜限制设置 - 移到计划标签页
+        stayUpLimitCheckbox = NSButton(checkboxWithTitle: "启用熬夜限制（强制休息）", target: self, action: #selector(stayUpLimitChanged))
+        stayUpLimitCheckbox.frame = NSRect(x: 20, y: yPosition, width: 200, height: 25)
+        stayUpLimitCheckbox.state = stayUpLimitEnabled ? .on : .off
+        planView.addSubview(stayUpLimitCheckbox)
+        yPosition -= 35
+        
+        // 熬夜时间设置
+        stayUpTimeLabel = NSTextField(labelWithString: "最晚时间:")
+        stayUpTimeLabel.frame = NSRect(x: 40, y: yPosition, width: 80, height: 20)
+        planView.addSubview(stayUpTimeLabel)
+        
+        // 小时选择 - 只显示数字
+        stayUpHourPopUpButton = NSPopUpButton(frame: NSRect(x: 130, y: yPosition - 2, width: 60, height: 25))
+        stayUpHourPopUpButton.target = self
+        stayUpHourPopUpButton.action = #selector(stayUpTimeChanged)
+        
+        // 添加21-01的小时选项，只显示数字
+        for hour in 21...23 {
+            stayUpHourPopUpButton.addItem(withTitle: String(format: "%02d", hour))
+        }
+        for hour in 0...1 {
+            stayUpHourPopUpButton.addItem(withTitle: String(format: "%02d", hour))
+        }
+        
+        // 设置当前选中的小时
+        if stayUpLimitHour >= 21 {
+            stayUpHourPopUpButton.selectItem(at: stayUpLimitHour - 21)
+        } else {
+            stayUpHourPopUpButton.selectItem(at: stayUpLimitHour + 3)
+        }
+        
+        planView.addSubview(stayUpHourPopUpButton)
+        
+        // 冒号标签
+        stayUpColonLabel = NSTextField(labelWithString: ":")
+        stayUpColonLabel.frame = NSRect(x: 195, y: yPosition, width: 10, height: 20)
+        stayUpColonLabel.alignment = .center
+        stayUpColonLabel.font = NSFont.systemFont(ofSize: 14, weight: .medium)
+        planView.addSubview(stayUpColonLabel)
+        
+        // 分钟选择 - 只显示数字
+        stayUpMinutePopUpButton = NSPopUpButton(frame: NSRect(x: 210, y: yPosition - 2, width: 60, height: 25))
+        stayUpMinutePopUpButton.target = self
+        stayUpMinutePopUpButton.action = #selector(stayUpTimeChanged)
+        
+        // 添加0, 15, 30, 45分钟选项，只显示数字
+        let minutes = [0, 15, 30, 45]
+        for minute in minutes {
+            stayUpMinutePopUpButton.addItem(withTitle: String(format: "%02d", minute))
+        }
+        
+        // 设置当前选中的分钟
+        if let minuteIndex = minutes.firstIndex(of: stayUpLimitMinute) {
+            stayUpMinutePopUpButton.selectItem(at: minuteIndex)
+        }
+        
+        planView.addSubview(stayUpMinutePopUpButton)
+        
+        // 根据启用状态设置控件可用性
+        updateStayUpControlsEnabled()
         
         tabView.addTabViewItem(planTabItem)
     }
@@ -471,6 +560,152 @@ class SettingsWindow: NSWindow {
         accumulateRestTime = accumulateRestTimeCheckbox.state == .on
     }
     
+    @objc private func stayUpLimitChanged() {
+        stayUpLimitEnabled = stayUpLimitCheckbox.state == .on
+        updateStayUpControlsEnabled()
+    }
+    
+    @objc private func stayUpTimeChanged() {
+        // 获取选中的小时
+        let selectedHourIndex = stayUpHourPopUpButton.indexOfSelectedItem
+        if selectedHourIndex < 3 {
+            // 21:00-23:00
+            stayUpLimitHour = 21 + selectedHourIndex
+        } else {
+            // 00:00-01:00
+            stayUpLimitHour = selectedHourIndex - 3
+        }
+        
+        // 获取选中的分钟
+        let minutes = [0, 15, 30, 45]
+        let selectedMinuteIndex = stayUpMinutePopUpButton.indexOfSelectedItem
+        if selectedMinuteIndex < minutes.count {
+            stayUpLimitMinute = minutes[selectedMinuteIndex]
+        }
+    }
+    
+    private func updateStayUpControlsEnabled() {
+        let enabled = stayUpLimitEnabled
+        stayUpTimeLabel.isEnabled = enabled
+        stayUpHourPopUpButton.isEnabled = enabled
+        stayUpColonLabel.isEnabled = enabled
+        stayUpMinutePopUpButton.isEnabled = enabled
+    }
+    
+    @objc private func launchAtLoginChanged() {
+        launchAtLoginEnabled = launchAtLoginCheckbox.state == .on
+        
+        // 立即应用开机自启动设置
+        LaunchAtLogin.shared.isEnabled = launchAtLoginEnabled
+        
+        // 延迟验证设置状态，给系统时间处理权限请求
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.validateLaunchAtLoginStatus()
+        }
+    }
+    
+    /// 验证开机自启动设置状态
+    private func validateLaunchAtLoginStatus() {
+        let status = LaunchAtLogin.shared.validateStatus()
+        
+        print("🔍 开机自启动状态验证: \(status.message)")
+        
+        // 检查是否需要用户批准
+        if #available(macOS 13.0, *) {
+            let service = SMAppService.mainApp
+            if service.status == .requiresApproval {
+                // 需要用户批准，显示指导信息
+                showLaunchAtLoginAlert(
+                    success: false, 
+                    message: "需要用户批准开机自启动权限",
+                    showSystemPreferences: true
+                )
+                return
+            }
+        }
+        
+        // 检查设置是否与预期一致
+        if status.enabled != launchAtLoginEnabled {
+            // 设置可能失败，显示警告
+            showLaunchAtLoginAlert(
+                success: false, 
+                message: status.message,
+                showSystemPreferences: true
+            )
+        } else {
+            print("✅ 开机自启动设置验证成功: \(launchAtLoginEnabled)")
+            
+            // 如果是首次成功设置，可以显示成功提示
+            if launchAtLoginEnabled {
+                showLaunchAtLoginAlert(
+                    success: true, 
+                    message: "开机自启动已成功启用",
+                    showSystemPreferences: false
+                )
+            }
+        }
+    }
+    
+    /// 显示开机自启动设置结果提示
+    private func showLaunchAtLoginAlert(success: Bool, message: String, showSystemPreferences: Bool = true) {
+        let alert = NSAlert()
+        alert.messageText = success ? "设置成功" : "权限请求"
+        
+        if success {
+            alert.informativeText = message
+            alert.alertStyle = .informational
+        } else {
+            // 根据macOS版本提供不同的指导信息
+            var instructions = ""
+            if #available(macOS 13.0, *) {
+                instructions = """
+                \(message)
+                
+                请按以下步骤操作：
+                1. 打开"系统设置" > "常规" > "登录项"
+                2. 在"允许在后台"部分找到PomodoroScreen
+                3. 确保开关已打开
+                
+                或者在"打开时"部分添加PomodoroScreen应用。
+                """
+            } else {
+                instructions = """
+                \(message)
+                
+                请按以下步骤手动设置：
+                1. 打开"系统偏好设置" > "用户与群组"
+                2. 选择您的用户账户
+                3. 点击"登录项"标签
+                4. 点击"+"按钮添加PomodoroScreen应用
+                """
+            }
+            alert.informativeText = instructions
+            alert.alertStyle = .warning
+        }
+        
+        alert.addButton(withTitle: "确定")
+        
+        if !success && showSystemPreferences {
+            if #available(macOS 13.0, *) {
+                alert.addButton(withTitle: "打开系统设置")
+            } else {
+                alert.addButton(withTitle: "打开系统偏好设置")
+            }
+        }
+        
+        let response = alert.runModal()
+        if response == .alertSecondButtonReturn && !success && showSystemPreferences {
+            // 根据macOS版本打开相应的设置页面
+            if #available(macOS 13.0, *) {
+                // macOS 13+ 使用新的系统设置
+                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension")!)
+            } else {
+                // 旧版本使用系统偏好设置
+                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.users")!)
+            }
+        }
+    }
+    
     // MARK: - 背景设置事件处理方法
     
     @objc private func addImageBackground() {
@@ -568,8 +803,17 @@ class SettingsWindow: NSWindow {
             UserDefaults.standard.set(backgroundData, forKey: "BackgroundFiles")
         }
         
+        // 保存熬夜限制设置
+        UserDefaults.standard.set(stayUpLimitEnabled, forKey: "StayUpLimitEnabled")
+        UserDefaults.standard.set(stayUpLimitHour, forKey: "StayUpLimitHour")
+        UserDefaults.standard.set(stayUpLimitMinute, forKey: "StayUpLimitMinute")
+        
+        // 保存开机自启动设置（LaunchAtLogin类会自动处理系统级设置）
+        UserDefaults.standard.set(launchAtLoginEnabled, forKey: "LaunchAtLoginEnabled")
+        LaunchAtLogin.shared.isEnabled = launchAtLoginEnabled
+        
         // 通知回调
-        onSettingsChanged?(autoStartEnabled, pomodoroTimeMinutes, breakTimeMinutes, idleRestartEnabled, idleTimeMinutes, idleActionIsRestart, screenLockRestartEnabled, screenLockActionIsRestart, screensaverRestartEnabled, screensaverActionIsRestart, showCancelRestButton, longBreakCycle, longBreakTimeMinutes, showLongBreakCancelButton, accumulateRestTime, backgroundFiles)
+        onSettingsChanged?(autoStartEnabled, pomodoroTimeMinutes, breakTimeMinutes, idleRestartEnabled, idleTimeMinutes, idleActionIsRestart, screenLockRestartEnabled, screenLockActionIsRestart, screensaverRestartEnabled, screensaverActionIsRestart, showCancelRestButton, longBreakCycle, longBreakTimeMinutes, showLongBreakCancelButton, accumulateRestTime, backgroundFiles, stayUpLimitEnabled, stayUpLimitHour, stayUpLimitMinute)
         
         close()
     }
@@ -618,6 +862,15 @@ class SettingsWindow: NSWindow {
         } else {
             backgroundFiles = [] // 默认为空数组
         }
+        
+        // 加载熬夜限制设置
+        stayUpLimitEnabled = UserDefaults.standard.bool(forKey: "StayUpLimitEnabled") // 默认为 false
+        stayUpLimitHour = UserDefaults.standard.integer(forKey: "StayUpLimitHour")
+        if stayUpLimitHour == 0 { stayUpLimitHour = 23 } // 默认23:00
+        stayUpLimitMinute = UserDefaults.standard.integer(forKey: "StayUpLimitMinute") // 默认为0分钟
+        
+        // 加载开机自启动设置
+        launchAtLoginEnabled = LaunchAtLogin.shared.isEnabled // 从LaunchAtLogin类获取当前状态
         
         // 更新UI
         if autoStartCheckbox != nil {
@@ -674,6 +927,31 @@ class SettingsWindow: NSWindow {
         // 更新背景设置UI
         if backgroundFilesList != nil {
             backgroundFilesList.reloadData()
+        }
+        
+        // 更新熬夜限制设置UI
+        if stayUpLimitCheckbox != nil {
+            stayUpLimitCheckbox.state = stayUpLimitEnabled ? .on : .off
+            
+            // 更新小时选择
+            if stayUpLimitHour >= 21 {
+                stayUpHourPopUpButton.selectItem(at: stayUpLimitHour - 21)
+            } else {
+                stayUpHourPopUpButton.selectItem(at: stayUpLimitHour + 3)
+            }
+            
+            // 更新分钟选择
+            let minutes = [0, 15, 30, 45]
+            if let minuteIndex = minutes.firstIndex(of: stayUpLimitMinute) {
+                stayUpMinutePopUpButton.selectItem(at: minuteIndex)
+            }
+            
+            updateStayUpControlsEnabled()
+        }
+        
+        // 更新开机自启动设置UI
+        if launchAtLoginCheckbox != nil {
+            launchAtLoginCheckbox.state = launchAtLoginEnabled ? .on : .off
         }
     }
     

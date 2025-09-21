@@ -421,7 +421,10 @@ class PomodoroTimerScreensaverIntegrationTests: XCTestCase {
             longBreakTimeMinutes: 5,
             showLongBreakCancelButton: true,
             accumulateRestTime: false,
-            backgroundFiles: [] // 测试中不使用背景文件
+            backgroundFiles: [], // 测试中不使用背景文件
+            stayUpLimitEnabled: false,
+            stayUpLimitHour: 23,
+            stayUpLimitMinute: 0
         )
     }
     
@@ -536,7 +539,10 @@ class PomodoroTimerScreensaverIntegrationTests: XCTestCase {
             longBreakTimeMinutes: 5,
             showLongBreakCancelButton: true,
             accumulateRestTime: false,
-            backgroundFiles: [] // 测试中不使用背景文件
+            backgroundFiles: [], // 测试中不使用背景文件
+            stayUpLimitEnabled: false,
+            stayUpLimitHour: 23,
+            stayUpLimitMinute: 0
         )
         
         // 2. 启动计时器
@@ -617,7 +623,10 @@ class PomodoroTimerScreensaverIntegrationTests: XCTestCase {
             longBreakTimeMinutes: 5,
             showLongBreakCancelButton: true,
             accumulateRestTime: false,
-            backgroundFiles: [] // 测试中不使用背景文件
+            backgroundFiles: [], // 测试中不使用背景文件
+            stayUpLimitEnabled: false,
+            stayUpLimitHour: 23,
+            stayUpLimitMinute: 0
         )
         
         // 启动计时器
@@ -680,7 +689,10 @@ class PomodoroTimerScreensaverIntegrationTests: XCTestCase {
             longBreakTimeMinutes: 5,
             showLongBreakCancelButton: true,
             accumulateRestTime: false,
-            backgroundFiles: [] // 测试中不使用背景文件
+            backgroundFiles: [], // 测试中不使用背景文件
+            stayUpLimitEnabled: false,
+            stayUpLimitHour: 23,
+            stayUpLimitMinute: 0
         )
         
         pomodoroTimer.start()
@@ -738,7 +750,10 @@ class PomodoroTimerScreensaverIntegrationTests: XCTestCase {
             longBreakTimeMinutes: 5,
             showLongBreakCancelButton: true,
             accumulateRestTime: false,
-            backgroundFiles: [] // 测试中不使用背景文件
+            backgroundFiles: [], // 测试中不使用背景文件
+            stayUpLimitEnabled: false,
+            stayUpLimitHour: 23,
+            stayUpLimitMinute: 0
         )
         
         pomodoroTimer.start()
@@ -794,7 +809,10 @@ class PomodoroTimerScreensaverIntegrationTests: XCTestCase {
             longBreakTimeMinutes: 5,
             showLongBreakCancelButton: true,
             accumulateRestTime: false,
-            backgroundFiles: [] // 测试中不使用背景文件
+            backgroundFiles: [], // 测试中不使用背景文件
+            stayUpLimitEnabled: false,
+            stayUpLimitHour: 23,
+            stayUpLimitMinute: 0
         )
         
         pomodoroTimer.start()
@@ -856,7 +874,10 @@ class PomodoroTimerScreensaverIntegrationTests: XCTestCase {
             longBreakTimeMinutes: 5,
             showLongBreakCancelButton: true,
             accumulateRestTime: false,
-            backgroundFiles: [] // 测试中不使用背景文件
+            backgroundFiles: [], // 测试中不使用背景文件
+            stayUpLimitEnabled: false,
+            stayUpLimitHour: 23,
+            stayUpLimitMinute: 0
         )
         
         pomodoroTimer.start()
@@ -924,7 +945,10 @@ class PomodoroTimerScreensaverIntegrationTests: XCTestCase {
             longBreakTimeMinutes: 5,
             showLongBreakCancelButton: true,
             accumulateRestTime: false,
-            backgroundFiles: [] // 测试中不使用背景文件
+            backgroundFiles: [], // 测试中不使用背景文件
+            stayUpLimitEnabled: false,
+            stayUpLimitHour: 23,
+            stayUpLimitMinute: 0
         )
         
         pomodoroTimer.start()
@@ -1036,7 +1060,10 @@ class PomodoroTimerScreensaverIntegrationTests: XCTestCase {
             longBreakTimeMinutes: 5,
             showLongBreakCancelButton: true,
             accumulateRestTime: false,
-            backgroundFiles: [] // 测试中不使用背景文件
+            backgroundFiles: [], // 测试中不使用背景文件
+            stayUpLimitEnabled: false,
+            stayUpLimitHour: 23,
+            stayUpLimitMinute: 0
         )
         
         // 启动计时器

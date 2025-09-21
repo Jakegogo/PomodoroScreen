@@ -27,7 +27,10 @@ class PlanFeatureTests: XCTestCase {
             longBreakTimeMinutes: 3, // 长休息3分钟
             showLongBreakCancelButton: true,
             accumulateRestTime: true,
-            backgroundFiles: [] // 测试中不使用背景文件
+            backgroundFiles: [], // 测试中不使用背景文件
+            stayUpLimitEnabled: false,
+            stayUpLimitHour: 23,
+            stayUpLimitMinute: 0
         )
     }
     
@@ -123,7 +126,10 @@ class PlanFeatureTests: XCTestCase {
             longBreakTimeMinutes: 15, // 长休息15分钟
             showLongBreakCancelButton: false, // 长休息也不显示取消按钮
             accumulateRestTime: false, // 关闭累积功能
-            backgroundFiles: [] // 测试中不使用背景文件
+            backgroundFiles: [], // 测试中不使用背景文件
+            stayUpLimitEnabled: false,
+            stayUpLimitHour: 23,
+            stayUpLimitMinute: 0
         )
         
         // 验证设置是否正确应用

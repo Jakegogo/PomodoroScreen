@@ -1,0 +1,9 @@
+.VSCodeCounter
+/build
+/dist
+/DerivedData
+Breakpoints_v2.xcbkptlist
+/TestResults.xcresult
+.venv**
+**/__pycache__/**
+

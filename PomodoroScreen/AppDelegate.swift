@@ -8,6 +8,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var overlayWindow: OverlayWindow?
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
+        // 初始化开机自启动管理
+        // 确保LaunchAtLogin的状态与UserDefaults同步
+        let savedLaunchAtLoginEnabled = UserDefaults.standard.bool(forKey: "LaunchAtLoginEnabled")
+        if LaunchAtLogin.shared.isEnabled != savedLaunchAtLoginEnabled {
+            LaunchAtLogin.shared.isEnabled = savedLaunchAtLoginEnabled
+        }
+        
         // 初始化番茄钟计时器
         pomodoroTimer = PomodoroTimer()
         
@@ -72,8 +79,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             backgroundFiles = loadedBackgroundFiles
         }
         
+        // 加载熬夜限制设置
+        let stayUpLimitEnabled = UserDefaults.standard.bool(forKey: "StayUpLimitEnabled") // 默认为 false
+        let stayUpLimitHour = UserDefaults.standard.integer(forKey: "StayUpLimitHour")
+        let stayUpHour = stayUpLimitHour == 0 ? 23 : stayUpLimitHour // 默认23:00
+        let stayUpLimitMinute = UserDefaults.standard.integer(forKey: "StayUpLimitMinute") // 默认为0分钟
+        
         // 应用设置到计时器
-        pomodoroTimer.updateSettings(pomodoroMinutes: pomodoroTime, breakMinutes: breakTime, idleRestart: idleRestartEnabled, idleTime: idleTime, idleActionIsRestart: idleActionIsRestart, screenLockRestart: screenLockRestartEnabled, screenLockActionIsRestart: screenLockActionIsRestart, screensaverRestart: screensaverRestartEnabled, screensaverActionIsRestart: screensaverActionIsRestart, showCancelRestButton: showCancelRestButton, longBreakCycle: longBreakCycle, longBreakTimeMinutes: longBreakTimeMinutes, showLongBreakCancelButton: showLongBreakCancelButton, accumulateRestTime: accumulateRestTime, backgroundFiles: backgroundFiles)
+        pomodoroTimer.updateSettings(pomodoroMinutes: pomodoroTime, breakMinutes: breakTime, idleRestart: idleRestartEnabled, idleTime: idleTime, idleActionIsRestart: idleActionIsRestart, screenLockRestart: screenLockRestartEnabled, screenLockActionIsRestart: screenLockActionIsRestart, screensaverRestart: screensaverRestartEnabled, screensaverActionIsRestart: screensaverActionIsRestart, showCancelRestButton: showCancelRestButton, longBreakCycle: longBreakCycle, longBreakTimeMinutes: longBreakTimeMinutes, showLongBreakCancelButton: showLongBreakCancelButton, accumulateRestTime: accumulateRestTime, backgroundFiles: backgroundFiles, stayUpLimitEnabled: stayUpLimitEnabled, stayUpLimitHour: stayUpHour, stayUpLimitMinute: stayUpLimitMinute)
         
         // 如果启用自动启动，则启动计时器
         if autoStartEnabled {
@@ -84,6 +97,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func showOverlay() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
+            
+            // 如果遮罩窗口已经存在且可见，不要重复创建
+            if let existingWindow = self.overlayWindow, existingWindow.isVisible {
+                print("⚠️ Overlay window already visible, skipping duplicate creation")
+                return
+            }
+            
+            // 清理可能存在的旧窗口
+            self.overlayWindow?.orderOut(nil)
+            self.overlayWindow = nil
+            
+            // 创建新的遮罩窗口
             self.overlayWindow = OverlayWindow(timer: self.pomodoroTimer)
             self.overlayWindow?.showOverlay()
         }

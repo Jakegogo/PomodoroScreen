@@ -7,6 +7,7 @@ class OverlayWindow: NSWindow {
     
     private var overlayView: OverlayView!
     private var dismissTimer: Timer?
+    private var timer: PomodoroTimer? // 添加timer引用
     
     // 背景文件相关属性
     private var backgroundFiles: [BackgroundFile] = []
@@ -39,6 +40,9 @@ class OverlayWindow: NSWindow {
             backing: .buffered,
             defer: false
         )
+        
+        // 设置timer引用
+        self.timer = timer
         
         // 获取背景文件设置并切换到下一个背景
         self.backgroundFiles = timer.getBackgroundFiles()
@@ -393,6 +397,15 @@ class OverlayWindow: NSWindow {
         // 停止并清理背景
         cleanupBackground()
         
+        // 通知计时器遮罩窗口即将关闭
+        if let timer = self.timer {
+            // 如果是用户主动取消休息，调用cancelBreak
+            // 如果是自动结束，则开始下一个番茄钟
+            if timer.isInRestPeriod {
+                timer.cancelBreak()
+            }
+        }
+        
         // 添加淡出动画效果
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.3
@@ -503,7 +516,20 @@ class OverlayView: NSView {
     
     private func setupMessageLabel() {
         messageLabel = NSTextField(frame: NSRect(x: 0, y: 0, width: 800, height: 200))
-        messageLabel.stringValue = "番茄钟时间到！\n\n休息时间，3分钟后自动恢复"
+        
+        // 根据是否为熬夜时间显示不同消息
+        if let timer = timer, timer.isStayUpTime {
+            messageLabel.stringValue = "🌙 熬夜时间到了，该休息了！\n\n为了您的健康，请停止工作"
+        } else {
+            // 获取当前休息时间信息并显示
+            if let timer = timer {
+                let breakInfo = timer.getCurrentBreakInfo()
+                let breakType = breakInfo.isLongBreak ? "长休息" : "休息"
+                messageLabel.stringValue = "番茄钟时间到！\n\n\(breakType)时间，\(breakInfo.breakMinutes)分钟后自动恢复"
+            } else {
+                messageLabel.stringValue = "番茄钟时间到！\n\n休息时间"
+            }
+        }
         messageLabel.isEditable = false
         messageLabel.isSelectable = false
         messageLabel.isBezeled = false

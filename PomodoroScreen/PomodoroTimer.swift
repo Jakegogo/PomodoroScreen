@@ -29,6 +29,7 @@ class PomodoroTimer: ObservableObject {
     private var remainingTime: TimeInterval = 25 * 60 // 默认25分钟
     private var pomodoroTime: TimeInterval = 25 * 60 // 可配置的番茄钟时间
     private var breakTime: TimeInterval = 3 * 60 // 可配置的休息时间
+    // 注意：isInRestPeriod 和 TimerType 现在由状态机管理
     
     // 计划相关属性
     private var longBreakTime: TimeInterval = 5 * 60 // 长休息时间
@@ -48,6 +49,12 @@ class PomodoroTimer: ObservableObject {
     private var idleTimer: Timer?
     private var lastActivityTime: Date = Date()
     
+    // 熬夜功能相关属性
+    internal var stayUpLimitEnabled: Bool = false // 是否启用熬夜限制
+    internal var stayUpLimitHour: Int = 23 // 熬夜限制小时（21-1点范围）
+    internal var stayUpLimitMinute: Int = 0 // 熬夜限制分钟（0, 15, 30, 45）
+    internal var isStayUpTime: Bool = false // 当前是否处于熬夜时间
+    
     // 计时器状态
     private var isPaused: Bool = false
     
@@ -61,7 +68,16 @@ class PomodoroTimer: ObservableObject {
     }
     
     var shouldShowCancelRestButton: Bool {
+        // 如果是熬夜时间，不显示取消按钮
+        if isStayUpTime {
+            return false
+        }
         return isLongBreak ? showLongBreakCancelButton : showCancelRestButton
+    }
+    
+    // 便利属性：通过状态机检查是否处于休息期间
+    var isInRestPeriod: Bool {
+        return autoRestartStateMachine.isInRestPeriod()
     }
     
     // 测试专用：提供对状态机的访问
@@ -127,6 +143,12 @@ class PomodoroTimer: ObservableObject {
     // MARK: - Public Methods
     
     func start() {
+        // 检查是否处于熬夜时间，如果是则直接触发熬夜遮罩
+        if stayUpLimitEnabled && checkStayUpTime() {
+            triggerStayUpOverlay()
+            return
+        }
+        
         stop() // 确保之前的计时器已停止
         
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
@@ -135,6 +157,11 @@ class PomodoroTimer: ObservableObject {
         
         // 通知状态机计时器已启动
         processAutoRestartEvent(.timerStarted)
+        
+        // 开始熬夜监控（如果启用）
+        if stayUpLimitEnabled {
+            startStayUpMonitoring()
+        }
         
         // 立即更新一次显示
         updateTimeDisplay()
@@ -162,13 +189,22 @@ class PomodoroTimer: ObservableObject {
     
     func resume() {
         guard isPaused && timer == nil else { return }
+        
+        // 检查剩余时间是否有效
+        if remainingTime <= 0 {
+            print("⚠️ Resume skipped: remaining time is \(remainingTime), resetting timer instead")
+            remainingTime = 0
+            updateTimeDisplay()
+            return
+        }
+        
         isPaused = false
         
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.updateTimer()
         }
         
-        print("▶️ Timer resumed")
+        print("▶️ Timer resumed, remaining time: \(Int(remainingTime/60)):\(String(format: "%02d", Int(remainingTime) % 60))")
         
         // 通知状态机计时器已启动
         processAutoRestartEvent(.timerStarted)
@@ -182,7 +218,7 @@ class PomodoroTimer: ObservableObject {
         updateTimeDisplay()
     }
     
-    func updateSettings(pomodoroMinutes: Int, breakMinutes: Int, idleRestart: Bool, idleTime: Int, idleActionIsRestart: Bool, screenLockRestart: Bool, screenLockActionIsRestart: Bool, screensaverRestart: Bool, screensaverActionIsRestart: Bool, showCancelRestButton: Bool, longBreakCycle: Int, longBreakTimeMinutes: Int, showLongBreakCancelButton: Bool, accumulateRestTime: Bool, backgroundFiles: [BackgroundFile]) {
+    func updateSettings(pomodoroMinutes: Int, breakMinutes: Int, idleRestart: Bool, idleTime: Int, idleActionIsRestart: Bool, screenLockRestart: Bool, screenLockActionIsRestart: Bool, screensaverRestart: Bool, screensaverActionIsRestart: Bool, showCancelRestButton: Bool, longBreakCycle: Int, longBreakTimeMinutes: Int, showLongBreakCancelButton: Bool, accumulateRestTime: Bool, backgroundFiles: [BackgroundFile], stayUpLimitEnabled: Bool, stayUpLimitHour: Int, stayUpLimitMinute: Int) {
         let oldPomodoroTime = pomodoroTime
         
         pomodoroTime = TimeInterval(pomodoroMinutes * 60)
@@ -196,6 +232,9 @@ class PomodoroTimer: ObservableObject {
         self.showLongBreakCancelButton = showLongBreakCancelButton
         self.accumulateRestTime = accumulateRestTime
         self.backgroundFiles = backgroundFiles
+        
+        // 更新熬夜限制设置
+        updateStayUpSettings(enabled: stayUpLimitEnabled, hour: stayUpLimitHour, minute: stayUpLimitMinute)
         
         // 更新状态机设置
         let newSettings = AutoRestartStateMachine.AutoRestartSettings(
@@ -256,6 +295,21 @@ class PomodoroTimer: ObservableObject {
         return backgroundFiles
     }
     
+    /// 获取当前休息时间信息
+    func getCurrentBreakInfo() -> (isLongBreak: Bool, breakMinutes: Int) {
+        if isLongBreak {
+            // 长休息时间（包括累积时间）
+            var totalLongBreakTime = longBreakTime
+            if accumulateRestTime && accumulatedRestTime > 0 {
+                totalLongBreakTime += accumulatedRestTime
+            }
+            return (true, Int(totalLongBreakTime / 60))
+        } else {
+            // 短休息时间
+            return (false, Int(breakTime / 60))
+        }
+    }
+    
     func getNextBackgroundIndex() -> Int {
         guard !backgroundFiles.isEmpty else { return 0 }
         
@@ -272,8 +326,8 @@ class PomodoroTimer: ObservableObject {
     }
     
     func triggerFinish() {
-        // 立即触发遮罩层显示，用于测试功能（不停止计时器）
-        onTimerFinished?()
+        // 立即触发计时器完成逻辑，用于测试功能
+        timerFinished()
     }
     
     // MARK: - Private Methods
@@ -284,6 +338,8 @@ class PomodoroTimer: ObservableObject {
         updateTimeDisplay()
         
         if remainingTime <= 0 {
+            // 确保时间不会变成负数
+            remainingTime = 0
             timerFinished()
         }
     }
@@ -296,10 +352,23 @@ class PomodoroTimer: ObservableObject {
     private func timerFinished() {
         stop()
         
-        // 如果当前是番茄钟计时（不是休息），增加完成计数
-        if !isInBreak {
+        let currentTimerType = autoRestartStateMachine.getCurrentTimerType()
+        
+        switch currentTimerType {
+        case .pomodoro:
+            // 番茄钟完成
             completedPomodoros += 1
             print("🍅 完成第 \(completedPomodoros) 个番茄钟")
+            
+            // 通过状态机处理番茄钟完成事件
+            processAutoRestartEvent(.pomodoroFinished)
+            
+        case .shortBreak, .longBreak:
+            // 休息结束
+            print("✅ Rest period ended")
+            
+            // 通过状态机处理休息完成事件
+            processAutoRestartEvent(.restFinished)
         }
         
         onTimerFinished?()
@@ -329,14 +398,19 @@ class PomodoroTimer: ObservableObject {
     /// 启动短休息
     private func startShortBreak() {
         isLongBreak = false
+        autoRestartStateMachine.setTimerType(.shortBreak)
         remainingTime = breakTime
         print("☕ 开始短休息，时长 \(Int(breakTime/60)) 分钟")
+        
+        // 通过状态机处理休息开始事件
+        processAutoRestartEvent(.restStarted)
         start()
     }
     
     /// 启动长休息
     private func startLongBreak() {
         isLongBreak = true
+        autoRestartStateMachine.setTimerType(.longBreak)
         
         // 计算长休息时间（包括累积的时间）
         var totalLongBreakTime = longBreakTime
@@ -348,6 +422,9 @@ class PomodoroTimer: ObservableObject {
         
         remainingTime = totalLongBreakTime
         print("🌟 开始长休息（第 \(completedPomodoros/longBreakCycle) 次），时长 \(Int(totalLongBreakTime/60)) 分钟")
+        
+        // 通过状态机处理休息开始事件
+        processAutoRestartEvent(.restStarted)
         start()
     }
     
@@ -362,14 +439,21 @@ class PomodoroTimer: ObservableObject {
         stop()
         isLongBreak = false
         
+        print("🚫 Rest period cancelled by user")
+        
+        // 通过状态机处理休息取消事件
+        processAutoRestartEvent(.restCancelled)
+        
         // 重新开始番茄钟
         remainingTime = pomodoroTime
         start()
     }
     
     private func formatTime(_ time: TimeInterval) -> String {
-        let minutes = Int(time) / 60
-        let seconds = Int(time) % 60
+        // 防止显示负数时间，最小显示为 00:00
+        let safeTime = max(0, time)
+        let minutes = Int(safeTime) / 60
+        let seconds = Int(safeTime) % 60
         return String(format: "%02d:%02d", minutes, seconds)
     }
     
@@ -392,6 +476,13 @@ class PomodoroTimer: ObservableObject {
             performResume()
         case .restartTimer:
             performRestart()
+        case .showRestOverlay:
+            // 显示休息遮罩，这个动作会触发onTimerFinished回调
+            // 不需要额外操作，因为timerFinished已经处理了
+            break
+        case .startNextPomodoro:
+            // 开始下一个番茄钟
+            performStartNextPomodoro()
         }
     }
     
@@ -416,6 +507,14 @@ class PomodoroTimer: ObservableObject {
             return
         }
         
+        // 检查剩余时间是否有效，如果时间已经用完或为负数，则不恢复
+        if remainingTime <= 0 {
+            print("⚠️ Timer resume skipped: remaining time is \(remainingTime), triggering finish instead")
+            remainingTime = 0
+            timerFinished()
+            return
+        }
+        
         // 确保设置为非暂停状态
         isPaused = false
         
@@ -424,7 +523,7 @@ class PomodoroTimer: ObservableObject {
             self?.updateTimer()
         }
         
-        print("▶️ Timer resumed by state machine")
+        print("▶️ Timer resumed by state machine, remaining time: \(Int(remainingTime/60)):\(String(format: "%02d", Int(remainingTime) % 60))")
         updateTimeDisplay()
     }
     
@@ -433,13 +532,41 @@ class PomodoroTimer: ObservableObject {
         timer?.invalidate()
         timer = nil
         isPaused = false
+        
+        // 根据状态机的计时器类型设置剩余时间
+        let currentTimerType = autoRestartStateMachine.getCurrentTimerType()
+        switch currentTimerType {
+        case .pomodoro:
+            remainingTime = pomodoroTime
+        case .shortBreak:
+            remainingTime = breakTime
+        case .longBreak:
+            remainingTime = longBreakTime
+        }
+        
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.updateTimer()
+        }
+        
+        print("🔄 Timer restarted by state machine for \(currentTimerType)")
+        updateTimeDisplay()
+    }
+    
+    /// 执行开始下一个番茄钟操作（不触发状态机事件）
+    private func performStartNextPomodoro() {
+        timer?.invalidate()
+        timer = nil
+        isPaused = false
+        
+        // 重置为番茄钟计时
+        autoRestartStateMachine.setTimerType(.pomodoro)
         remainingTime = pomodoroTime
         
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.updateTimer()
         }
         
-        print("🔄 Timer restarted by state machine")
+        print("🍅 Starting next pomodoro")
         updateTimeDisplay()
     }
     
@@ -566,6 +693,90 @@ class PomodoroTimer: ObservableObject {
         let currentState = autoRestartStateMachine.getCurrentState()
         if currentState == .timerRunning {
             updateLastActivityTime()
+        }
+    }
+    
+    // MARK: - 熬夜限制功能
+    
+    /// 检查当前时间是否处于熬夜限制时间范围内
+    /// - Returns: 如果当前时间超过设定的熬夜限制时间则返回true
+    private func checkStayUpTime() -> Bool {
+        guard stayUpLimitEnabled else { return false }
+        
+        let now = Date()
+        let calendar = Calendar.current
+        let currentHour = calendar.component(.hour, from: now)
+        let currentMinute = calendar.component(.minute, from: now)
+        
+        // 将当前时间转换为分钟数（从00:00开始计算）
+        let currentTimeInMinutes = currentHour * 60 + currentMinute
+        
+        // 将设定的熬夜限制时间转换为分钟数
+        let limitTimeInMinutes = stayUpLimitHour * 60 + stayUpLimitMinute
+        
+        // 处理跨日期的情况
+        if stayUpLimitHour >= 21 {
+            // 如果限制时间是21:00-23:59，则当前时间超过限制时间就算熬夜
+            return currentTimeInMinutes >= limitTimeInMinutes
+        } else {
+            // 如果限制时间是00:00-01:00（次日），则需要考虑跨日期
+            // 当前时间在00:00-01:00之间，或者在21:00-23:59之间都算熬夜
+            return currentTimeInMinutes <= limitTimeInMinutes || currentTimeInMinutes >= 21 * 60
+        }
+    }
+    
+    /// 更新熬夜状态并触发相应的处理
+    private func updateStayUpStatus() {
+        let wasStayUpTime = isStayUpTime
+        isStayUpTime = checkStayUpTime()
+        
+        // 如果从非熬夜时间进入熬夜时间，立即触发熬夜遮罩
+        if !wasStayUpTime && isStayUpTime {
+            print("🌙 检测到熬夜时间，强制进入休息模式")
+            triggerStayUpOverlay()
+        }
+    }
+    
+    /// 触发熬夜遮罩层（强制休息）
+    private func triggerStayUpOverlay() {
+        // 停止当前计时器
+        stop()
+        
+        // 设置为熬夜休息状态
+        isStayUpTime = true
+        
+        // 触发遮罩层显示回调
+        onTimerFinished?()
+    }
+    
+    /// 开始定期检查熬夜时间（每分钟检查一次）
+    private func startStayUpMonitoring() {
+        guard stayUpLimitEnabled else { return }
+        
+        // 立即检查一次
+        updateStayUpStatus()
+        
+        // 设置定时器，每分钟检查一次
+        Timer.scheduledTimer(withTimeInterval: 60.0, repeats: true) { [weak self] _ in
+            self?.updateStayUpStatus()
+        }
+    }
+    
+    /// 更新熬夜设置
+    /// - Parameters:
+    ///   - enabled: 是否启用熬夜限制
+    ///   - hour: 限制小时（21-1）
+    ///   - minute: 限制分钟（0, 15, 30, 45）
+    func updateStayUpSettings(enabled: Bool, hour: Int, minute: Int) {
+        stayUpLimitEnabled = enabled
+        stayUpLimitHour = hour
+        stayUpLimitMinute = minute
+        
+        print("🌙 熬夜设置更新: \(enabled ? "启用" : "禁用"), 时间: \(hour):\(String(format: "%02d", minute))")
+        
+        // 如果启用了熬夜限制，立即开始监控
+        if enabled {
+            startStayUpMonitoring()
         }
     }
 }
