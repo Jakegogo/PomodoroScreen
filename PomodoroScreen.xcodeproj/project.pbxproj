@@ -18,6 +18,8 @@
 		A1234567890ABCDEF015 /* SettingsWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF016 /* SettingsWindow.swift */; };
 		CD1234567890ABCDEF001 /* CountdownNotificationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD1234567890ABCDEF002 /* CountdownNotificationWindow.swift */; };
 		FDF3445FA03D44929CE879D5 /* LaunchAtLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F523799673D4942B090EFE3 /* LaunchAtLogin.swift */; };
+		PW1234567890ABCDEF001 /* StatusBarPopupWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = PW1234567890ABCDEF002 /* StatusBarPopupWindow.swift */; };
+		HR1234567890ABCDEF001 /* HealthRingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1234567890ABCDEF002 /* HealthRingsView.swift */; };
 		ST1234567890ABCDEF001 /* StatisticsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST1234567890ABCDEF002 /* StatisticsModels.swift */; };
 		ST1234567890ABCDEF003 /* StatisticsDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST1234567890ABCDEF004 /* StatisticsDatabase.swift */; };
 		ST1234567890ABCDEF005 /* StatisticsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST1234567890ABCDEF006 /* StatisticsManager.swift */; };
@@ -51,6 +53,8 @@
 		A1234567890ABCDEF010 /* PomodoroScreen.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PomodoroScreen.entitlements; sourceTree = "<group>"; };
 		A1234567890ABCDEF016 /* SettingsWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindow.swift; sourceTree = "<group>"; };
 		CD1234567890ABCDEF002 /* CountdownNotificationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountdownNotificationWindow.swift; sourceTree = "<group>"; };
+		PW1234567890ABCDEF002 /* StatusBarPopupWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarPopupWindow.swift; sourceTree = "<group>"; };
+		HR1234567890ABCDEF002 /* HealthRingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthRingsView.swift; sourceTree = "<group>"; };
 		ST1234567890ABCDEF002 /* StatisticsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsModels.swift; sourceTree = "<group>"; };
 		ST1234567890ABCDEF004 /* StatisticsDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsDatabase.swift; sourceTree = "<group>"; };
 		ST1234567890ABCDEF006 /* StatisticsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsManager.swift; sourceTree = "<group>"; };
@@ -99,6 +103,8 @@
 				A1234567890ABCDEF006 /* StatusBarController.swift */,
 				A1234567890ABCDEF008 /* OverlayWindow.swift */,
 				CD1234567890ABCDEF002 /* CountdownNotificationWindow.swift */,
+				PW1234567890ABCDEF002 /* StatusBarPopupWindow.swift */,
+				HR1234567890ABCDEF002 /* HealthRingsView.swift */,
 				A1234567890ABCDEF016 /* SettingsWindow.swift */,
 				ST1234567890ABCDEF002 /* StatisticsModels.swift */,
 				ST1234567890ABCDEF004 /* StatisticsDatabase.swift */,
@@ -259,6 +265,8 @@
 				A1234567890ABCDEF007 /* OverlayWindow.swift in Sources */,
 				234823262E7EAAC500DC507E /* AutoRestartStateMachine.swift in Sources */,
 				CD1234567890ABCDEF001 /* CountdownNotificationWindow.swift in Sources */,
+				PW1234567890ABCDEF001 /* StatusBarPopupWindow.swift in Sources */,
+				HR1234567890ABCDEF001 /* HealthRingsView.swift in Sources */,
 				A1234567890ABCDEF015 /* SettingsWindow.swift in Sources */,
 				ST1234567890ABCDEF001 /* StatisticsModels.swift in Sources */,
 				ST1234567890ABCDEF003 /* StatisticsDatabase.swift in Sources */,

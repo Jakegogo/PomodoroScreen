@@ -7,6 +7,9 @@ class StatusBarController {
     private var statusItem: NSStatusItem
     private var pomodoroTimer: PomodoroTimer
     private var settingsWindow: SettingsWindow?
+    private var popupWindow: StatusBarPopupWindow?
+    private var isPopupVisible = false
+    private var globalEventMonitor: Any?
     
     // MARK: - Initialization
     
@@ -35,11 +38,117 @@ class StatusBarController {
         // 设置初始显示
         button.title = "🍅 25:00"
         
-        // 创建菜单
+        // 设置点击事件，不再使用菜单
+        button.target = self
+        button.action = #selector(togglePopup)
+        
+        // 创建弹出窗口
+        setupPopupWindow()
+    }
+    
+    private func setupPopupWindow() {
+        popupWindow = StatusBarPopupWindow()
+        
+        // 设置菜单按钮点击事件
+        popupWindow?.setMenuButtonAction { [weak self] in
+            self?.showContextMenu()
+        }
+        
+        // 更新健康环数据
+        updateHealthRingsData()
+    }
+    
+    @objc private func togglePopup() {
+        guard popupWindow != nil else { return }
+        
+        if isPopupVisible {
+            hidePopup()
+        } else {
+            showPopup()
+        }
+    }
+    
+    private func showPopup() {
+        guard let popup = popupWindow,
+              let button = statusItem.button else { return }
+        
+        // 更新健康环数据
+        updateHealthRingsData()
+        
+        // 更新窗口位置
+        popup.updatePosition(relativeTo: button)
+        
+        // 显示弹出窗口
+        popup.showPopup()
+        isPopupVisible = true
+        
+        // 监听点击事件以隐藏弹出窗口 - 暂时禁用自动隐藏
+        // globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+        //     self?.handleGlobalClick(event)
+        // }
+    }
+    
+    private func hidePopup() {
+        popupWindow?.hidePopup()
+        isPopupVisible = false
+        
+        if let monitor = globalEventMonitor {
+            NSEvent.removeMonitor(monitor)
+            globalEventMonitor = nil
+        }
+    }
+    
+    private func handleGlobalClick(_ event: NSEvent) {
+        guard let popup = popupWindow else { return }
+        
+        // 获取全局鼠标位置
+        let clickLocation = NSEvent.mouseLocation
+        let windowFrame = popup.frame
+        
+        // 如果点击在弹出窗口外部，隐藏窗口
+        if !windowFrame.contains(clickLocation) {
+            hidePopup()
+        }
+    }
+    
+    private func updateHealthRingsData() {
+        // 从统计管理器获取今日数据
+        let reportData = StatisticsManager.shared.generateTodayReport()
+        let daily = reportData.dailyStats
+        
+        // 计算各项指标（0-100分）
+        let restAdequacyScore = daily.restAdequacyScore
+        let workIntensityScore = daily.workIntensityScore
+        let focusScore = daily.focusScore
+        let healthScore = daily.healthScore
+        
+        // 转换为0-1范围，供HealthRingsView使用
+        // 如果没有数据，使用一些示例数据来展示圆环效果
+        let restAdequacy = restAdequacyScore > 0 ? restAdequacyScore / 100.0 : 0.3
+        let workIntensity = workIntensityScore > 0 ? workIntensityScore / 100.0 : 0.6
+        let focus = focusScore > 0 ? focusScore / 100.0 : 0.8
+        let health = healthScore > 20 ? healthScore / 100.0 : 0.4  // healthScore默认最低20
+        
+        // 调试输出，查看实际数值
+        print("🔍 Health Ring Scores: rest=\(restAdequacyScore), work=\(workIntensityScore), focus=\(focusScore), health=\(healthScore)")
+        print("🔍 Ring Progress Values (0-1): rest=\(restAdequacy), work=\(workIntensity), focus=\(focus), health=\(health)")
+        
+        popupWindow?.updateHealthData(
+            restAdequacy: restAdequacy,
+            workIntensity: workIntensity,
+            focus: focus,
+            health: health
+        )
+    }
+    
+    private func showContextMenu() {
+        // 创建上下文菜单
         let menu = NSMenu()
         
         // 开始/暂停按钮
-        let startItem = NSMenuItem(title: "开始", action: #selector(startTimer), keyEquivalent: "")
+        let startItem = NSMenuItem(title: pomodoroTimer.isRunning ? "停止" : "开始", 
+                                 action: pomodoroTimer.isRunning ? #selector(stopTimer) : #selector(startTimer), 
+                                 keyEquivalent: "")
         startItem.target = self
         menu.addItem(startItem)
         
@@ -58,7 +167,7 @@ class StatusBarController {
         menu.addItem(NSMenuItem.separator())
         
         // 今日报告按钮
-        let reportItem = NSMenuItem(title: "📊 今日报告", action: #selector(showTodayReport), keyEquivalent: "r")
+        let reportItem = NSMenuItem(title: "今日报告", action: #selector(showTodayReport), keyEquivalent: "r")
         reportItem.target = self
         menu.addItem(reportItem)
         
@@ -72,40 +181,29 @@ class StatusBarController {
         quitItem.target = self
         menu.addItem(quitItem)
         
-        statusItem.menu = menu
+        // 在鼠标位置显示菜单
+        menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+        
+        // 菜单显示后隐藏弹出窗口
+        hidePopup()
     }
     
     @objc private func startTimer() {
         pomodoroTimer.start()
-        
-        // 更新菜单项标题
-        if let menu = statusItem.menu,
-           let startItem = menu.item(at: 0) {
-            startItem.title = "停止"
-            startItem.action = #selector(stopTimer)
-        }
+        // 更新健康环数据
+        updateHealthRingsData()
     }
     
     @objc private func stopTimer() {
         pomodoroTimer.stop()
-        
-        // 更新菜单项标题
-        if let menu = statusItem.menu,
-           let stopItem = menu.item(at: 0) {
-            stopItem.title = "开始"
-            stopItem.action = #selector(startTimer)
-        }
+        // 更新健康环数据
+        updateHealthRingsData()
     }
     
     @objc private func resetTimer() {
         pomodoroTimer.reset()
-        
-        // 重置菜单项
-        if let menu = statusItem.menu,
-           let resetItem = menu.item(at: 0) {
-            resetItem.title = "开始"
-            resetItem.action = #selector(startTimer)
-        }
+        // 更新健康环数据
+        updateHealthRingsData()
     }
     
     @objc private func testFinishTimer() {

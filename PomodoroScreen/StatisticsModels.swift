@@ -68,7 +68,7 @@ struct DailyStatistics {
     
     /// 休息充足度评分 (0-100)
     var restAdequacyScore: Double {
-        guard completedPomodoros > 0 else { return 100 }
+        guard completedPomodoros > 0 else { return 0 }  // 没有完成番茄钟时返回0，而不是100
         
         let expectedBreakTime = Double(completedPomodoros) * 5 * 60  // 每个番茄钟期望5分钟休息
         let actualBreakRatio = totalBreakTime / expectedBreakTime
@@ -88,6 +88,9 @@ struct DailyStatistics {
     
     /// 健康度评分 (0-100)
     var healthScore: Double {
+        // 如果没有任何活动，返回较低的基础分数
+        guard completedPomodoros > 0 || totalWorkTime > 0 else { return 20 }
+        
         var score = 100.0
         
         // 熬夜扣分
@@ -135,7 +138,7 @@ struct WeeklyStatistics {
     
     /// 平均健康度评分
     var averageHealthScore: Double {
-        guard !dailyStats.isEmpty else { return 100 }
+        guard !dailyStats.isEmpty else { return 20 }  // 没有数据时返回较低的基础分数
         return dailyStats.reduce(0) { $0 + $1.healthScore } / Double(dailyStats.count)
     }
     
