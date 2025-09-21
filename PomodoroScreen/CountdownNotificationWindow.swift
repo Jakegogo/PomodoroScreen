@@ -15,13 +15,14 @@ class CountdownNotificationWindow: NSWindow {
         // 获取主屏幕尺寸
         let screenFrame = NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 1920, height: 1080)
         
-        // 设置窗口大小和位置（右上角）
+        // 设置窗口大小和位置（右上角，避开Dock）
         let windowWidth: CGFloat = 200
         let windowHeight: CGFloat = 60
         let margin: CGFloat = 20
+        let dockWidth: CGFloat = 80  // 预估Dock宽度
         
         let windowFrame = NSRect(
-            x: screenFrame.maxX - windowWidth - margin,
+            x: screenFrame.maxX - windowWidth - margin - dockWidth,
             y: screenFrame.maxY - windowHeight - margin,
             width: windowWidth,
             height: windowHeight
@@ -56,7 +57,7 @@ class CountdownNotificationWindow: NSWindow {
         // 创建背景视图
         backgroundView = NSView(frame: self.contentView!.bounds)
         backgroundView.wantsLayer = true
-        backgroundView.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.8).cgColor
+        backgroundView.layer?.backgroundColor = NSColor.systemOrange.withAlphaComponent(0.9).cgColor
         backgroundView.layer?.cornerRadius = 8
         self.contentView?.addSubview(backgroundView)
         
@@ -67,7 +68,7 @@ class CountdownNotificationWindow: NSWindow {
         messageLabel.isBordered = false
         messageLabel.backgroundColor = NSColor.clear
         messageLabel.textColor = NSColor.white
-        messageLabel.font = NSFont.systemFont(ofSize: 14, weight: .medium)
+        messageLabel.font = NSFont.systemFont(ofSize: 14, weight: .semibold)
         messageLabel.alignment = .center
         messageLabel.stringValue = ""
         backgroundView.addSubview(messageLabel)
@@ -117,9 +118,10 @@ class CountdownNotificationWindow: NSWindow {
         let windowWidth: CGFloat = 200
         let windowHeight: CGFloat = 60
         let margin: CGFloat = 20
+        let dockWidth: CGFloat = 80  // 预估Dock宽度
         
         let newFrame = NSRect(
-            x: screenFrame.maxX - windowWidth - margin,
+            x: screenFrame.maxX - windowWidth - margin - dockWidth,
             y: screenFrame.maxY - windowHeight - margin,
             width: windowWidth,
             height: windowHeight

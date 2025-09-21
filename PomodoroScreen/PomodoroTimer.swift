@@ -45,6 +45,9 @@ class PomodoroTimer: ObservableObject {
     // 倒计时通知窗口
     private var countdownNotificationWindow: CountdownNotificationWindow?
     
+    // 统计管理器
+    private let statisticsManager = StatisticsManager.shared
+    
     // 自动重新计时相关属性
     private var autoRestartStateMachine: AutoRestartStateMachine
     private var idleTimeMinutes: Int = 10
@@ -342,6 +345,15 @@ class PomodoroTimer: ObservableObject {
         updateTimeDisplay()
     }
     
+    // MARK: - 报告功能
+    
+    /// 显示今日工作报告
+    func showTodayReport() {
+        let reportData = statisticsManager.generateTodayReport()
+        let reportWindow = ReportWindow()
+        reportWindow.showReport(with: reportData)
+    }
+    
     // MARK: - Private Methods
     
     private func updateTimer() {
@@ -418,6 +430,9 @@ class PomodoroTimer: ObservableObject {
             completedPomodoros += 1
             print("🍅 完成第 \(completedPomodoros) 个番茄钟")
             
+            // 记录统计数据
+            statisticsManager.recordPomodoroCompleted(duration: pomodoroTime)
+            
             // 通过状态机处理番茄钟完成事件
             processAutoRestartEvent(.pomodoroFinished)
             
@@ -460,6 +475,9 @@ class PomodoroTimer: ObservableObject {
         remainingTime = breakTime
         print("☕ 开始短休息，时长 \(Int(breakTime/60)) 分钟")
         
+        // 记录统计数据
+        statisticsManager.recordShortBreakStarted(duration: breakTime)
+        
         // 通过状态机处理休息开始事件
         processAutoRestartEvent(.restStarted)
         start()
@@ -481,6 +499,9 @@ class PomodoroTimer: ObservableObject {
         remainingTime = totalLongBreakTime
         print("🌟 开始长休息（第 \(completedPomodoros/longBreakCycle) 次），时长 \(Int(totalLongBreakTime/60)) 分钟")
         
+        // 记录统计数据
+        statisticsManager.recordLongBreakStarted(duration: totalLongBreakTime)
+        
         // 通过状态机处理休息开始事件
         processAutoRestartEvent(.restStarted)
         start()
@@ -493,6 +514,16 @@ class PomodoroTimer: ObservableObject {
             accumulatedRestTime += remainingTime
             print("💾 累积短休息剩余时间 \(Int(remainingTime/60)) 分钟")
         }
+        
+        // 记录取消休息统计
+        let breakType = isLongBreak ? "long" : "short"
+        let plannedDuration = isLongBreak ? longBreakTime : breakTime
+        let actualDuration = plannedDuration - remainingTime
+        statisticsManager.recordBreakCancelled(
+            breakType: breakType,
+            plannedDuration: plannedDuration,
+            actualDuration: actualDuration
+        )
         
         stop()
         isLongBreak = false
@@ -797,6 +828,13 @@ class PomodoroTimer: ObservableObject {
     
     /// 触发熬夜遮罩层（强制休息）
     private func triggerStayUpOverlay() {
+        // 记录熬夜模式触发统计
+        let limitTimeString = String(format: "%02d:%02d", stayUpLimitHour, stayUpLimitMinute)
+        statisticsManager.recordStayUpLateTriggered(
+            triggerTime: Date(),
+            limitTime: limitTimeString
+        )
+        
         // 停止当前计时器
         stop()
         

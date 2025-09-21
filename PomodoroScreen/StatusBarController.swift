@@ -57,6 +57,11 @@ class StatusBarController {
         
         menu.addItem(NSMenuItem.separator())
         
+        // 今日报告按钮
+        let reportItem = NSMenuItem(title: "📊 今日报告", action: #selector(showTodayReport), keyEquivalent: "r")
+        reportItem.target = self
+        menu.addItem(reportItem)
+        
         // 设置按钮
         let settingsItem = NSMenuItem(title: "设置", action: #selector(showSettings), keyEquivalent: ",")
         settingsItem.target = self
@@ -123,6 +128,11 @@ class StatusBarController {
         }
         
         settingsWindow?.showSettings()
+    }
+    
+    @objc private func showTodayReport() {
+        pomodoroTimer.showTodayReport()
+        NSApp.activate(ignoringOtherApps: true)
     }
     
     private func applySettings(autoStart: Bool, pomodoroTime: Int, breakTime: Int, idleRestart: Bool, idleTime: Int, idleActionIsRestart: Bool, screenLockRestart: Bool, screenLockActionIsRestart: Bool, screensaverRestart: Bool, screensaverActionIsRestart: Bool, showCancelRestButton: Bool, longBreakCycle: Int, longBreakTimeMinutes: Int, showLongBreakCancelButton: Bool, accumulateRestTime: Bool, backgroundFiles: [BackgroundFile], stayUpLimitEnabled: Bool, stayUpLimitHour: Int, stayUpLimitMinute: Int) {

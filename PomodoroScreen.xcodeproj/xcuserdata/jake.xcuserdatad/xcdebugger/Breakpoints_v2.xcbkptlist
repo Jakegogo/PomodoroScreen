@@ -16,7 +16,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "296"
             endingLineNumber = "296"
-            landmarkName = "getRemainingTimeString()"
+            landmarkName = "updateRemainingTimeIfNeeded(oldPomodoroTime:newPomodoroTime:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -32,8 +32,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "101"
             endingLineNumber = "101"
-            landmarkName = "PomodoroTimer"
-            landmarkType = "3">
+            landmarkName = "simulateScreensaverStop()"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -64,8 +64,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "150"
             endingLineNumber = "150"
-            landmarkName = "start()"
-            landmarkType = "7">
+            landmarkName = "PomodoroTimer"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -128,8 +128,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "99"
             endingLineNumber = "99"
-            landmarkName = "simulateScreensaverStop()"
-            landmarkType = "7">
+            landmarkName = "PomodoroTimer"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -192,8 +192,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "298"
             endingLineNumber = "298"
-            landmarkName = "getRemainingTimeString()"
-            landmarkType = "7">
+            landmarkName = "PomodoroTimer"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -240,7 +240,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "297"
             endingLineNumber = "297"
-            landmarkName = "getRemainingTimeString()"
+            landmarkName = "updateRemainingTimeIfNeeded(oldPomodoroTime:newPomodoroTime:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
