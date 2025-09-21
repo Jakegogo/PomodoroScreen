@@ -42,6 +42,9 @@ class PomodoroTimer: ObservableObject {
     private var backgroundFiles: [BackgroundFile] = [] // 遮罩层背景文件列表
     private var currentBackgroundIndex: Int = -1 // 当前背景文件索引，从-1开始，第一次调用时变为0
     
+    // 倒计时通知窗口
+    private var countdownNotificationWindow: CountdownNotificationWindow?
+    
     // 自动重新计时相关属性
     private var autoRestartStateMachine: AutoRestartStateMachine
     private var idleTimeMinutes: Int = 10
@@ -171,6 +174,9 @@ class PomodoroTimer: ObservableObject {
         timer?.invalidate()
         timer = nil
         isPaused = false
+        
+        // 隐藏倒计时通知窗口
+        hideCountdownNotification()
         
         // 通知状态机计时器已停止
         processAutoRestartEvent(.timerStopped)
@@ -330,12 +336,24 @@ class PomodoroTimer: ObservableObject {
         timerFinished()
     }
     
+    // 测试用方法：设置剩余时间
+    func setRemainingTime(_ time: TimeInterval) {
+        remainingTime = time
+        updateTimeDisplay()
+    }
+    
     // MARK: - Private Methods
     
     private func updateTimer() {
         remainingTime -= 1
         
         updateTimeDisplay()
+        
+        // 处理倒计时通知（仅在番茄钟模式下）
+        let currentTimerType = autoRestartStateMachine.getCurrentTimerType()
+        if currentTimerType == .pomodoro {
+            handleCountdownNotification()
+        }
         
         if remainingTime <= 0 {
             // 确保时间不会变成负数
@@ -347,6 +365,46 @@ class PomodoroTimer: ObservableObject {
     private func updateTimeDisplay() {
         let timeString = formatTime(remainingTime)
         onTimeUpdate?(timeString)
+    }
+    
+    // 处理倒计时通知
+    private func handleCountdownNotification() {
+        let seconds = Int(remainingTime)
+        
+        if seconds == 30 {
+            // 提前30秒显示警告
+            showCountdownWarning()
+        } else if seconds <= 10 && seconds > 0 {
+            // 最后10秒显示倒计时
+            showCountdownTimer(seconds)
+        } else if seconds == 0 {
+            // 隐藏通知窗口
+            hideCountdownNotification()
+        }
+    }
+    
+    // 显示30秒警告
+    private func showCountdownWarning() {
+        if countdownNotificationWindow == nil {
+            countdownNotificationWindow = CountdownNotificationWindow()
+        }
+        countdownNotificationWindow?.showWarning()
+        print("⏰ 显示30秒休息警告")
+    }
+    
+    // 显示倒计时
+    private func showCountdownTimer(_ seconds: Int) {
+        if countdownNotificationWindow == nil {
+            countdownNotificationWindow = CountdownNotificationWindow()
+        }
+        countdownNotificationWindow?.showCountdown(seconds)
+        print("⏰ 显示倒计时: \(seconds)秒")
+    }
+    
+    // 隐藏倒计时通知
+    private func hideCountdownNotification() {
+        countdownNotificationWindow?.hideNotification()
+        print("⏰ 隐藏倒计时通知")
     }
     
     private func timerFinished() {
@@ -396,7 +454,7 @@ class PomodoroTimer: ObservableObject {
     }
     
     /// 启动短休息
-    private func startShortBreak() {
+    internal func startShortBreak() {
         isLongBreak = false
         autoRestartStateMachine.setTimerType(.shortBreak)
         remainingTime = breakTime

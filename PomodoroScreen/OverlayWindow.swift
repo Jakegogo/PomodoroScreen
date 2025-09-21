@@ -604,7 +604,7 @@ class OverlayView: NSView {
         cancelButton.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             cancelButton.centerXAnchor.constraint(equalTo: centerXAnchor),
-            cancelButton.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -bounds.height * 0.28), // 距离底部约28%的位置
+            cancelButton.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -bounds.height * 0.2), // 距离底部约20%的位置
             cancelButton.widthAnchor.constraint(equalToConstant: 90),
             cancelButton.heightAnchor.constraint(equalToConstant: 32)
         ])

@@ -16,6 +16,7 @@
 		A1234567890ABCDEF009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF00A /* Assets.xcassets */; };
 		A1234567890ABCDEF00B /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF00C /* MainMenu.xib */; };
 		A1234567890ABCDEF015 /* SettingsWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF016 /* SettingsWindow.swift */; };
+		CD1234567890ABCDEF001 /* CountdownNotificationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD1234567890ABCDEF002 /* CountdownNotificationWindow.swift */; };
 		FDF3445FA03D44929CE879D5 /* LaunchAtLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F523799673D4942B090EFE3 /* LaunchAtLogin.swift */; };
 /* End PBXBuildFile section */
 
@@ -44,6 +45,7 @@
 		A1234567890ABCDEF00F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1234567890ABCDEF010 /* PomodoroScreen.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PomodoroScreen.entitlements; sourceTree = "<group>"; };
 		A1234567890ABCDEF016 /* SettingsWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindow.swift; sourceTree = "<group>"; };
+		CD1234567890ABCDEF002 /* CountdownNotificationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountdownNotificationWindow.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -86,6 +88,7 @@
 				A1234567890ABCDEF004 /* PomodoroTimer.swift */,
 				A1234567890ABCDEF006 /* StatusBarController.swift */,
 				A1234567890ABCDEF008 /* OverlayWindow.swift */,
+				CD1234567890ABCDEF002 /* CountdownNotificationWindow.swift */,
 				A1234567890ABCDEF016 /* SettingsWindow.swift */,
 				5F523799673D4942B090EFE3 /* LaunchAtLogin.swift */,
 				A1234567890ABCDEF00A /* Assets.xcassets */,
@@ -223,6 +226,7 @@
 				A1234567890ABCDEF005 /* StatusBarController.swift in Sources */,
 				A1234567890ABCDEF007 /* OverlayWindow.swift in Sources */,
 				234823262E7EAAC500DC507E /* AutoRestartStateMachine.swift in Sources */,
+				CD1234567890ABCDEF001 /* CountdownNotificationWindow.swift in Sources */,
 				A1234567890ABCDEF015 /* SettingsWindow.swift in Sources */,
 				FDF3445FA03D44929CE879D5 /* LaunchAtLogin.swift in Sources */,
 			);
