@@ -20,7 +20,7 @@ class StatusBarPopupWindow: NSWindow {
     
     convenience init() {
         // 竖直布局：增加窗口高度以容纳控制按钮
-        let windowSize = NSSize(width: 300, height: 500)
+        let windowSize = NSSize(width: 360, height: 500)
         
         // 获取状态栏按钮位置
         let statusBarHeight: CGFloat = 22
@@ -62,10 +62,12 @@ class StatusBarPopupWindow: NSWindow {
     private func setupUI() {
         guard let contentView = self.contentView else { return }
         
-        // 创建背景视图
-        let backgroundView = NSView(frame: contentView.bounds)
+        // 创建毛玻璃背景视图
+        let backgroundView = NSVisualEffectView(frame: contentView.bounds)
+        backgroundView.material = .popover  // 轻度毛玻璃效果，性能较好
+        backgroundView.blendingMode = .behindWindow
+        backgroundView.state = .active
         backgroundView.wantsLayer = true
-        backgroundView.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
         backgroundView.layer?.cornerRadius = 12
         backgroundView.layer?.borderWidth = 1
         backgroundView.layer?.borderColor = NSColor.separatorColor.cgColor
@@ -76,11 +78,11 @@ class StatusBarPopupWindow: NSWindow {
         titleLabel.font = NSFont.systemFont(ofSize: 16, weight: .semibold)
         titleLabel.textColor = NSColor.labelColor
         titleLabel.alignment = .center
-        titleLabel.frame = NSRect(x: 20, y: 460, width: 260, height: 25)
+        titleLabel.frame = NSRect(x: 20, y: 460, width: 320, height: 25)
         contentView.addSubview(titleLabel)
         
         // 右上角菜单按钮 - 适配新的窗口高度
-        menuButton = NSButton(frame: NSRect(x: 255, y: 455, width: 40, height: 40))
+        menuButton = NSButton(frame: NSRect(x: 315, y: 455, width: 40, height: 40))
         menuButton.title = ""
         
         // 创建更大的系统符号图标
@@ -95,7 +97,7 @@ class StatusBarPopupWindow: NSWindow {
         contentView.addSubview(menuButton)
         
         // 健康环视图 - 在更宽的窗口中居中放置，向上调整位置
-        let ringsFrame = NSRect(x: 70, y: 280, width: 160, height: 160)
+        let ringsFrame = NSRect(x: 100, y: 260, width: 160, height: 160)
         healthRingsView = HealthRingsView(frame: ringsFrame)
         
         // 设置健康环点击回调
@@ -119,7 +121,7 @@ class StatusBarPopupWindow: NSWindow {
     
     private func setupControlButtons(in contentView: NSView) {
         // 控制按钮（开始/停止/继续）- 左侧，主要按钮样式
-        controlButton = HoverButton(frame: NSRect(x: 50, y: 200, width: 90, height: 40))
+        controlButton = HoverButton(frame: NSRect(x: 80, y: 150, width: 90, height: 40))
         controlButton.configurePrimaryStyle(title: "开始")
         controlButton.setIcon("play.fill")
         controlButton.target = self
@@ -127,7 +129,7 @@ class StatusBarPopupWindow: NSWindow {
         contentView.addSubview(controlButton)
         
         // 重置按钮 - 右侧，次要按钮样式
-        resetButton = HoverButton(frame: NSRect(x: 160, y: 200, width: 90, height: 40))
+        resetButton = HoverButton(frame: NSRect(x: 190, y: 150, width: 90, height: 40))
         resetButton.configureSecondaryStyle(title: "重置")
         resetButton.setIcon("arrow.counterclockwise")
         resetButton.target = self
@@ -144,8 +146,8 @@ class StatusBarPopupWindow: NSWindow {
         ]
         
         // 竖直布局 - 图例放在按钮下方，行间距更紧凑
-        let startX: CGFloat = 100
-        let startY: CGFloat = 120
+        let startX: CGFloat = 130
+        let startY: CGFloat = 110
         let itemHeight: CGFloat = 20
         
         for (index, item) in legendItems.enumerated() {
