@@ -234,18 +234,24 @@ class StatusBarController {
     
     @objc private func startTimer() {
         pomodoroTimer.start()
+        // 清除图标缓存以立即更新状态
+        clockIconGenerator.clearCache()
         // 更新健康环数据
         updateHealthRingsData()
     }
     
     @objc private func stopTimer() {
         pomodoroTimer.stop()
+        // 清除图标缓存以立即更新状态
+        clockIconGenerator.clearCache()
         // 更新健康环数据
         updateHealthRingsData()
     }
     
     @objc private func resetTimer() {
         pomodoroTimer.reset()
+        // 清除图标缓存以立即更新状态
+        clockIconGenerator.clearCache()
         // 更新健康环数据
         updateHealthRingsData()
     }

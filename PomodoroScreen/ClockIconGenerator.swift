@@ -15,15 +15,73 @@ class ClockIconGenerator {
     private let clockRadius: CGFloat = 8
     private let handWidth: CGFloat = 1.5
     
+    // 缓存相关属性
+    private var cachedIcon: NSImage?
+    private var lastUpdateTime: Date = Date.distantPast
+    private var lastProgress: Double = -1.0
+    private let cacheUpdateInterval: TimeInterval = 5.0 // 5秒更新间隔
+    
     // MARK: - Public Methods
     
-    /// 生成时钟样式的状态栏图标
+    /// 生成时钟样式的状态栏图标（带缓存机制）
     /// - Parameters:
     ///   - progress: 倒计时进度 (0.0 - 1.0)，0表示开始，1表示结束
     ///   - totalTime: 总时间（秒）
     ///   - remainingTime: 剩余时间（秒）
     /// - Returns: NSImage对象
     func generateClockIcon(progress: Double, totalTime: TimeInterval, remainingTime: TimeInterval) -> NSImage {
+        let currentTime = Date()
+        let timeSinceLastUpdate = currentTime.timeIntervalSince(lastUpdateTime)
+        
+        // 检查是否需要更新缓存
+        let shouldUpdateCache = cachedIcon == nil || 
+                               timeSinceLastUpdate >= cacheUpdateInterval ||
+                               abs(progress - lastProgress) > 0.01 // 进度变化超过1%时也更新
+        
+        if shouldUpdateCache {
+            // 生成新的图标
+            cachedIcon = createClockIcon(progress: progress)
+            lastUpdateTime = currentTime
+            lastProgress = progress
+            
+            #if DEBUG
+            print("🕐 Clock icon cache updated - Progress: \(String(format: "%.1f", progress * 100))%")
+            #endif
+        }
+        
+        return cachedIcon ?? createClockIcon(progress: progress)
+    }
+    
+    /// 清除图标缓存（在计时器重置或状态变化时调用）
+    func clearCache() {
+        cachedIcon = nil
+        lastUpdateTime = Date.distantPast
+        lastProgress = -1.0
+        
+        #if DEBUG
+        print("🕐 Clock icon cache cleared")
+        #endif
+    }
+    
+    /// 强制更新图标缓存
+    /// - Parameter progress: 当前进度
+    /// - Returns: 更新后的图标
+    func forceUpdateIcon(progress: Double) -> NSImage {
+        cachedIcon = createClockIcon(progress: progress)
+        lastUpdateTime = Date()
+        lastProgress = progress
+        
+        #if DEBUG
+        print("🕐 Clock icon force updated - Progress: \(String(format: "%.1f", progress * 100))%")
+        #endif
+        
+        return cachedIcon!
+    }
+    
+    /// 实际创建时钟图标的方法
+    /// - Parameter progress: 倒计时进度
+    /// - Returns: NSImage对象
+    private func createClockIcon(progress: Double) -> NSImage {
         let image = NSImage(size: iconSize)
         
         image.lockFocus()
