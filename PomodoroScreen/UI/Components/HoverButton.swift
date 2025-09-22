@@ -9,7 +9,7 @@
 import Cocoa
 
 /// 自定义按钮类，支持悬停效果和美化样式
-/// 
+///
 /// 功能特性:
 /// - 平滑的鼠标悬停颜色变化动画
 /// - 支持自定义正常和悬停状态的背景色
@@ -37,57 +37,43 @@ class HoverButton: NSButton {
     
     override func awakeFromNib() {
         super.awakeFromNib()
-        setupButton()
+        wantsLayer = true
+        setupTrackingArea()
     }
     
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        setupButton()
+        wantsLayer = true
+        setupTrackingArea()
     }
     
     required init?(coder: NSCoder) {
         super.init(coder: coder)
-        setupButton()
-    }
-    
-    // MARK: - Setup
-    
-    private func setupButton() {
         wantsLayer = true
         setupTrackingArea()
     }
     
     // MARK: - Public Methods
     
-    /// 设置按钮的正常和悬停状态背景色
-    /// - Parameters:
-    ///   - normal: 正常状态的背景色
-    ///   - hover: 悬停状态的背景色
     func setBackgroundColors(normal: CGColor, hover: CGColor) {
         normalBackgroundColor = normal
         hoverBackgroundColor = hover
         
         // 确保layer存在并设置初始背景色
-        if layer == nil {
-            wantsLayer = true
-        }
-        layer?.backgroundColor = normal
-        
-        // 重新设置trackingArea以确保鼠标追踪正常工作
-        DispatchQueue.main.async { [weak self] in
-            self?.setupTrackingArea()
+        if let layer = layer {
+            layer.backgroundColor = normal
         }
     }
     
-    // MARK: - Private Methods
+    // MARK: - Tracking Area Management
     
     private func setupTrackingArea() {
-        // 移除旧的trackingArea
+        // 移除现有的trackingArea
         if let trackingArea = trackingArea {
             removeTrackingArea(trackingArea)
         }
         
-        // 使用frame而不是bounds来确保正确的尺寸
+        // 使用frame尺寸而不是bounds
         let rect = NSRect(x: 0, y: 0, width: frame.width, height: frame.height)
         trackingArea = NSTrackingArea(
             rect: rect,
@@ -98,12 +84,12 @@ class HoverButton: NSButton {
         addTrackingArea(trackingArea!)
     }
     
-    // MARK: - NSView Overrides
-    
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         setupTrackingArea()
     }
+    
+    // MARK: - Mouse Events
     
     override func mouseEntered(with event: NSEvent) {
         super.mouseEntered(with: event)

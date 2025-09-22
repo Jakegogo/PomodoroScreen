@@ -131,7 +131,7 @@ class StatusBarController {
         }
     }
     
-    private func showPopup() {
+    func showPopup() {
         guard let popup = popupWindow,
               let button = statusItem.button else { return }
         
@@ -236,11 +236,20 @@ class StatusBarController {
         
         let startItem = NSMenuItem(title: title, action: action, keyEquivalent: "")
         startItem.target = self
+        // 根据不同状态设置不同图标
+        if pomodoroTimer.isRunning {
+            startItem.image = NSImage(systemSymbolName: "stop.fill", accessibilityDescription: "停止")
+        } else if pomodoroTimer.canResume {
+            startItem.image = NSImage(systemSymbolName: "play.fill", accessibilityDescription: "继续")
+        } else {
+            startItem.image = NSImage(systemSymbolName: "play.fill", accessibilityDescription: "开始")
+        }
         menu.addItem(startItem)
         
         // 重置按钮
         let resetItem = NSMenuItem(title: "重置", action: #selector(resetTimer), keyEquivalent: "")
         resetItem.target = self
+        resetItem.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "重置")
         menu.addItem(resetItem)
         
         menu.addItem(NSMenuItem.separator())
@@ -248,6 +257,7 @@ class StatusBarController {
         // 立即完成按钮（用于测试遮罩层）
         let testFinishItem = NSMenuItem(title: "立即完成", action: #selector(testFinishTimer), keyEquivalent: "")
         testFinishItem.target = self
+        testFinishItem.image = NSImage(systemSymbolName: "checkmark.circle.fill", accessibilityDescription: "立即完成")
         menu.addItem(testFinishItem)
         
         menu.addItem(NSMenuItem.separator())
@@ -255,16 +265,19 @@ class StatusBarController {
         // 今日报告按钮
         let reportItem = NSMenuItem(title: "今日报告", action: #selector(showTodayReport), keyEquivalent: "r")
         reportItem.target = self
+        reportItem.image = NSImage(systemSymbolName: "chart.bar.fill", accessibilityDescription: "今日报告")
         menu.addItem(reportItem)
         
         // 设置按钮
         let settingsItem = NSMenuItem(title: "设置", action: #selector(showSettings), keyEquivalent: ",")
         settingsItem.target = self
+        settingsItem.image = NSImage(systemSymbolName: "slider.horizontal.3", accessibilityDescription: "设置")
         menu.addItem(settingsItem)
         
         // 退出按钮
         let quitItem = NSMenuItem(title: "退出", action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self
+        quitItem.image = NSImage(systemSymbolName: "power", accessibilityDescription: "退出")
         menu.addItem(quitItem)
         
         // 在鼠标位置显示菜单

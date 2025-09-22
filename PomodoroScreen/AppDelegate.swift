@@ -33,6 +33,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // 加载设置并应用
         loadAndApplySettings()
+        
+        // 检查是否需要显示新手引导
+        // 临时重置引导状态用于测试 - 生产环境需要删除这行
+        // OnboardingWindow.resetOnboarding()
+        showOnboardingIfNeeded()
     }
     
     func applicationWillTerminate(_ aNotification: Notification) {
@@ -111,6 +116,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // 创建新的遮罩窗口
             self.overlayWindow = OverlayWindow(timer: self.pomodoroTimer)
             self.overlayWindow?.showOverlay()
+        }
+    }
+    
+    private func showOnboardingIfNeeded() {
+        // 检查是否需要显示新手引导
+        if OnboardingWindow.shouldShowOnboarding() {
+            DispatchQueue.main.async { [weak self] in
+                let onboardingWindow = OnboardingWindow()
+                
+                // 设置完成回调
+                onboardingWindow.setOnboardingCompletedHandler { [weak self] in
+                    print("✅ 新手引导完成")
+                    // 引导完成后可以执行其他操作，比如显示状态栏popup
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        self?.statusBarController.showPopup()
+                    }
+                }
+                
+                // 显示引导窗口
+                onboardingWindow.makeKeyAndOrderFront(nil)
+                onboardingWindow.center()
+            }
         }
     }
 }
