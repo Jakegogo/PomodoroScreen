@@ -22,7 +22,7 @@ extension NSColor {
     static var workDark: NSColor { NSColor(red: 0.1992103457, green: 0.8570511937, blue: 0, alpha: 1.0) }
     static var workLight: NSColor { NSColor(red: 0.6962995529, green: 0.9920799136, blue: 0, alpha: 1.0) }
     static var workCircleEnd: NSColor { NSColor(red: 0.6870413423, green: 0.9882482886, blue: 0.002495098161, alpha: 1.0) }
-    static var workOutline: NSColor { NSColor(red: 0.03259197623, green: 0.1287679374, blue: 0.001097879023, alpha: 0.15) }
+    static var workOutline: NSColor { NSColor(red: 0.03259197623, green: 0.1287679374, blue: 0.001097879023, alpha: 0.1) }
     
     // Blue ring colors (Focus - 专注度) - 基于CirclesWorkout的蓝色环
     static var focusDark: NSColor { NSColor(red: 0, green: 0.7215889096, blue: 0.8796694875, alpha: 1.0) }
@@ -34,7 +34,7 @@ extension NSColor {
     static var healthDark: NSColor { NSColor(red: 0.6, green: 0.2, blue: 0.8, alpha: 1.0) }
     static var healthLight: NSColor { NSColor(red: 0.8, green: 0.4, blue: 1.0, alpha: 1.0) }
     static var healthCircleEnd: NSColor { NSColor(red: 0.9, green: 0.5, blue: 1.0, alpha: 1.0) }
-    static var healthOutline: NSColor { NSColor(red: 0.6, green: 0.2, blue: 0.8, alpha: 0.15) }
+    static var healthOutline: NSColor { NSColor(red: 0.6, green: 0.2, blue: 0.8, alpha: 0.2) }
 }
 
 // MARK: - Ring Configuration (Based on RingDiameter enum from CirclesWorkout.swift)
@@ -109,8 +109,9 @@ class HealthRingsView: NSView {
     }
     
     private func setupLayer() {
-        self.wantsLayer = true
-        self.layer?.backgroundColor = NSColor.clear.cgColor
+        // 使用传统的NSView绘制方式，避免layer-backed与Metal渲染冲突
+        // 特别是在复杂动画和频繁重绘的情况下，传统绘制更稳定
+        self.wantsLayer = false  // 显式禁用layer-backed绘制
     }
     
     private func setupRings() {
@@ -474,8 +475,8 @@ class HealthRingsView: NSView {
             y: center.y + radius * sin(angle)
         )
         
-        // Draw shadow - 对应CirclesWorkout的shadow
-        context.setShadow(offset: CGSize(width: thickness/4, height: 0), blur: 5, color: NSColor.black.withAlphaComponent(0.2).cgColor)
+        // 使用简化的阴影效果，避免复杂的blur操作
+        context.setShadow(offset: CGSize(width: 1, height: 1), blur: 2, color: NSColor.black.withAlphaComponent(0.15).cgColor)
         
         // Draw end circle
         context.setFillColor(color.cgColor)
@@ -512,7 +513,7 @@ class HealthRingsView: NSView {
         let timeSize = timeAttributedString.size()
         let timeRect = CGRect(
             x: center.x - timeSize.width / 2,
-            y: center.y - timeSize.height / 2 + 5,
+            y: center.y - timeSize.height / 2,
             width: timeSize.width,
             height: timeSize.height
         )
@@ -676,14 +677,14 @@ class HealthRingsView: NSView {
         breathingPhase = 0.0
         
         // 进一步降低呼吸动画频率到10fps，减少更多CPU负载
-        breathingAnimationTimer = Timer.scheduledTimer(withTimeInterval: 1.0/10.0, repeats: true) { [weak self] _ in
+        breathingAnimationTimer = Timer.scheduledTimer(withTimeInterval: 1.0/15.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             
             // 只在窗口可见时更新动画
             guard self.window?.isVisible == true else { return }
             
             // 使用完全连续的时间累积，避免任何重置跳跃
-            self.breathingPhase += (1.0/10.0) * 2 * Double.pi / self.breathingCycleDuration
+            self.breathingPhase += (1.0/15.0) * 2 * Double.pi / self.breathingCycleDuration
             // 只在相位变得过大时进行平滑处理，但保持数值连续性
             if self.breathingPhase > 100 * Double.pi {  // 大幅增加阈值，几乎不会触发
                 // 使用平滑的相位归一化，保持连续性
@@ -717,7 +718,7 @@ class HealthRingsView: NSView {
         }
         
         // 降低进度动画频率到20fps，减少CPU负载但保持流畅
-        animationTimer = Timer.scheduledTimer(withTimeInterval: 1.0/20.0, repeats: true) { [weak self] timer in
+        animationTimer = Timer.scheduledTimer(withTimeInterval: 1.0/15.0, repeats: true) { [weak self] timer in
             guard let self = self else {
                 timer.invalidate()
                 return

@@ -13,7 +13,8 @@ class StatusBarPopupWindow: NSWindow {
     private var onMenuButtonClicked: (() -> Void)?
     
     convenience init() {
-        let windowSize = NSSize(width: 380, height: 280)
+        // 竖直布局：进一步增大窗口宽度，提供更多空间
+        let windowSize = NSSize(width: 300, height: 450)
         
         // 获取状态栏按钮位置
         let statusBarHeight: CGFloat = 22
@@ -61,29 +62,35 @@ class StatusBarPopupWindow: NSWindow {
         backgroundView.layer?.borderColor = NSColor.separatorColor.cgColor
         contentView.addSubview(backgroundView)
         
-        // 创建健康环视图 - 调整位置更居中
-        let ringsFrame = NSRect(x: 30, y: 60, width: 160, height: 160)
-        healthRingsView = HealthRingsView(frame: ringsFrame)
-        contentView.addSubview(healthRingsView)
+        // 竖直布局 - 标题在顶部
+        let titleLabel = NSTextField(labelWithString: "今日状态")
+        titleLabel.font = NSFont.systemFont(ofSize: 16, weight: .semibold)
+        titleLabel.textColor = NSColor.labelColor
+        titleLabel.alignment = .center
+        titleLabel.frame = NSRect(x: 20, y: 410, width: 260, height: 25)
+        contentView.addSubview(titleLabel)
         
-        // 创建右上角菜单按钮 - 调整到新的面板宽度
-        menuButton = NSButton(frame: NSRect(x: 340, y: 240, width: 30, height: 30))
+        // 右上角菜单按钮 - 适配新的窗口宽度
+        menuButton = NSButton(frame: NSRect(x: 255, y: 405, width: 40, height: 40))
         menuButton.title = ""
-        menuButton.image = NSImage(systemSymbolName: "ellipsis.circle", accessibilityDescription: "菜单")
+        
+        // 创建更大的系统符号图标
+        let symbolConfig = NSImage.SymbolConfiguration(pointSize: 18, weight: .medium)
+        let menuImage = NSImage(systemSymbolName: "ellipsis.circle", accessibilityDescription: "菜单")?.withSymbolConfiguration(symbolConfig)
+        
+        menuButton.image = menuImage
         menuButton.imagePosition = .imageOnly
         menuButton.isBordered = false
         menuButton.target = self
         menuButton.action = #selector(menuButtonClicked)
         contentView.addSubview(menuButton)
         
-        // 添加标题标签 - 调整位置避免与圆环重叠
-        let titleLabel = NSTextField(labelWithString: "今日状态")
-        titleLabel.font = NSFont.systemFont(ofSize: 16, weight: .semibold)
-        titleLabel.textColor = NSColor.labelColor
-        titleLabel.frame = NSRect(x: 20, y: 245, width: 200, height: 20)
-        contentView.addSubview(titleLabel)
+        // 健康环视图 - 在更宽的窗口中居中放置
+        let ringsFrame = NSRect(x: 70, y: 230, width: 160, height: 160)
+        healthRingsView = HealthRingsView(frame: ringsFrame)
+        contentView.addSubview(healthRingsView)
         
-        // 添加图例
+        // 添加图例 - 放在下半部分
         setupLegend(in: contentView)
     }
     
@@ -95,26 +102,26 @@ class StatusBarPopupWindow: NSWindow {
             ("健康度", NSColor.healthLight)         // 使用实际的健康紫色
         ]
         
-        // 调整图例位置到右侧，垂直居中
-        let startX: CGFloat = 250
-        let startY: CGFloat = 160
+        // 竖直布局 - 图例进一步往下移动，行间距更紧凑
+        let startX: CGFloat = 100
+        let startY: CGFloat = 170
         let itemHeight: CGFloat = 20
         
         for (index, item) in legendItems.enumerated() {
             let y = startY - CGFloat(index) * itemHeight
             
-            // 颜色指示器 - 调整到右侧位置
-            let colorIndicator = NSView(frame: NSRect(x: startX, y: y, width: 12, height: 12))
+            // 颜色指示器 - 左侧对齐，适应紧凑行距
+            let colorIndicator = NSView(frame: NSRect(x: startX, y: y + 4, width: 14, height: 14))
             colorIndicator.wantsLayer = true
             colorIndicator.layer?.backgroundColor = item.1.cgColor
-            colorIndicator.layer?.cornerRadius = 6
+            colorIndicator.layer?.cornerRadius = 7
             contentView.addSubview(colorIndicator)
             
-            // 标签 - 调整位置和宽度
+            // 标签 - 紧跟颜色指示器，适应紧凑行距
             let label = NSTextField(labelWithString: item.0)
-            label.font = NSFont.systemFont(ofSize: 11)
+            label.font = NSFont.systemFont(ofSize: 12)
             label.textColor = NSColor.secondaryLabelColor
-            label.frame = NSRect(x: startX + 18, y: y - 2, width: 120, height: 16)
+            label.frame = NSRect(x: startX + 20, y: y - 2, width: 180, height: 22)
             contentView.addSubview(label)
         }
     }
@@ -134,6 +141,10 @@ class StatusBarPopupWindow: NSWindow {
             thirdRing: focus,
             innerRing: health
         )
+    }
+    
+    func updateCountdown(time: TimeInterval, title: String) {
+        healthRingsView.updateCountdown(time: time, title: title)
     }
     
     func showPopup() {

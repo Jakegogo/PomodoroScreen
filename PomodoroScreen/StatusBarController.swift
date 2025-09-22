@@ -27,6 +27,10 @@ class StatusBarController {
     func updateTime(_ timeString: String) {
         DispatchQueue.main.async { [weak self] in
             self?.statusItem.button?.title = "🍅 \(timeString)"
+            
+            // 同时更新健康环视图的倒计时显示
+            let remainingTime = self?.pomodoroTimer.getRemainingTime() ?? 0
+            self?.popupWindow?.updateCountdown(time: remainingTime, title: "")
         }
     }
     

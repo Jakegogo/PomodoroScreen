@@ -300,6 +300,10 @@ class PomodoroTimer: ObservableObject {
         return formatTime(remainingTime)
     }
     
+    func getRemainingTime() -> TimeInterval {
+        return remainingTime
+    }
+    
     func getBackgroundFiles() -> [BackgroundFile] {
         return backgroundFiles
     }
