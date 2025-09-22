@@ -26,6 +26,9 @@ class SettingsWindow: NSWindow {
     // 开机自启动设置 UI 控件
     private var launchAtLoginCheckbox: NSButton!
     
+    // 状态栏显示设置 UI 控件
+    private var showStatusBarTextCheckbox: NSButton!
+    
     // 自动处理设置 UI 控件
     private var idleRestartCheckbox: NSButton!
     private var idleTimeSlider: NSSlider!
@@ -88,8 +91,11 @@ class SettingsWindow: NSWindow {
     // 开机自启动设置值
     var launchAtLoginEnabled: Bool = false // 是否启用开机自启动
     
+    // 状态栏显示设置值
+    var showStatusBarText: Bool = true // 是否在状态栏显示倒计时文字
+    
     // 回调
-    var onSettingsChanged: ((Bool, Int, Int, Bool, Int, Bool, Bool, Bool, Bool, Bool, Bool, Int, Int, Bool, Bool, [BackgroundFile], Bool, Int, Int) -> Void)?
+    var onSettingsChanged: ((Bool, Int, Int, Bool, Int, Bool, Bool, Bool, Bool, Bool, Bool, Int, Int, Bool, Bool, [BackgroundFile], Bool, Int, Int, Bool) -> Void)?
     
     override init(contentRect: NSRect, styleMask style: NSWindow.StyleMask, backing backingStoreType: NSWindow.BackingStoreType, defer flag: Bool) {
         super.init(contentRect: contentRect, styleMask: style, backing: backingStoreType, defer: flag)
@@ -195,6 +201,13 @@ class SettingsWindow: NSWindow {
         launchAtLoginCheckbox.frame = NSRect(x: 20, y: yPosition, width: 200, height: 25)
         launchAtLoginCheckbox.state = launchAtLoginEnabled ? .on : .off
         basicView.addSubview(launchAtLoginCheckbox)
+        yPosition -= 40
+        
+        // 状态栏文字显示设置
+        showStatusBarTextCheckbox = NSButton(checkboxWithTitle: "在状态栏显示倒计时文字", target: self, action: #selector(showStatusBarTextChanged))
+        showStatusBarTextCheckbox.frame = NSRect(x: 20, y: yPosition, width: 240, height: 25)
+        showStatusBarTextCheckbox.state = showStatusBarText ? .on : .off
+        basicView.addSubview(showStatusBarTextCheckbox)
         
         tabView.addTabViewItem(basicTabItem)
     }
@@ -604,6 +617,10 @@ class SettingsWindow: NSWindow {
         }
     }
     
+    @objc private func showStatusBarTextChanged() {
+        showStatusBarText = showStatusBarTextCheckbox.state == .on
+    }
+    
     /// 验证开机自启动设置状态
     private func validateLaunchAtLoginStatus() {
         let status = LaunchAtLogin.shared.validateStatus()
@@ -810,10 +827,13 @@ class SettingsWindow: NSWindow {
         
         // 保存开机自启动设置（LaunchAtLogin类会自动处理系统级设置）
         UserDefaults.standard.set(launchAtLoginEnabled, forKey: "LaunchAtLoginEnabled")
+        
+        // 保存状态栏文字显示设置
+        UserDefaults.standard.set(showStatusBarText, forKey: "ShowStatusBarText")
         LaunchAtLogin.shared.isEnabled = launchAtLoginEnabled
         
         // 通知回调
-        onSettingsChanged?(autoStartEnabled, pomodoroTimeMinutes, breakTimeMinutes, idleRestartEnabled, idleTimeMinutes, idleActionIsRestart, screenLockRestartEnabled, screenLockActionIsRestart, screensaverRestartEnabled, screensaverActionIsRestart, showCancelRestButton, longBreakCycle, longBreakTimeMinutes, showLongBreakCancelButton, accumulateRestTime, backgroundFiles, stayUpLimitEnabled, stayUpLimitHour, stayUpLimitMinute)
+        onSettingsChanged?(autoStartEnabled, pomodoroTimeMinutes, breakTimeMinutes, idleRestartEnabled, idleTimeMinutes, idleActionIsRestart, screenLockRestartEnabled, screenLockActionIsRestart, screensaverRestartEnabled, screensaverActionIsRestart, showCancelRestButton, longBreakCycle, longBreakTimeMinutes, showLongBreakCancelButton, accumulateRestTime, backgroundFiles, stayUpLimitEnabled, stayUpLimitHour, stayUpLimitMinute, showStatusBarText)
         
         close()
     }
@@ -871,6 +891,9 @@ class SettingsWindow: NSWindow {
         
         // 加载开机自启动设置
         launchAtLoginEnabled = LaunchAtLogin.shared.isEnabled // 从LaunchAtLogin类获取当前状态
+        
+        // 加载状态栏文字显示设置
+        showStatusBarText = UserDefaults.standard.bool(forKey: "ShowStatusBarText") != false // 默认为 true
         
         // 更新UI
         if autoStartCheckbox != nil {
@@ -952,6 +975,11 @@ class SettingsWindow: NSWindow {
         // 更新开机自启动设置UI
         if launchAtLoginCheckbox != nil {
             launchAtLoginCheckbox.state = launchAtLoginEnabled ? .on : .off
+        }
+        
+        // 更新状态栏文字显示设置UI
+        if showStatusBarTextCheckbox != nil {
+            showStatusBarTextCheckbox.state = showStatusBarText ? .on : .off
         }
     }
     

@@ -10,11 +10,19 @@ class StatusBarController {
     private var popupWindow: StatusBarPopupWindow?
     private var isPopupVisible = false
     private var globalEventMonitor: Any?
+    private var clockIconGenerator: ClockIconGenerator
+    
+    // 状态栏显示设置
+    private var showStatusBarText: Bool = true
     
     // MARK: - Initialization
     
     init(timer: PomodoroTimer) {
         self.pomodoroTimer = timer
+        self.clockIconGenerator = ClockIconGenerator()
+        
+        // 加载状态栏文字显示设置
+        self.showStatusBarText = UserDefaults.standard.bool(forKey: "ShowStatusBarText") != false // 默认为 true
         
         // 创建状态栏项目
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -26,11 +34,32 @@ class StatusBarController {
     
     func updateTime(_ timeString: String) {
         DispatchQueue.main.async { [weak self] in
-            self?.statusItem.button?.title = "🍅 \(timeString)"
+            guard let self = self else { return }
+            
+            // 获取倒计时信息
+            let remainingTime = self.pomodoroTimer.getRemainingTime()
+            let totalTime = self.pomodoroTimer.getTotalTime()
+            
+            // 计算进度（0.0表示开始，1.0表示结束）
+            let progress = totalTime > 0 ? (totalTime - remainingTime) / totalTime : 0.0
+            
+            // 生成动态时钟图标
+            let clockIcon = self.clockIconGenerator.generateClockIcon(
+                progress: progress,
+                totalTime: totalTime,
+                remainingTime: remainingTime
+            )
+            
+            // 更新状态栏图标和文字
+            self.statusItem.button?.image = clockIcon
+            self.statusItem.button?.title = self.showStatusBarText ? "\(timeString)" : "" // 根据设置显示或隐藏文字
+            self.statusItem.button?.imagePosition = .imageLeading // 图标在左，文字在右
+            
+            // 设置工具提示显示时间信息
+            self.statusItem.button?.toolTip = "番茄钟倒计时: \(timeString)"
             
             // 同时更新健康环视图的倒计时显示
-            let remainingTime = self?.pomodoroTimer.getRemainingTime() ?? 0
-            self?.popupWindow?.updateCountdown(time: remainingTime, title: "")
+            self.popupWindow?.updateCountdown(time: remainingTime, title: "")
         }
     }
     
@@ -39,8 +68,19 @@ class StatusBarController {
     private func setupStatusItem() {
         guard let button = statusItem.button else { return }
         
-        // 设置初始显示
-        button.title = "🍅 25:00"
+        // 设置初始时钟图标（进度为0）
+        let initialIcon = clockIconGenerator.generateClockIcon(
+            progress: 0.0,
+            totalTime: 25 * 60, // 25分钟
+            remainingTime: 25 * 60
+        )
+        button.image = initialIcon
+        button.title = showStatusBarText ? "25:00" : "" // 根据设置显示或隐藏文字
+        button.imagePosition = .imageLeading // 图标在左，文字在右
+        button.toolTip = "番茄钟倒计时: 25:00"
+        
+        // 设置等宽字体，避免数字变化时宽度跳动
+        button.font = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular)
         
         // 设置点击事件，不再使用菜单
         button.target = self
@@ -87,9 +127,9 @@ class StatusBarController {
         isPopupVisible = true
         
         // 监听点击事件以隐藏弹出窗口 - 暂时禁用自动隐藏
-        // globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-        //     self?.handleGlobalClick(event)
-        // }
+        globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            self?.handleGlobalClick(event)
+        }
     }
     
     private func hidePopup() {
@@ -224,8 +264,8 @@ class StatusBarController {
                 defer: false
             )
             
-            settingsWindow?.onSettingsChanged = { [weak self] autoStart, pomodoroTime, breakTime, idleRestart, idleTime, idleActionIsRestart, screenLockRestart, screenLockActionIsRestart, screensaverRestart, screensaverActionIsRestart, showCancelRestButton, longBreakCycle, longBreakTimeMinutes, showLongBreakCancelButton, accumulateRestTime, backgroundFiles, stayUpLimitEnabled, stayUpLimitHour, stayUpLimitMinute in
-                self?.applySettings(autoStart: autoStart, pomodoroTime: pomodoroTime, breakTime: breakTime, idleRestart: idleRestart, idleTime: idleTime, idleActionIsRestart: idleActionIsRestart, screenLockRestart: screenLockRestart, screenLockActionIsRestart: screenLockActionIsRestart, screensaverRestart: screensaverRestart, screensaverActionIsRestart: screensaverActionIsRestart, showCancelRestButton: showCancelRestButton, longBreakCycle: longBreakCycle, longBreakTimeMinutes: longBreakTimeMinutes, showLongBreakCancelButton: showLongBreakCancelButton, accumulateRestTime: accumulateRestTime, backgroundFiles: backgroundFiles, stayUpLimitEnabled: stayUpLimitEnabled, stayUpLimitHour: stayUpLimitHour, stayUpLimitMinute: stayUpLimitMinute)
+            settingsWindow?.onSettingsChanged = { [weak self] autoStart, pomodoroTime, breakTime, idleRestart, idleTime, idleActionIsRestart, screenLockRestart, screenLockActionIsRestart, screensaverRestart, screensaverActionIsRestart, showCancelRestButton, longBreakCycle, longBreakTimeMinutes, showLongBreakCancelButton, accumulateRestTime, backgroundFiles, stayUpLimitEnabled, stayUpLimitHour, stayUpLimitMinute, showStatusBarText in
+                self?.applySettings(autoStart: autoStart, pomodoroTime: pomodoroTime, breakTime: breakTime, idleRestart: idleRestart, idleTime: idleTime, idleActionIsRestart: idleActionIsRestart, screenLockRestart: screenLockRestart, screenLockActionIsRestart: screenLockActionIsRestart, screensaverRestart: screensaverRestart, screensaverActionIsRestart: screensaverActionIsRestart, showCancelRestButton: showCancelRestButton, longBreakCycle: longBreakCycle, longBreakTimeMinutes: longBreakTimeMinutes, showLongBreakCancelButton: showLongBreakCancelButton, accumulateRestTime: accumulateRestTime, backgroundFiles: backgroundFiles, stayUpLimitEnabled: stayUpLimitEnabled, stayUpLimitHour: stayUpLimitHour, stayUpLimitMinute: stayUpLimitMinute, showStatusBarText: showStatusBarText)
             }
         }
         
@@ -237,13 +277,16 @@ class StatusBarController {
         NSApp.activate(ignoringOtherApps: true)
     }
     
-    private func applySettings(autoStart: Bool, pomodoroTime: Int, breakTime: Int, idleRestart: Bool, idleTime: Int, idleActionIsRestart: Bool, screenLockRestart: Bool, screenLockActionIsRestart: Bool, screensaverRestart: Bool, screensaverActionIsRestart: Bool, showCancelRestButton: Bool, longBreakCycle: Int, longBreakTimeMinutes: Int, showLongBreakCancelButton: Bool, accumulateRestTime: Bool, backgroundFiles: [BackgroundFile], stayUpLimitEnabled: Bool, stayUpLimitHour: Int, stayUpLimitMinute: Int) {
+    private func applySettings(autoStart: Bool, pomodoroTime: Int, breakTime: Int, idleRestart: Bool, idleTime: Int, idleActionIsRestart: Bool, screenLockRestart: Bool, screenLockActionIsRestart: Bool, screensaverRestart: Bool, screensaverActionIsRestart: Bool, showCancelRestButton: Bool, longBreakCycle: Int, longBreakTimeMinutes: Int, showLongBreakCancelButton: Bool, accumulateRestTime: Bool, backgroundFiles: [BackgroundFile], stayUpLimitEnabled: Bool, stayUpLimitHour: Int, stayUpLimitMinute: Int, showStatusBarText: Bool) {
         // 记录当前计时器状态
         let wasRunning = pomodoroTimer.isRunning
         let wasPaused = pomodoroTimer.isPausedState
         
         // 更新计时器设置
         pomodoroTimer.updateSettings(pomodoroMinutes: pomodoroTime, breakMinutes: breakTime, idleRestart: idleRestart, idleTime: idleTime, idleActionIsRestart: idleActionIsRestart, screenLockRestart: screenLockRestart, screenLockActionIsRestart: screenLockActionIsRestart, screensaverRestart: screensaverRestart, screensaverActionIsRestart: screensaverActionIsRestart, showCancelRestButton: showCancelRestButton, longBreakCycle: longBreakCycle, longBreakTimeMinutes: longBreakTimeMinutes, showLongBreakCancelButton: showLongBreakCancelButton, accumulateRestTime: accumulateRestTime, backgroundFiles: backgroundFiles, stayUpLimitEnabled: stayUpLimitEnabled, stayUpLimitHour: stayUpLimitHour, stayUpLimitMinute: stayUpLimitMinute)
+        
+        // 更新状态栏文字显示设置
+        self.showStatusBarText = showStatusBarText
         
         // 更新状态栏显示
         updateTime(pomodoroTimer.getRemainingTimeString())

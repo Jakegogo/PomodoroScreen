@@ -56,7 +56,7 @@ class StatusBarPopupWindow: NSWindow {
         // 创建背景视图
         let backgroundView = NSView(frame: contentView.bounds)
         backgroundView.wantsLayer = true
-        backgroundView.layer?.backgroundColor = NSColor.controlBackgroundColor.withAlphaComponent(0.95).cgColor
+        backgroundView.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
         backgroundView.layer?.cornerRadius = 12
         backgroundView.layer?.borderWidth = 1
         backgroundView.layer?.borderColor = NSColor.separatorColor.cgColor

@@ -82,6 +82,9 @@ class HealthRingsView: NSView {
     
     // 倒计时显示
     private var countdownTime: TimeInterval = 0
+    
+    // 预加载的自定义字体
+    private var countdownFont: NSFont?
     // 移除倒计时标题变量，不再需要显示标题
     
     // 圆环数值显示（原始数据，0-1范围）
@@ -100,18 +103,48 @@ class HealthRingsView: NSView {
         super.init(frame: frameRect)
         setupRings()
         setupLayer()
+        preloadCustomFont()
     }
     
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupRings()
         setupLayer()
+        preloadCustomFont()
     }
     
     private func setupLayer() {
         // 使用传统的NSView绘制方式，避免layer-backed与Metal渲染冲突
         // 特别是在复杂动画和频繁重绘的情况下，传统绘制更稳定
         self.wantsLayer = false  // 显式禁用layer-backed绘制
+    }
+    
+    private func preloadCustomFont() {
+        let fontSize: CGFloat = 24
+        
+        // 尝试加载自定义字体，如果失败则使用系统字体作为备选
+        if let customFont = NSFont(name: "BeautifulPoliceOfficer", size: fontSize) {
+            countdownFont = customFont
+        } else {
+            // 如果自定义字体不可用，从文件路径加载
+            if let fontURL = Bundle.main.url(forResource: "BeautifulPoliceOfficer-rvv8x", withExtension: "ttf"),
+               let fontData = NSData(contentsOf: fontURL),
+               let provider = CGDataProvider(data: fontData),
+               let cgFont = CGFont(provider),
+               let fontName = cgFont.postScriptName {
+                
+                // 注册字体
+                CTFontManagerRegisterGraphicsFont(cgFont, nil)
+                
+                // 创建字体
+                countdownFont = NSFont(name: String(fontName), size: fontSize)
+            }
+        }
+        
+        // 如果自定义字体加载失败，使用系统字体作为备选
+        if countdownFont == nil {
+            countdownFont = NSFont.monospacedDigitSystemFont(ofSize: fontSize, weight: .bold)
+        }
     }
     
     private func setupRings() {
@@ -503,22 +536,26 @@ class HealthRingsView: NSView {
         let seconds = Int(countdownTime) % 60
         let timeText = String(format: "%02d:%02d", minutes, seconds)
         
-        // 绘制倒计时时间 - 适应180尺寸的字体
-        let timeAttributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 16, weight: .medium),  // 适应180尺寸
+        // 使用预加载的自定义字体
+        let font = countdownFont ?? NSFont.monospacedDigitSystemFont(ofSize: 24, weight: .bold)
+        
+        // 绘制实心字体
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
             .foregroundColor: NSColor.labelColor
         ]
         
-        let timeAttributedString = NSAttributedString(string: timeText, attributes: timeAttributes)
-        let timeSize = timeAttributedString.size()
-        let timeRect = CGRect(
-            x: center.x - timeSize.width / 2,
-            y: center.y - timeSize.height / 2,
-            width: timeSize.width,
-            height: timeSize.height
+        let attributedString = NSAttributedString(string: timeText, attributes: attributes)
+        let size = attributedString.size()
+        let rect = CGRect(
+            x: center.x - size.width / 2,
+            y: center.y - size.height / 2,
+            width: size.width,
+            height: size.height
         )
         
-        timeAttributedString.draw(in: timeRect)
+        // 绘制实心文字
+        attributedString.draw(in: rect)
         
         // 移除倒计时标题的绘制，只显示时间
     }

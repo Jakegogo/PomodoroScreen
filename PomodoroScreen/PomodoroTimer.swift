@@ -304,6 +304,14 @@ class PomodoroTimer: ObservableObject {
         return remainingTime
     }
     
+    func getTotalTime() -> TimeInterval {
+        if isInRestPeriod {
+            return isLongBreak ? longBreakTime : breakTime
+        } else {
+            return pomodoroTime
+        }
+    }
+    
     func getBackgroundFiles() -> [BackgroundFile] {
         return backgroundFiles
     }
