@@ -80,6 +80,10 @@ class HealthRingsView: NSView {
     private var breathingPhase: Double = 0.0
     private var isBreathingAnimationActive = false
     
+    // 计时器状态控制
+    private var isTimerRunning = false
+    private var frozenBreathingPhase: Double = 0.0 // 冻结时的呼吸相位
+    
     // 倒计时显示
     private var countdownTime: TimeInterval = 0
     
@@ -235,38 +239,42 @@ class HealthRingsView: NSView {
         var effectiveRadius = radius
         var effectiveThickness = ringThickness
         
-        if isBreathingAnimationActive {
+        // 计算呼吸效果：动画活跃时使用实时相位，停止时使用冻结相位
+        let currentPhase = isBreathingAnimationActive ? breathingPhase : frozenBreathingPhase
+        let shouldApplyBreathingEffect = isBreathingAnimationActive || frozenBreathingPhase != 0.0
+        
+        if shouldApplyBreathingEffect {
             // 渐进式呼吸效果 - 外层效果最强，内层效果递减
             let breathingIntensity: CGFloat
             switch ring.type {
             case .restAdequacy:    // 最外层 - 最强的不规则气泡效果
                 // 使用更平滑的缓动函数组合
-                let baseBreathing = smoothBreathing(breathingPhase)
+                let baseBreathing = smoothBreathing(currentPhase)
                 let wave1 = baseBreathing * 0.12
-                let wave2 = smoothBreathing(breathingPhase * 1.3 + 0.5) * 0.08
-                let wave3 = smoothBreathing(breathingPhase * 0.7 + 1.2) * 0.06
-                let wave4 = smoothBreathing(breathingPhase * 2.1 + 0.9) * 0.04
+                let wave2 = smoothBreathing(currentPhase * 1.3 + 0.5) * 0.08
+                let wave3 = smoothBreathing(currentPhase * 0.7 + 1.2) * 0.06
+                let wave4 = smoothBreathing(currentPhase * 2.1 + 0.9) * 0.04
                 breathingIntensity = wave1 + wave2 + wave3 + wave4
             case .workIntensity:   // 第二层 - 与最外层节奏一致，强度适中
-                let baseBreathing = smoothBreathing(breathingPhase)
+                let baseBreathing = smoothBreathing(currentPhase)
                 let wave1 = baseBreathing * 0.070
-                let wave2 = smoothBreathing(breathingPhase * 1.3 + 0.5) * 0.044
-                let wave3 = smoothBreathing(breathingPhase * 0.7 + 1.2) * 0.032
-                let wave4 = smoothBreathing(breathingPhase * 2.1 + 0.9) * 0.020
+                let wave2 = smoothBreathing(currentPhase * 1.3 + 0.5) * 0.044
+                let wave3 = smoothBreathing(currentPhase * 0.7 + 1.2) * 0.032
+                let wave4 = smoothBreathing(currentPhase * 2.1 + 0.9) * 0.020
                 breathingIntensity = wave1 + wave2 + wave3 + wave4
             case .focus:           // 第三层 - 与最外层节奏一致，强度较轻
-                let baseBreathing = smoothBreathing(breathingPhase)
+                let baseBreathing = smoothBreathing(currentPhase)
                 let wave1 = baseBreathing * 0.045
-                let wave2 = smoothBreathing(breathingPhase * 1.3 + 0.5) * 0.030
-                let wave3 = smoothBreathing(breathingPhase * 0.7 + 1.2) * 0.022
-                let wave4 = smoothBreathing(breathingPhase * 2.1 + 0.9) * 0.013
+                let wave2 = smoothBreathing(currentPhase * 1.3 + 0.5) * 0.030
+                let wave3 = smoothBreathing(currentPhase * 0.7 + 1.2) * 0.022
+                let wave4 = smoothBreathing(currentPhase * 2.1 + 0.9) * 0.013
                 breathingIntensity = wave1 + wave2 + wave3 + wave4
             case .health:          // 最内层 - 与最外层节奏一致，强度最轻
-                let baseBreathing = smoothBreathing(breathingPhase)
+                let baseBreathing = smoothBreathing(currentPhase)
                 let wave1 = baseBreathing * 0.025
-                let wave2 = smoothBreathing(breathingPhase * 1.3 + 0.5) * 0.017
-                let wave3 = smoothBreathing(breathingPhase * 0.7 + 1.2) * 0.012
-                let wave4 = smoothBreathing(breathingPhase * 2.1 + 0.9) * 0.008
+                let wave2 = smoothBreathing(currentPhase * 1.3 + 0.5) * 0.017
+                let wave3 = smoothBreathing(currentPhase * 0.7 + 1.2) * 0.012
+                let wave4 = smoothBreathing(currentPhase * 2.1 + 0.9) * 0.008
                 breathingIntensity = wave1 + wave2 + wave3 + wave4
             }
             
@@ -294,7 +302,8 @@ class HealthRingsView: NSView {
             }
             
             // 为最外层圆环额外绘制不规则背景环（叠加效果）
-            if ring.type == .restAdequacy && isBreathingAnimationActive {
+            // 在动画活跃时或有冻结相位时都绘制不规则圈
+            if ring.type == .restAdequacy && (isBreathingAnimationActive || frozenBreathingPhase != 0.0) {
                 drawIrregularBackgroundRing(in: context, center: center, radius: effectiveRadius, thickness: effectiveThickness, color: colors[3])
             }
             
@@ -337,8 +346,9 @@ class HealthRingsView: NSView {
         context.setLineCap(.round)
         context.setLineJoin(.round)
         
-        // 创建不规则贝塞尔曲线路径
-        let bezierPath = createIrregularBezierPath(center: center, baseRadius: radius, time: breathingPhase)
+        // 创建不规则贝塞尔曲线路径，使用当前相位（动画时为实时相位，冻结时为冻结相位）
+        let currentPhase = isBreathingAnimationActive ? breathingPhase : frozenBreathingPhase
+        let bezierPath = createIrregularBezierPath(center: center, baseRadius: radius, time: currentPhase)
         context.addPath(bezierPath)
         context.strokePath()
         
@@ -420,28 +430,32 @@ class HealthRingsView: NSView {
         
         context.saveGState()
         
+        // 计算呼吸效果：动画活跃时使用实时相位，停止时使用冻结相位
+        let currentPhase = isBreathingAnimationActive ? breathingPhase : frozenBreathingPhase
+        let shouldApplyBreathingEffect = isBreathingAnimationActive || frozenBreathingPhase != 0.0
+        
         // Apply breathing animation alpha (渐进式透明度效果)
-        if isBreathingAnimationActive {
+        if shouldApplyBreathingEffect {
             let alphaIntensity: CGFloat
             switch ring.type {
             case .restAdequacy:
-                let bubbleAlpha1 = sin(breathingPhase) * 0.15
-                let bubbleAlpha2 = sin(breathingPhase * 1.7 + 0.8) * 0.1
+                let bubbleAlpha1 = sin(currentPhase) * 0.15
+                let bubbleAlpha2 = sin(currentPhase * 1.7 + 0.8) * 0.1
                 alphaIntensity = bubbleAlpha1 + bubbleAlpha2
             case .workIntensity:
                 // 与最外层节奏一致的多波形透明度变化
-                let bubbleAlpha1 = sin(breathingPhase) * 0.15
-                let bubbleAlpha2 = sin(breathingPhase * 1.7 + 0.8) * 0.11
+                let bubbleAlpha1 = sin(currentPhase) * 0.15
+                let bubbleAlpha2 = sin(currentPhase * 1.7 + 0.8) * 0.11
                 alphaIntensity = bubbleAlpha1 + bubbleAlpha2
             case .focus:
                 // 与最外层节奏一致的多波形透明度变化，强度较轻
-                let bubbleAlpha1 = sin(breathingPhase) * 0.10
-                let bubbleAlpha2 = sin(breathingPhase * 1.7 + 0.8) * 0.06
+                let bubbleAlpha1 = sin(currentPhase) * 0.10
+                let bubbleAlpha2 = sin(currentPhase * 1.7 + 0.8) * 0.06
                 alphaIntensity = bubbleAlpha1 + bubbleAlpha2
             case .health:
                 // 与最外层节奏一致的多波形透明度变化，强度最轻
-                let bubbleAlpha1 = sin(breathingPhase) * 0.06
-                let bubbleAlpha2 = sin(breathingPhase * 1.7 + 0.8) * 0.04
+                let bubbleAlpha1 = sin(currentPhase) * 0.06
+                let bubbleAlpha2 = sin(currentPhase * 1.7 + 0.8) * 0.04
                 alphaIntensity = bubbleAlpha1 + bubbleAlpha2
             }
             
@@ -492,28 +506,32 @@ class HealthRingsView: NSView {
     private func drawFullRing(in context: CGContext, center: CGPoint, radius: CGFloat, thickness: CGFloat, progress: CGFloat, colors: [NSColor], ring: RingData) {
         context.saveGState()
         
+        // 计算呼吸效果：动画活跃时使用实时相位，停止时使用冻结相位
+        let currentPhase = isBreathingAnimationActive ? breathingPhase : frozenBreathingPhase
+        let shouldApplyBreathingEffect = isBreathingAnimationActive || frozenBreathingPhase != 0.0
+        
         // Apply breathing animation alpha
-        if isBreathingAnimationActive {
+        if shouldApplyBreathingEffect {
             let alphaIntensity: CGFloat
             switch ring.type {
             case .restAdequacy:
-                let bubbleAlpha1 = sin(breathingPhase) * 0.15
-                let bubbleAlpha2 = sin(breathingPhase * 1.7 + 0.8) * 0.1
+                let bubbleAlpha1 = sin(currentPhase) * 0.15
+                let bubbleAlpha2 = sin(currentPhase * 1.7 + 0.8) * 0.1
                 alphaIntensity = bubbleAlpha1 + bubbleAlpha2
             case .workIntensity:
                 // 与最外层节奏一致的多波形透明度变化
-                let bubbleAlpha1 = sin(breathingPhase) * 0.15
-                let bubbleAlpha2 = sin(breathingPhase * 1.7 + 0.8) * 0.11
+                let bubbleAlpha1 = sin(currentPhase) * 0.15
+                let bubbleAlpha2 = sin(currentPhase * 1.7 + 0.8) * 0.11
                 alphaIntensity = bubbleAlpha1 + bubbleAlpha2
             case .focus:
                 // 与最外层节奏一致的多波形透明度变化，强度较轻
-                let bubbleAlpha1 = sin(breathingPhase) * 0.10
-                let bubbleAlpha2 = sin(breathingPhase * 1.7 + 0.8) * 0.06
+                let bubbleAlpha1 = sin(currentPhase) * 0.10
+                let bubbleAlpha2 = sin(currentPhase * 1.7 + 0.8) * 0.06
                 alphaIntensity = bubbleAlpha1 + bubbleAlpha2
             case .health:
                 // 与最外层节奏一致的多波形透明度变化，强度最轻
-                let bubbleAlpha1 = sin(breathingPhase) * 0.06
-                let bubbleAlpha2 = sin(breathingPhase * 1.7 + 0.8) * 0.04
+                let bubbleAlpha1 = sin(currentPhase) * 0.06
+                let bubbleAlpha2 = sin(currentPhase * 1.7 + 0.8) * 0.04
                 alphaIntensity = bubbleAlpha1 + bubbleAlpha2
             }
             
@@ -619,36 +637,39 @@ class HealthRingsView: NSView {
             var effectiveThickness = ringThickness
             
             // 应用呼吸动画缩放效果，与 drawActivityRing 中的逻辑一致
-            if isBreathingAnimationActive {
+            let currentPhase = isBreathingAnimationActive ? breathingPhase : frozenBreathingPhase
+            let shouldApplyBreathingEffect = isBreathingAnimationActive || frozenBreathingPhase != 0.0
+            
+            if shouldApplyBreathingEffect {
                 let breathingIntensity: CGFloat
                 switch ring.type {
                 case .restAdequacy:    // 最外层 - 最强的不规则气泡效果
-                    let baseBreathing = smoothBreathing(breathingPhase)
+                    let baseBreathing = smoothBreathing(currentPhase)
                     let wave1 = baseBreathing * 0.12
-                    let wave2 = smoothBreathing(breathingPhase * 1.3 + 0.5) * 0.08
-                    let wave3 = smoothBreathing(breathingPhase * 0.7 + 1.2) * 0.06
-                    let wave4 = smoothBreathing(breathingPhase * 2.1 + 0.9) * 0.04
+                    let wave2 = smoothBreathing(currentPhase * 1.3 + 0.5) * 0.08
+                    let wave3 = smoothBreathing(currentPhase * 0.7 + 1.2) * 0.06
+                    let wave4 = smoothBreathing(currentPhase * 2.1 + 0.9) * 0.04
                     breathingIntensity = wave1 + wave2 + wave3 + wave4
                 case .workIntensity:   // 第二层 - 与最外层节奏一致，强度适中
-                    let baseBreathing = smoothBreathing(breathingPhase)
+                    let baseBreathing = smoothBreathing(currentPhase)
                     let wave1 = baseBreathing * 0.070
-                    let wave2 = smoothBreathing(breathingPhase * 1.3 + 0.5) * 0.044
-                    let wave3 = smoothBreathing(breathingPhase * 0.7 + 1.2) * 0.032
-                    let wave4 = smoothBreathing(breathingPhase * 2.1 + 0.9) * 0.020
+                    let wave2 = smoothBreathing(currentPhase * 1.3 + 0.5) * 0.044
+                    let wave3 = smoothBreathing(currentPhase * 0.7 + 1.2) * 0.032
+                    let wave4 = smoothBreathing(currentPhase * 2.1 + 0.9) * 0.020
                     breathingIntensity = wave1 + wave2 + wave3 + wave4
                 case .focus:           // 第三层 - 与最外层节奏一致，强度较轻
-                    let baseBreathing = smoothBreathing(breathingPhase)
+                    let baseBreathing = smoothBreathing(currentPhase)
                     let wave1 = baseBreathing * 0.045
-                    let wave2 = smoothBreathing(breathingPhase * 1.3 + 0.5) * 0.030
-                    let wave3 = smoothBreathing(breathingPhase * 0.7 + 1.2) * 0.022
-                    let wave4 = smoothBreathing(breathingPhase * 2.1 + 0.9) * 0.013
+                    let wave2 = smoothBreathing(currentPhase * 1.3 + 0.5) * 0.030
+                    let wave3 = smoothBreathing(currentPhase * 0.7 + 1.2) * 0.022
+                    let wave4 = smoothBreathing(currentPhase * 2.1 + 0.9) * 0.013
                     breathingIntensity = wave1 + wave2 + wave3 + wave4
                 case .health:          // 最内层 - 与最外层节奏一致，强度最轻
-                    let baseBreathing = smoothBreathing(breathingPhase)
+                    let baseBreathing = smoothBreathing(currentPhase)
                     let wave1 = baseBreathing * 0.025
-                    let wave2 = smoothBreathing(breathingPhase * 1.3 + 0.5) * 0.017
-                    let wave3 = smoothBreathing(breathingPhase * 0.7 + 1.2) * 0.012
-                    let wave4 = smoothBreathing(breathingPhase * 2.1 + 0.9) * 0.008
+                    let wave2 = smoothBreathing(currentPhase * 1.3 + 0.5) * 0.017
+                    let wave3 = smoothBreathing(currentPhase * 0.7 + 1.2) * 0.012
+                    let wave4 = smoothBreathing(currentPhase * 2.1 + 0.9) * 0.008
                     breathingIntensity = wave1 + wave2 + wave3 + wave4
                 }
                 
@@ -760,7 +781,7 @@ class HealthRingsView: NSView {
         guard !isBreathingAnimationActive else { return }
         
         isBreathingAnimationActive = true
-        breathingPhase = 0.0
+        // 不重置breathingPhase，保持当前值（可能是从冻结状态恢复的值）
         
         // 进一步降低呼吸动画频率到10fps，减少更多CPU负载
         breathingAnimationTimer = Timer.scheduledTimer(withTimeInterval: 1.0/15.0, repeats: true) { [weak self] _ in
@@ -778,6 +799,7 @@ class HealthRingsView: NSView {
                 self.breathingPhase = self.breathingPhase - cycles * 2 * Double.pi
             }
             
+            
             // 只有在没有进度动画时才触发重绘，避免冲突
             if self.animationTimer == nil {
                 DispatchQueue.main.async {
@@ -792,6 +814,37 @@ class HealthRingsView: NSView {
         breathingAnimationTimer?.invalidate()
         breathingAnimationTimer = nil
         needsDisplay = true
+    }
+    
+    // MARK: - Timer State Control
+    
+    /// 设置计时器运行状态，控制动画行为
+    func setTimerRunning(_ running: Bool) {
+        isTimerRunning = running
+        
+        if running {
+            // 计时器运行时：从冻结状态恢复动画
+            if frozenBreathingPhase != 0.0 {
+                // 从冻结的相位继续动画
+                breathingPhase = frozenBreathingPhase
+                frozenBreathingPhase = 0.0
+            }
+            startBreathingAnimation()
+        } else {
+            // 计时器停止时：立即冻结当前状态
+            if isBreathingAnimationActive {
+                // 冻结当前相位
+                frozenBreathingPhase = breathingPhase
+                // 立即停止动画
+                isBreathingAnimationActive = false
+                breathingAnimationTimer?.invalidate()
+                breathingAnimationTimer = nil
+                // 触发重绘以显示冻结状态
+                DispatchQueue.main.async {
+                    self.needsDisplay = true
+                }
+            }
+        }
     }
     
     private func startSmoothAnimation() {
@@ -897,7 +950,8 @@ class HealthRingsView: NSView {
         
         for _ in 0...segmentCount {
             // 计算不规则半径变化（胶囊挤压效果）
-            let irregularRadius = calculateIrregularRadius(baseRadius: radius, angle: currentAngle, time: breathingPhase)
+            let currentPhase = isBreathingAnimationActive ? breathingPhase : frozenBreathingPhase
+            let irregularRadius = calculateIrregularRadius(baseRadius: radius, angle: currentAngle, time: currentPhase)
             
             let x = center.x + irregularRadius * cos(currentAngle)
             let y = center.y + irregularRadius * sin(currentAngle)

@@ -9,7 +9,7 @@
 import Cocoa
 
 class StatusBarPopupWindow: NSWindow {
-    private var healthRingsView: HealthRingsView!
+    internal var healthRingsView: HealthRingsView!
     private var menuButton: NSButton!
     private var controlButton: HoverButton!  // 开始/停止/继续按钮
     private var resetButton: HoverButton!    // 重置按钮
@@ -241,8 +241,8 @@ class StatusBarPopupWindow: NSWindow {
             self.animator().alphaValue = 1.0
         })
         
-        // 启动健康环动画
-        healthRingsView.startBreathingAnimation()
+        // 不在这里直接启动动画，而是让StatusBarController根据计时器状态来控制
+        // healthRingsView.startBreathingAnimation()
     }
     
     func hidePopup() {

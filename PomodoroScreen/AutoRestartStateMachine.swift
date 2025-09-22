@@ -122,11 +122,20 @@ class AutoRestartStateMachine {
             
         // 无操作相关事件
         case (.idleTimeExceeded, .timerRunning):
-            guard settings.idleEnabled else { return .none }
+            guard settings.idleEnabled else { 
+                print("🔄 State Machine: 无操作功能未启用，忽略无操作超时")
+                return .none 
+            }
+            print("🔄 State Machine: 无操作时间超时，暂停计时器")
             return .pauseTimer
         case (.userActivityDetected, .timerPausedByIdle):
-            guard settings.idleEnabled else { return .none }
-            return settings.idleActionIsRestart ? .restartTimer : .resumeTimer
+            guard settings.idleEnabled else { 
+                print("🔄 State Machine: 无操作功能未启用，忽略用户活动")
+                return .none 
+            }
+            let action: AutoRestartAction = settings.idleActionIsRestart ? .restartTimer : .resumeTimer
+            print("🔄 State Machine: 用户活动检测到，从无操作暂停状态执行动作: \(action)")
+            return action
         case (.userActivityDetected, .timerPausedBySystem):
             // 系统事件暂停期间，用户活动不应该触发重新计时
             return .none

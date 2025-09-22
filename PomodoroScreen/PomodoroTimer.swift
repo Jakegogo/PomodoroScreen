@@ -52,6 +52,10 @@ class PomodoroTimer: ObservableObject {
     private var autoRestartStateMachine: AutoRestartStateMachine
     private var idleTimeMinutes: Int = 10
     private var showCancelRestButton: Bool = true // 是否显示取消休息按钮
+    
+    // 事件监听器引用
+    private var globalEventMonitor: Any?
+    private var localEventMonitor: Any?
     private var idleTimer: Timer?
     private var lastActivityTime: Date = Date()
     
@@ -163,6 +167,14 @@ class PomodoroTimer: ObservableObject {
         NotificationCenter.default.removeObserver(self)
         DistributedNotificationCenter.default.removeObserver(self)
         idleTimer?.invalidate()
+        
+        // 移除事件监听器
+        if let globalMonitor = globalEventMonitor {
+            NSEvent.removeMonitor(globalMonitor)
+        }
+        if let localMonitor = localEventMonitor {
+            NSEvent.removeMonitor(localMonitor)
+        }
     }
     
     // MARK: - Public Methods
@@ -738,9 +750,15 @@ class PomodoroTimer: ObservableObject {
             object: nil
         )
         
-        // 监听系统活动
-        NSEvent.addGlobalMonitorForEvents(matching: [.keyDown, .mouseMoved, .leftMouseDown, .rightMouseDown]) { [weak self] _ in
+        // 监听系统活动 - 全局事件（其他应用程序的事件）
+        globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown, .mouseMoved, .leftMouseDown, .rightMouseDown]) { [weak self] _ in
             self?.updateLastActivityTime()
+        }
+        
+        // 监听本地事件（本应用程序的事件）
+        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .mouseMoved, .leftMouseDown, .rightMouseDown]) { [weak self] event in
+            self?.updateLastActivityTime()
+            return event // 返回事件以继续正常处理
         }
     }
     
@@ -759,7 +777,9 @@ class PomodoroTimer: ObservableObject {
     }
     
     private func updateLastActivityTime() {
+        let currentState = autoRestartStateMachine.getCurrentState()
         lastActivityTime = Date()
+        print("👆 Activity: 检测到用户活动，当前状态=\(currentState)")
     }
     
     private func checkIdleTime() {
@@ -767,14 +787,19 @@ class PomodoroTimer: ObservableObject {
         let idleTime = Date().timeIntervalSince(lastActivityTime)
         let maxIdleTime = TimeInterval(idleTimeMinutes * 60)
         
+        // 添加调试日志
+        print("🔍 IdleCheck: 当前状态=\(currentState), 无操作时间=\(Int(idleTime))s, 阈值=\(Int(maxIdleTime))s")
+        
         if idleTime > maxIdleTime {
             // 无操作时间超过设定值，只有在计时器运行时才触发
             if currentState == .timerRunning {
+                print("⏸️ IdleCheck: 无操作时间超过阈值，触发暂停事件")
                 processAutoRestartEvent(.idleTimeExceeded)
             }
         } else {
             // 检测到用户活动，只有在因无操作暂停时才触发
             if currentState == .timerPausedByIdle {
+                print("▶️ IdleCheck: 检测到用户活动，触发恢复事件")
                 processAutoRestartEvent(.userActivityDetected)
             }
         }
