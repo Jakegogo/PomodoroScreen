@@ -90,6 +90,9 @@ class HealthRingsView: NSView {
     // 圆环数值显示（原始数据，0-1范围）
     private var ringValues: [Double] = [0.0, 0.0, 0.0, 0.0]
     
+    // 点击回调
+    var onHealthRingsClicked: (() -> Void)?
+    
     // MARK: - Constants (优化尺寸和动画)
     private let ringThickness: CGFloat = 20.0  // 缩小环的粗细，适合popup窗口
     private let baseSize: CGFloat = 180.0      // 缩小整体尺寸，适合popup窗口
@@ -104,6 +107,7 @@ class HealthRingsView: NSView {
         setupRings()
         setupLayer()
         preloadCustomFont()
+        setupTooltipAndTracking()
     }
     
     required init?(coder: NSCoder) {
@@ -111,6 +115,7 @@ class HealthRingsView: NSView {
         setupRings()
         setupLayer()
         preloadCustomFont()
+        setupTooltipAndTracking()
     }
     
     private func setupLayer() {
@@ -156,6 +161,47 @@ class HealthRingsView: NSView {
             RingData(type: .health)          // 内环 - 健康度
         ]
     }
+    
+    private func setupTooltipAndTracking() {
+        // 简单设置tooltip
+        self.toolTip = "点击查看今日健康报告"
+    }
+    
+    private func updateTooltip() {
+        let restPercent = Int(ringValues[0] * 100)
+        let workPercent = Int(ringValues[1] * 100)
+        let focusPercent = Int(ringValues[2] * 100)
+        let healthPercent = Int(ringValues[3] * 100)
+        
+        let tooltipText = """
+📊 今日健康数据
+
+🔴 休息充足度: \(restPercent)%
+🟢 工作强度: \(workPercent)%
+🔵 专注度: \(focusPercent)%
+🟣 健康度: \(healthPercent)%
+
+💡 点击查看详细报告
+"""
+        
+        self.toolTip = tooltipText
+    }
+    
+    // MARK: - Mouse Events
+    
+    override func mouseDown(with event: NSEvent) {
+        // 检查点击是否在健康环区域内
+        let clickPoint = convert(event.locationInWindow, from: nil)
+        let center = CGPoint(x: bounds.midX, y: bounds.midY)
+        let distance = sqrt(pow(clickPoint.x - center.x, 2) + pow(clickPoint.y - center.y, 2))
+        
+        // 如果点击在最外环的范围内，触发回调
+        let outerRadius = baseSize * RingType.restAdequacy.diameter / 2
+        if distance <= outerRadius {
+            onHealthRingsClicked?()
+        }
+    }
+    
     
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
@@ -705,6 +751,9 @@ class HealthRingsView: NSView {
         }
         
         startSmoothAnimation()
+        
+        // 更新tooltip
+        updateTooltip()
     }
     
     func startBreathingAnimation() {

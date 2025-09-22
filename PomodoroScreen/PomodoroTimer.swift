@@ -68,9 +68,28 @@ class PomodoroTimer: ObservableObject {
         return timer != nil && !isPaused
     }
     
+    /// 判断是否处于传统暂停状态
+    /// 包括：手动暂停、无操作暂停、系统事件暂停
     var isPausedState: Bool {
         let currentState = autoRestartStateMachine.getCurrentState()
-        return isPaused || currentState == .timerPausedByIdle || currentState == .timerPausedBySystem
+        
+        // 如果手动暂停或系统暂停，返回true
+        if isPaused || currentState == .timerPausedByIdle || currentState == .timerPausedBySystem {
+            return true
+        }
+        
+        return false
+    }
+    
+    /// 判断是否可以继续计时
+    /// 状态说明：
+    /// - idle + remainingTime == totalTime: 全新状态，显示"开始"，canResume = false
+    /// - idle + 0 < remainingTime < totalTime: 停止但可继续，显示"继续"，canResume = true
+    /// - paused: 暂停状态，显示"继续"，canResume = true
+    /// - running: 运行状态，显示"停止"，canResume = false
+    var canResume: Bool {
+        // 简化逻辑：基于暂停状态或剩余时间判断
+        return isPausedState || (remainingTime > 0 && remainingTime < getTotalTime())
     }
     
     var shouldShowCancelRestButton: Bool {
@@ -275,18 +294,18 @@ class PomodoroTimer: ObservableObject {
             return
         }
         
-        // 如果计时器未运行且未暂停（即空闲状态），更新为新的番茄钟时间
-        if !isRunning && !isPausedState {
+        // 如果计时器未运行且不可继续（即完全空闲状态），更新为新的番茄钟时间
+        if !isRunning && !canResume {
             remainingTime = newPomodoroTime
             updateTimeDisplay()
-            print("⚙️ Settings updated: Timer idle, updated to new pomodoro time (\(Int(newPomodoroTime/60)) minutes)")
+            print("⚙️ Settings updated: Timer fully idle, updated to new pomodoro time (\(Int(newPomodoroTime/60)) minutes)")
             return
         }
         
-        // 如果计时器正在运行或已暂停，保持当前剩余时间不变
-        if isRunning || isPausedState {
+        // 如果计时器正在运行或可继续（有进度），保持当前剩余时间不变
+        if isRunning || canResume {
             updateTimeDisplay() // 只更新显示
-            print("⚙️ Settings updated: Timer active, keeping current remaining time (\(Int(remainingTime/60)):\(Int(remainingTime.truncatingRemainder(dividingBy: 60))) remaining)")
+            print("⚙️ Settings updated: Timer has progress, keeping current remaining time (\(Int(remainingTime/60)):\(Int(remainingTime.truncatingRemainder(dividingBy: 60))) remaining)")
             return
         }
         

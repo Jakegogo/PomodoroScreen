@@ -98,8 +98,27 @@ class StatusBarController {
             self?.showContextMenu()
         }
         
+        // 设置控制按钮点击事件（开始/停止/继续）
+        popupWindow?.setControlButtonAction { [weak self] in
+            self?.handleControlButtonClicked()
+        }
+        
+        // 设置重置按钮点击事件
+        popupWindow?.setResetButtonAction { [weak self] in
+            self?.resetTimer()
+        }
+        
+        // 设置健康环点击事件
+        popupWindow?.setHealthRingsClickedAction { [weak self] in
+            self?.hidePopup()
+            self?.showTodayReport()
+        }
+        
         // 更新健康环数据
         updateHealthRingsData()
+        
+        // 初始化按钮状态
+        updatePopupButtonStates()
     }
     
     @objc private func togglePopup() {
@@ -118,6 +137,9 @@ class StatusBarController {
         
         // 更新健康环数据
         updateHealthRingsData()
+        
+        // 更新按钮状态
+        updatePopupButtonStates()
         
         // 更新窗口位置
         popup.updatePosition(relativeTo: button)
@@ -189,10 +211,30 @@ class StatusBarController {
         // 创建上下文菜单
         let menu = NSMenu()
         
-        // 开始/暂停按钮
-        let startItem = NSMenuItem(title: pomodoroTimer.isRunning ? "停止" : "开始", 
-                                 action: pomodoroTimer.isRunning ? #selector(stopTimer) : #selector(startTimer), 
-                                 keyEquivalent: "")
+        // 开始/暂停/继续按钮逻辑
+        // 根据优化后的状态表确定菜单显示：
+        // - Running: 显示"停止"
+        // - Idle(停止但可继续): 显示"继续" 
+        // - Pause: 显示"继续"
+        // - Idle(全新): 显示"开始"
+        var title: String
+        var action: Selector
+        
+        if pomodoroTimer.isRunning {
+            // 计时器正在运行 - 显示"停止"
+            title = "停止"
+            action = #selector(stopTimer)
+        } else if pomodoroTimer.canResume {
+            // 计时器可以继续（暂停或停止但有进度） - 显示"继续"
+            title = "继续"
+            action = #selector(startTimer)
+        } else {
+            // 计时器完全空闲（全新状态） - 显示"开始"
+            title = "开始"
+            action = #selector(startTimer)
+        }
+        
+        let startItem = NSMenuItem(title: title, action: action, keyEquivalent: "")
         startItem.target = self
         menu.addItem(startItem)
         
@@ -238,6 +280,8 @@ class StatusBarController {
         clockIconGenerator.clearCache()
         // 更新健康环数据
         updateHealthRingsData()
+        // 更新popup按钮状态
+        updatePopupButtonStates()
     }
     
     @objc private func stopTimer() {
@@ -246,6 +290,8 @@ class StatusBarController {
         clockIconGenerator.clearCache()
         // 更新健康环数据
         updateHealthRingsData()
+        // 更新popup按钮状态
+        updatePopupButtonStates()
     }
     
     @objc private func resetTimer() {
@@ -254,6 +300,38 @@ class StatusBarController {
         clockIconGenerator.clearCache()
         // 更新健康环数据
         updateHealthRingsData()
+        // 更新popup按钮状态
+        updatePopupButtonStates()
+    }
+    
+    
+    private func handleControlButtonClicked() {
+        if pomodoroTimer.isRunning {
+            // 计时器正在运行 - 停止
+            stopTimer()
+        } else if pomodoroTimer.canResume {
+            // 计时器可以继续 - 开始/继续
+            startTimer()
+        } else {
+            // 计时器完全空闲 - 开始
+            startTimer()
+        }
+        // 更新popup按钮状态
+        updatePopupButtonStates()
+    }
+    
+    private func updatePopupButtonStates() {
+        var title: String
+        
+        if pomodoroTimer.isRunning {
+            title = "停止"
+        } else if pomodoroTimer.canResume {
+            title = "继续"
+        } else {
+            title = "开始"
+        }
+        
+        popupWindow?.updateControlButtonTitle(title)
     }
     
     @objc private func testFinishTimer() {

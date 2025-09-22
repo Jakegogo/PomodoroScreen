@@ -11,6 +11,7 @@
 		23B916E72E7E7A7C00B644BE /* rest_video.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 23B916E62E7E7A7C00B644BE /* rest_video.mp4 */; };
 		23BD5A8B2E80F742008AEE45 /* BeautifulPoliceOfficer-rvv8x.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 23BD5A892E80F742008AEE45 /* BeautifulPoliceOfficer-rvv8x.ttf */; };
 		23BD5AA92E80F9CD008AEE45 /* ClockIconGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BD5AA82E80F9CD008AEE45 /* ClockIconGenerator.swift */; };
+		23BD5B2F2E818E48008AEE45 /* HoverButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BD5B2C2E818E48008AEE45 /* HoverButton.swift */; };
 		A1234567890ABCDEF001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF002 /* AppDelegate.swift */; };
 		A1234567890ABCDEF003 /* PomodoroTimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF004 /* PomodoroTimer.swift */; };
 		A1234567890ABCDEF005 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF006 /* StatusBarController.swift */; };
@@ -45,6 +46,7 @@
 		23B916E62E7E7A7C00B644BE /* rest_video.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = rest_video.mp4; sourceTree = "<group>"; };
 		23BD5A892E80F742008AEE45 /* BeautifulPoliceOfficer-rvv8x.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "BeautifulPoliceOfficer-rvv8x.ttf"; sourceTree = "<group>"; };
 		23BD5AA82E80F9CD008AEE45 /* ClockIconGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockIconGenerator.swift; sourceTree = "<group>"; };
+		23BD5B2C2E818E48008AEE45 /* HoverButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverButton.swift; sourceTree = "<group>"; };
 		5F523799673D4942B090EFE3 /* LaunchAtLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLogin.swift; sourceTree = "<group>"; };
 		A1234567890ABCDEF000 /* PomodoroScreen.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PomodoroScreen.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1234567890ABCDEF002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -96,6 +98,22 @@
 			path = font;
 			sourceTree = "<group>";
 		};
+		23BD5B2D2E818E48008AEE45 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				23BD5B2C2E818E48008AEE45 /* HoverButton.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		23BD5B2E2E818E48008AEE45 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				23BD5B2D2E818E48008AEE45 /* Components */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
 		A1234567890ABCDEF012 = {
 			isa = PBXGroup;
 			children = (
@@ -109,6 +127,7 @@
 		A1234567890ABCDEF013 /* PomodoroScreen */ = {
 			isa = PBXGroup;
 			children = (
+				23BD5B2E2E818E48008AEE45 /* UI */,
 				23BD5AA82E80F9CD008AEE45 /* ClockIconGenerator.swift */,
 				234823252E7EAAC500DC507E /* AutoRestartStateMachine.swift */,
 				A1234567890ABCDEF002 /* AppDelegate.swift */,
@@ -275,6 +294,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1234567890ABCDEF001 /* AppDelegate.swift in Sources */,
+				23BD5B2F2E818E48008AEE45 /* HoverButton.swift in Sources */,
 				23BD5AA92E80F9CD008AEE45 /* ClockIconGenerator.swift in Sources */,
 				A1234567890ABCDEF003 /* PomodoroTimer.swift in Sources */,
 				A1234567890ABCDEF005 /* StatusBarController.swift in Sources */,

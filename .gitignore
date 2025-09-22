@@ -7,3 +7,5 @@ Breakpoints_v2.xcbkptlist
 .venv**
 **/__pycache__/**
 /vendor
+/*.app
+/*.zip
