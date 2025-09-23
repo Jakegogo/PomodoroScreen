@@ -29,6 +29,9 @@ class SettingsWindow: NSWindow {
     // 状态栏显示设置 UI 控件
     private var showStatusBarTextCheckbox: NSButton!
     
+    // 自动检测投屏设置 UI 控件
+    private var autoDetectScreencastCheckbox: NSButton!
+    
     // 自动处理设置 UI 控件
     private var idleRestartCheckbox: NSButton!
     private var idleTimeSlider: NSSlider!
@@ -94,6 +97,9 @@ class SettingsWindow: NSWindow {
     
     // 状态栏显示设置值
     var showStatusBarText: Bool = true // 是否在状态栏显示倒计时文字
+    
+    // 自动检测投屏设置值
+    var autoDetectScreencastEnabled: Bool = true // 是否启用自动检测投屏进入会议模式
     
     // 回调
     var onSettingsChanged: ((Bool, Int, Int, Bool, Int, Bool, Bool, Bool, Bool, Bool, Bool, Int, Int, Bool, Bool, [BackgroundFile], Bool, Int, Int, Bool) -> Void)?
@@ -278,6 +284,13 @@ class SettingsWindow: NSWindow {
         screenLockActionSegmentedControl.selectedSegment = screenLockActionIsRestart ? 0 : 1
         screenLockActionSegmentedControl.isEnabled = screenLockRestartEnabled
         autoView.addSubview(screenLockActionSegmentedControl)
+        yPosition -= 60
+        
+        // 自动检测投屏设置
+        autoDetectScreencastCheckbox = NSButton(checkboxWithTitle: "检测到投屏/外接显示器时自动启用会议模式", target: self, action: #selector(autoDetectScreencastChanged))
+        autoDetectScreencastCheckbox.frame = NSRect(x: 20, y: yPosition, width: 380, height: 25)
+        autoDetectScreencastCheckbox.state = autoDetectScreencastEnabled ? .on : .off
+        autoView.addSubview(autoDetectScreencastCheckbox)
         
         tabView.addTabViewItem(autoTabItem)
     }
@@ -630,6 +643,15 @@ class SettingsWindow: NSWindow {
         showStatusBarText = showStatusBarTextCheckbox.state == .on
     }
     
+    @objc private func autoDetectScreencastChanged() {
+        autoDetectScreencastEnabled = autoDetectScreencastCheckbox.state == .on
+        
+        // 立即更新ScreenDetectionManager的设置
+        ScreenDetectionManager.shared.isAutoDetectionEnabled = autoDetectScreencastEnabled
+        
+        print("📺 自动检测投屏设置已更改: \(autoDetectScreencastEnabled ? "开启" : "关闭")")
+    }
+    
     /// 验证开机自启动设置状态
     private func validateLaunchAtLoginStatus() {
         let status = LaunchAtLogin.shared.validateStatus()
@@ -850,6 +872,7 @@ class SettingsWindow: NSWindow {
         
         // 保存状态栏文字显示设置
         UserDefaults.standard.set(showStatusBarText, forKey: "ShowStatusBarText")
+        UserDefaults.standard.set(autoDetectScreencastEnabled, forKey: "AutoDetectScreencastEnabled")
         LaunchAtLogin.shared.isEnabled = launchAtLoginEnabled
         
         // 通知回调
@@ -914,6 +937,9 @@ class SettingsWindow: NSWindow {
         
         // 加载状态栏文字显示设置
         showStatusBarText = UserDefaults.standard.bool(forKey: "ShowStatusBarText") != false // 默认为 true
+        
+        // 加载自动检测投屏设置
+        autoDetectScreencastEnabled = UserDefaults.standard.bool(forKey: "AutoDetectScreencastEnabled") != false // 默认为 true
         
         // 更新UI
         if autoStartCheckbox != nil {
@@ -1000,6 +1026,9 @@ class SettingsWindow: NSWindow {
         // 更新状态栏文字显示设置UI
         if showStatusBarTextCheckbox != nil {
             showStatusBarTextCheckbox.state = showStatusBarText ? .on : .off
+        }
+        if autoDetectScreencastCheckbox != nil {
+            autoDetectScreencastCheckbox.state = autoDetectScreencastEnabled ? .on : .off
         }
     }
     

@@ -6,6 +6,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController!
     private var pomodoroTimer: PomodoroTimer!
     private var overlayWindow: OverlayWindow?
+    private var screenDetectionManager: ScreenDetectionManager!
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         // 初始化开机自启动管理
@@ -21,9 +22,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // 初始化状态栏控制器
         statusBarController = StatusBarController(timer: pomodoroTimer)
         
+        // 初始化屏幕检测管理器
+        screenDetectionManager = ScreenDetectionManager.shared
+        setupScreenDetection()
+        
         // 设置计时器完成回调
         pomodoroTimer.onTimerFinished = { [weak self] in
-            self?.showOverlay()
+            guard let self = self else { return }
+            
+            // 如果是会议模式且处于休息期间，隐藏休息提示
+            if self.pomodoroTimer.isMeetingMode() && self.pomodoroTimer.isInRestPeriod {
+                self.statusBarController.hideMeetingModeRestIndicator()
+            }
+            
+            self.showOverlay()
         }
         
         // 设置状态栏更新回调
@@ -90,8 +102,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let stayUpHour = stayUpLimitHour == 0 ? 23 : stayUpLimitHour // 默认23:00
         let stayUpLimitMinute = UserDefaults.standard.integer(forKey: "StayUpLimitMinute") // 默认为0分钟
         
+        // 加载会议模式设置
+        let meetingModeEnabled = UserDefaults.standard.bool(forKey: "MeetingModeEnabled") // 默认为 false
+        
         // 应用设置到计时器
-        pomodoroTimer.updateSettings(pomodoroMinutes: pomodoroTime, breakMinutes: breakTime, idleRestart: idleRestartEnabled, idleTime: idleTime, idleActionIsRestart: idleActionIsRestart, screenLockRestart: screenLockRestartEnabled, screenLockActionIsRestart: screenLockActionIsRestart, screensaverRestart: screensaverRestartEnabled, screensaverActionIsRestart: screensaverActionIsRestart, showCancelRestButton: showCancelRestButton, longBreakCycle: longBreakCycle, longBreakTimeMinutes: longBreakTimeMinutes, showLongBreakCancelButton: showLongBreakCancelButton, accumulateRestTime: accumulateRestTime, backgroundFiles: backgroundFiles, stayUpLimitEnabled: stayUpLimitEnabled, stayUpLimitHour: stayUpHour, stayUpLimitMinute: stayUpLimitMinute)
+        pomodoroTimer.updateSettings(pomodoroMinutes: pomodoroTime, breakMinutes: breakTime, idleRestart: idleRestartEnabled, idleTime: idleTime, idleActionIsRestart: idleActionIsRestart, screenLockRestart: screenLockRestartEnabled, screenLockActionIsRestart: screenLockActionIsRestart, screensaverRestart: screensaverRestartEnabled, screensaverActionIsRestart: screensaverActionIsRestart, showCancelRestButton: showCancelRestButton, longBreakCycle: longBreakCycle, longBreakTimeMinutes: longBreakTimeMinutes, showLongBreakCancelButton: showLongBreakCancelButton, accumulateRestTime: accumulateRestTime, backgroundFiles: backgroundFiles, stayUpLimitEnabled: stayUpLimitEnabled, stayUpLimitHour: stayUpHour, stayUpLimitMinute: stayUpLimitMinute, meetingMode: meetingModeEnabled)
         
         // 如果启用自动启动，则启动计时器
         if autoStartEnabled {
@@ -102,6 +117,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func showOverlay() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
+            
+            // 检查是否为会议模式
+            if self.pomodoroTimer.isMeetingMode() {
+                print("🔇 会议模式：跳过遮罩层显示，进行静默休息")
+                // 在状态栏显示"休息时间"提示
+                self.statusBarController.showMeetingModeRestIndicator()
+                return
+            }
             
             // 如果遮罩窗口已经存在且可见，不要重复创建
             if let existingWindow = self.overlayWindow, existingWindow.isVisible {
@@ -138,6 +161,65 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 onboardingWindow.makeKeyAndOrderFront(nil)
                 onboardingWindow.center()
             }
+        }
+    }
+    
+    // MARK: - Screen Detection
+    
+    private func setupScreenDetection() {
+        // 设置屏幕变化回调
+        screenDetectionManager.onScreenConfigurationChanged = { [weak self] hasExternalScreen in
+            self?.handleScreenConfigurationChanged(hasExternalScreen)
+        }
+        
+        // 初始检查屏幕状态
+        if screenDetectionManager.shouldAutoEnableMeetingMode() {
+            enableMeetingModeAutomatically()
+        }
+        
+        print("📺 屏幕检测功能已启用")
+    }
+    
+    private func handleScreenConfigurationChanged(_ hasExternalScreen: Bool) {
+        print("📺 屏幕配置变化: 外部屏幕 = \(hasExternalScreen)")
+        
+        // 检查是否应该自动启用/关闭会议模式
+        if screenDetectionManager.shouldAutoEnableMeetingMode() {
+            enableMeetingModeAutomatically()
+        } else {
+            disableMeetingModeAutomatically()
+        }
+    }
+    
+    private func enableMeetingModeAutomatically() {
+        guard screenDetectionManager.isAutoDetectionEnabled else {
+            print("📺 自动检测已禁用，跳过自动启用会议模式")
+            return
+        }
+        
+        let currentMeetingMode = UserDefaults.standard.bool(forKey: "MeetingModeEnabled")
+        if !currentMeetingMode {
+            print("📺 检测到投屏/外接显示器，自动启用会议模式")
+            UserDefaults.standard.set(true, forKey: "MeetingModeEnabled")
+            UserDefaults.standard.set(true, forKey: "MeetingModeAutoEnabled") // 标记为自动启用
+            
+            // 通知状态栏更新会议模式状态
+            statusBarController.refreshMeetingModeStatus()
+        }
+    }
+    
+    private func disableMeetingModeAutomatically() {
+        // 只有当会议模式是自动启用的时候才自动关闭
+        let wasAutoEnabled = UserDefaults.standard.bool(forKey: "MeetingModeAutoEnabled")
+        let currentMeetingMode = UserDefaults.standard.bool(forKey: "MeetingModeEnabled")
+        
+        if currentMeetingMode && wasAutoEnabled {
+            print("📺 投屏/外接显示器已断开，自动关闭会议模式")
+            UserDefaults.standard.set(false, forKey: "MeetingModeEnabled")
+            UserDefaults.standard.set(false, forKey: "MeetingModeAutoEnabled")
+            
+            // 通知状态栏更新会议模式状态
+            statusBarController.refreshMeetingModeStatus()
         }
     }
 }

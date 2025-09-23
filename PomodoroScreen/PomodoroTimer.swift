@@ -52,6 +52,7 @@ class PomodoroTimer: ObservableObject {
     private var autoRestartStateMachine: AutoRestartStateMachine
     private var idleTimeMinutes: Int = 10
     private var showCancelRestButton: Bool = true // 是否显示取消休息按钮
+    private var meetingMode: Bool = false // 会议模式：静默休息，不显示遮罩层
     
     // 事件监听器引用
     private var globalEventMonitor: Any?
@@ -264,13 +265,14 @@ class PomodoroTimer: ObservableObject {
         updateTimeDisplay()
     }
     
-    func updateSettings(pomodoroMinutes: Int, breakMinutes: Int, idleRestart: Bool, idleTime: Int, idleActionIsRestart: Bool, screenLockRestart: Bool, screenLockActionIsRestart: Bool, screensaverRestart: Bool, screensaverActionIsRestart: Bool, showCancelRestButton: Bool, longBreakCycle: Int, longBreakTimeMinutes: Int, showLongBreakCancelButton: Bool, accumulateRestTime: Bool, backgroundFiles: [BackgroundFile], stayUpLimitEnabled: Bool, stayUpLimitHour: Int, stayUpLimitMinute: Int) {
+    func updateSettings(pomodoroMinutes: Int, breakMinutes: Int, idleRestart: Bool, idleTime: Int, idleActionIsRestart: Bool, screenLockRestart: Bool, screenLockActionIsRestart: Bool, screensaverRestart: Bool, screensaverActionIsRestart: Bool, showCancelRestButton: Bool, longBreakCycle: Int, longBreakTimeMinutes: Int, showLongBreakCancelButton: Bool, accumulateRestTime: Bool, backgroundFiles: [BackgroundFile], stayUpLimitEnabled: Bool, stayUpLimitHour: Int, stayUpLimitMinute: Int, meetingMode: Bool) {
         let oldPomodoroTime = pomodoroTime
         
         pomodoroTime = TimeInterval(pomodoroMinutes * 60)
         breakTime = TimeInterval(breakMinutes * 60)
         idleTimeMinutes = idleTime
         self.showCancelRestButton = showCancelRestButton
+        self.meetingMode = meetingMode
         
         // 更新计划设置
         self.longBreakTime = TimeInterval(longBreakTimeMinutes * 60)
@@ -359,6 +361,10 @@ class PomodoroTimer: ObservableObject {
     
     func getLongBreakCycle() -> Int {
         return longBreakCycle
+    }
+    
+    func isMeetingMode() -> Bool {
+        return meetingMode
     }
     
     /// 获取当前休息时间信息

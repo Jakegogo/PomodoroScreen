@@ -17,12 +17,15 @@ class StatusBarPopupWindow: NSWindow {
     private var titleLabel: NSTextField!
     private var backgroundView: NSVisualEffectView!
     private var roundIndicatorView: RoundIndicatorView!  // 轮数指示器
+    private var meetingModeSwitch: IOSSwitchButton!  // 会议模式开关
+    private var meetingModeLabel: NSTextField!  // 会议模式标签
     
     // MARK: - Callbacks
     private var onMenuButtonClicked: (() -> Void)?
     private var onControlButtonClicked: (() -> Void)?  // 控制按钮回调
     private var onResetButtonClicked: (() -> Void)?    // 重置按钮回调
     private var onHealthRingsClicked: (() -> Void)?    // 健康环点击回调
+    private var onMeetingModeChanged: ((Bool) -> Void)?  // 会议模式变更回调
     
     // MARK: - Constants
     private static let legendItems: [(String, NSColor)] = [
@@ -90,6 +93,11 @@ class StatusBarPopupWindow: NSWindow {
         var roundIndicatorHeight: CGFloat { 16 }  // 指示器总高度
         var roundIndicatorWidth: CGFloat { 80 }   // 指示器总宽度
         
+        // 会议模式开关相关尺寸（iOS风格）
+        var meetingModeSwitchHeight: CGFloat { IOSSwitchButton.recommendedSize.height }  // 开关高度
+        var meetingModeSwitchWidth: CGFloat { IOSSwitchButton.recommendedSize.width }   // 开关宽度
+        var meetingModeLabelWidth: CGFloat { 60 }  // 固定标签宽度，足够显示"会议模式"
+        
         // 优化的位置计算（自适应、可读性更强）
         // 顶部区域：标题与右上角菜单按钮
         // Title 顶部不留白（紧贴窗口顶部）
@@ -111,9 +119,9 @@ class StatusBarPopupWindow: NSWindow {
         private var contentAreaBottomY: CGFloat { verticalPadding }
         private var contentAreaHeight: CGFloat { contentAreaTopY - contentAreaBottomY }
 
-        // 内容块（健康环 + 指示器 + 按钮 + 图例）的总高度
+        // 内容块（健康环 + 指示器 + 按钮 + 图例 + 会议模式开关）的总高度
         private var contentBlockHeight: CGFloat {
-            return healthRingSize + spacingRingToButtons + roundIndicatorHeight + spacingIndicatorToButtons + buttonHeight + spacingButtonsToLegend + legendTotalHeight
+            return healthRingSize + spacingRingToButtons + roundIndicatorHeight + spacingIndicatorToButtons + buttonHeight + spacingButtonsToLegend + legendTotalHeight + verticalSpacing + meetingModeSwitchHeight
         }
 
         // 使内容块在内容区内垂直居中，略微上移（45%/55%分配）
@@ -126,6 +134,17 @@ class StatusBarPopupWindow: NSWindow {
         // 健康环水平居中
         var healthRingX: CGFloat { (windowWidth - healthRingSize) / 2 }
 
+        // 会议模式开关位置（在最底部，标签和开关作为整体靠右）
+        var meetingModeSwitchY: CGFloat { 
+            contentBaseY - meetingModeSwitchHeight - verticalSpacing
+        }
+        // 计算标签和开关的总宽度
+        private var meetingModeGroupWidth: CGFloat { meetingModeLabelWidth + 4 + meetingModeSwitchWidth }
+        // 整体靠右，标签在左，开关在右
+        var meetingModeSwitchX: CGFloat { windowWidth - horizontalPadding - meetingModeGroupWidth + 10 }
+        var meetingModeLabelX: CGFloat { meetingModeSwitchX + meetingModeSwitchWidth + 4 }
+        
+        
         // 分别计算每一块的底部/顶部位置，避免魔法数
         var legendTopY: CGFloat { contentBaseY + legendTotalHeight - legendItemHeight }
         var buttonY: CGFloat { contentBaseY + legendTotalHeight + spacingButtonsToLegend } // 按钮底部Y
@@ -255,6 +274,9 @@ class StatusBarPopupWindow: NSWindow {
         // 添加控制按钮
         setupControlButtons(in: contentView)
         
+        // 添加会议模式开关
+        setupMeetingModeSwitch(in: contentView)
+        
         // 添加图例
         setupLegend(in: contentView)
     }
@@ -295,6 +317,40 @@ class StatusBarPopupWindow: NSWindow {
         resetButton.target = self
         resetButton.action = #selector(resetButtonClicked)
         contentView.addSubview(resetButton)
+    }
+    
+    private func setupMeetingModeSwitch(in contentView: NSView) {
+        // 创建iOS风格会议模式开关
+        meetingModeSwitch = IOSSwitchButton()
+        meetingModeSwitch.frame = NSRect(
+            x: layoutConfig.meetingModeSwitchX,
+            y: layoutConfig.meetingModeSwitchY,
+            width: IOSSwitchButton.recommendedSize.width,
+            height: IOSSwitchButton.recommendedSize.height
+        )
+        
+        // 设置值变化回调
+        meetingModeSwitch.onValueChanged = { [weak self] isOn in
+            self?.handleMeetingModeSwitchChanged(isOn)
+        }
+        
+        // 创建会议模式标签
+        meetingModeLabel = NSTextField(labelWithString: "会议模式")
+        meetingModeLabel.frame = NSRect(
+            x: layoutConfig.meetingModeLabelX,
+            y: layoutConfig.meetingModeSwitchY + (IOSSwitchButton.recommendedSize.height - 16) / 2, // 垂直居中对齐
+            width: layoutConfig.meetingModeLabelWidth,
+            height: 16
+        )
+        meetingModeLabel.font = NSFont.systemFont(ofSize: 12)
+        meetingModeLabel.textColor = NSColor.secondaryLabelColor
+        meetingModeLabel.alignment = .left // 左对齐，文字在左侧
+        
+        contentView.addSubview(meetingModeSwitch)
+        contentView.addSubview(meetingModeLabel)
+        
+        // 加载当前设置状态
+        updateMeetingModeSwitch()
     }
     
     private func setupLegend(in contentView: NSView) {
@@ -376,6 +432,21 @@ class StatusBarPopupWindow: NSWindow {
             width: layoutConfig.buttonWidth,
             height: layoutConfig.buttonHeight
         )
+        
+        // 更新会议模式开关位置
+        meetingModeSwitch.frame = NSRect(
+            x: layoutConfig.meetingModeSwitchX,
+            y: layoutConfig.meetingModeSwitchY,
+            width: IOSSwitchButton.recommendedSize.width,
+            height: IOSSwitchButton.recommendedSize.height
+        )
+        
+        meetingModeLabel.frame = NSRect(
+            x: layoutConfig.meetingModeLabelX,
+            y: layoutConfig.meetingModeSwitchY + (IOSSwitchButton.recommendedSize.height - 16) / 2, // 垂直居中对齐
+            width: layoutConfig.meetingModeLabelWidth,
+            height: 16
+        )
     }
     
     // MARK: - Legend Creation Helper
@@ -433,6 +504,16 @@ class StatusBarPopupWindow: NSWindow {
         onResetButtonClicked?()
     }
     
+    private func handleMeetingModeSwitchChanged(_ isEnabled: Bool) {
+        // 保存设置到 UserDefaults
+        UserDefaults.standard.set(isEnabled, forKey: "MeetingModeEnabled")
+        
+        print("🔇 会议模式开关：\(isEnabled ? "开启" : "关闭")")
+        
+        // 通知外部需要更新计时器设置
+        onMeetingModeChanged?(isEnabled)
+    }
+    
     // MARK: - Action Setters
     func setMenuButtonAction(_ action: @escaping () -> Void) {
         onMenuButtonClicked = action
@@ -452,6 +533,10 @@ class StatusBarPopupWindow: NSWindow {
     
     func setHealthRingsClickedAction(_ action: @escaping () -> Void) {
         onHealthRingsClicked = action
+    }
+    
+    func setMeetingModeChangedAction(_ action: @escaping (Bool) -> Void) {
+        onMeetingModeChanged = action
     }
     
     func updateControlButtonTitle(_ title: String) {
@@ -487,6 +572,23 @@ class StatusBarPopupWindow: NSWindow {
     
     func updateCountdown(time: TimeInterval, title: String) {
         healthRingsView.updateCountdown(time: time, title: title)
+    }
+    
+    private func updateMeetingModeSwitch() {
+        let isEnabled = UserDefaults.standard.bool(forKey: "MeetingModeEnabled")
+        meetingModeSwitch.setOn(isEnabled, animated: false)
+    }
+    
+    /// 刷新会议模式开关状态（外部调用）
+    func refreshMeetingModeSwitch() {
+        let isEnabled = UserDefaults.standard.bool(forKey: "MeetingModeEnabled")
+        meetingModeSwitch.setOn(isEnabled, animated: true) // 有动画效果
+        
+        // 检查是否是自动启用的
+        let wasAutoEnabled = UserDefaults.standard.bool(forKey: "MeetingModeAutoEnabled")
+        if wasAutoEnabled {
+            print("🔇 会议模式开关状态已自动更新: \(isEnabled ? "开启" : "关闭")")
+        }
     }
     
     func showPopup() {

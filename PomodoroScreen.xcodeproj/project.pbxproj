@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		23249BA42E825DBC00F45D58 /* rest_video.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 23249BA12E825DBC00F45D58 /* rest_video.mp4 */; };
 		23249BA62E82662F00F45D58 /* icon_video.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 23249BA52E82662F00F45D58 /* icon_video.mp4 */; };
+		23249BA82E826FCF00F45D58 /* IOSSwitchButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23249BA72E826FCF00F45D58 /* IOSSwitchButton.swift */; };
+		23249C642E82731700F45D58 /* ScreenDetectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23249C632E82731700F45D58 /* ScreenDetectionManager.swift */; };
 		234823262E7EAAC500DC507E /* AutoRestartStateMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 234823252E7EAAC500DC507E /* AutoRestartStateMachine.swift */; };
 		23BD5A8B2E80F742008AEE45 /* BeautifulPoliceOfficer-rvv8x.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 23BD5A892E80F742008AEE45 /* BeautifulPoliceOfficer-rvv8x.ttf */; };
 		23BD5AA92E80F9CD008AEE45 /* ClockIconGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BD5AA82E80F9CD008AEE45 /* ClockIconGenerator.swift */; };
@@ -46,6 +48,8 @@
 /* Begin PBXFileReference section */
 		23249BA12E825DBC00F45D58 /* rest_video.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = rest_video.mp4; sourceTree = "<group>"; };
 		23249BA52E82662F00F45D58 /* icon_video.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = icon_video.mp4; sourceTree = "<group>"; };
+		23249BA72E826FCF00F45D58 /* IOSSwitchButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSSwitchButton.swift; sourceTree = "<group>"; };
+		23249C632E82731700F45D58 /* ScreenDetectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenDetectionManager.swift; sourceTree = "<group>"; };
 		234823252E7EAAC500DC507E /* AutoRestartStateMachine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoRestartStateMachine.swift; sourceTree = "<group>"; };
 		2348232B2E7EAAF800DC507E /* PomodoroScreenTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PomodoroScreenTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		23BD5A892E80F742008AEE45 /* BeautifulPoliceOfficer-rvv8x.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "BeautifulPoliceOfficer-rvv8x.ttf"; sourceTree = "<group>"; };
@@ -116,6 +120,7 @@
 		23BD5B2D2E818E48008AEE45 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				23249BA72E826FCF00F45D58 /* IOSSwitchButton.swift */,
 				23BD5C342E824FE3008AEE45 /* RoundIndicatorView.swift */,
 				23BD5B2C2E818E48008AEE45 /* HoverButton.swift */,
 				23BD5B312E818F49008AEE45 /* OnboardingWindow.swift */,
@@ -143,6 +148,7 @@
 		A1234567890ABCDEF013 /* PomodoroScreen */ = {
 			isa = PBXGroup;
 			children = (
+				23249C632E82731700F45D58 /* ScreenDetectionManager.swift */,
 				23BD5B2E2E818E48008AEE45 /* UI */,
 				23BD5AA82E80F9CD008AEE45 /* ClockIconGenerator.swift */,
 				234823252E7EAAC500DC507E /* AutoRestartStateMachine.swift */,
@@ -312,10 +318,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1234567890ABCDEF001 /* AppDelegate.swift in Sources */,
+				23249C642E82731700F45D58 /* ScreenDetectionManager.swift in Sources */,
 				23BD5B2F2E818E48008AEE45 /* HoverButton.swift in Sources */,
 				23BD5B302E818F49008AEE45 /* OnboardingWindow.swift in Sources */,
+				23249BA82E826FCF00F45D58 /* IOSSwitchButton.swift in Sources */,
 				23BD5AA92E80F9CD008AEE45 /* ClockIconGenerator.swift in Sources */,
 				A1234567890ABCDEF003 /* PomodoroTimer.swift in Sources */,
+				A1234567890ABCDEF015 /* SettingsWindow.swift in Sources */,
 				A1234567890ABCDEF005 /* StatusBarController.swift in Sources */,
 				A1234567890ABCDEF007 /* OverlayWindow.swift in Sources */,
 				23BD5C352E824FE6008AEE45 /* RoundIndicatorView.swift in Sources */,
