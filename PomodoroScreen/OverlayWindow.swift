@@ -8,6 +8,7 @@ class OverlayWindow: NSWindow {
     private var overlayView: OverlayView!
     private var dismissTimer: Timer?
     private var timer: PomodoroTimer? // 添加timer引用
+    private var isPreviewMode: Bool = false // 预览模式标志
     
     // 背景文件相关属性
     private var backgroundFiles: [BackgroundFile] = []
@@ -43,6 +44,7 @@ class OverlayWindow: NSWindow {
         
         // 设置timer引用
         self.timer = timer
+        self.isPreviewMode = false
         
         // 获取背景文件设置并切换到下一个背景
         self.backgroundFiles = timer.getBackgroundFiles()
@@ -50,6 +52,28 @@ class OverlayWindow: NSWindow {
         
         // 创建遮罩视图，传入计时器引用
         overlayView = OverlayView(frame: screenRect, timer: timer)
+    }
+    
+    // 预览模式初始化方法
+    convenience init(previewFiles: [BackgroundFile], selectedIndex: Int = 0) {
+        // 获取主屏幕尺寸
+        let screenRect = NSScreen.main?.frame ?? NSRect.zero
+        
+        self.init(
+            contentRect: screenRect,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        
+        // 设置预览模式
+        self.timer = nil
+        self.isPreviewMode = true
+        self.backgroundFiles = previewFiles
+        self.currentBackgroundIndex = selectedIndex >= 0 && selectedIndex < previewFiles.count ? selectedIndex : 0
+        
+        // 创建预览遮罩视图（不传入计时器）
+        overlayView = OverlayView(frame: screenRect, timer: nil, isPreviewMode: true)
     }
     
     // MARK: - Public Methods
@@ -82,6 +106,11 @@ class OverlayWindow: NSWindow {
         
         // 设置3分钟后自动隐藏
         startDismissTimer()
+        
+        // 如果是预览模式且有多个文件，启动轮播
+        if isPreviewMode && backgroundFiles.count > 1 {
+            startBackgroundRotation()
+        }
     }
     
     // MARK: - Private Methods
@@ -393,12 +422,14 @@ class OverlayWindow: NSWindow {
         // 清除定时器
         dismissTimer?.invalidate()
         dismissTimer = nil
+        backgroundRotationTimer?.invalidate()
+        backgroundRotationTimer = nil
         
         // 停止并清理背景
         cleanupBackground()
         
-        // 通知计时器遮罩窗口即将关闭
-        if let timer = self.timer {
+        // 只有在非预览模式下才通知计时器
+        if !isPreviewMode, let timer = self.timer {
             // 如果是用户主动取消休息，调用cancelBreak
             // 如果是自动结束，则开始下一个番茄钟
             if timer.isInRestPeriod {
@@ -421,6 +452,20 @@ class OverlayWindow: NSWindow {
             // 重置应用程序状态
             NSApplication.shared.activate(ignoringOtherApps: true)
         }
+    }
+    
+    private func startBackgroundRotation() {
+        backgroundRotationTimer?.invalidate()
+        backgroundRotationTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+            self?.switchToNextBackground()
+        }
+    }
+    
+    private func switchToNextBackground() {
+        guard backgroundFiles.count > 1 else { return }
+        
+        currentBackgroundIndex = (currentBackgroundIndex + 1) % backgroundFiles.count
+        setupBackgroundFromFiles()
     }
     
     private func cleanupVideoPlayer() {
@@ -480,9 +525,18 @@ class OverlayView: NSView {
     private var cancelButton: NSButton!
     private var messageLabel: NSTextField!
     private var timer: PomodoroTimer?
+    private var isPreviewMode: Bool = false
+    
+    init(frame frameRect: NSRect, timer: PomodoroTimer?, isPreviewMode: Bool = false) {
+        self.timer = timer
+        self.isPreviewMode = isPreviewMode
+        super.init(frame: frameRect)
+        setupView()
+    }
     
     init(frame frameRect: NSRect, timer: PomodoroTimer?) {
         self.timer = timer
+        self.isPreviewMode = false
         super.init(frame: frameRect)
         setupView()
     }
@@ -499,35 +553,51 @@ class OverlayView: NSView {
     
     private func setupView() {
         wantsLayer = true
-        // 设置为完全透明的背景，让视频能够透过显示
-        layer?.backgroundColor = NSColor.clear.cgColor
+        
+        if isPreviewMode {
+            // 预览模式：半透明黑色背景
+            layer?.backgroundColor = NSColor.black.withAlphaComponent(0.3).cgColor
+        } else {
+            // 正常模式：完全透明的背景，让视频能够透过显示
+            layer?.backgroundColor = NSColor.clear.cgColor
+        }
         
         // 确保这个视图在最上层
         layer?.zPosition = 1000
         
         setupMessageLabel()
         
-        // 根据设置决定是否显示取消休息按钮
-        let shouldShowButton = timer?.shouldShowCancelRestButton ?? true
-        if shouldShowButton {
-            setupCancelButton()
+        // 根据模式决定是否显示按钮
+        if isPreviewMode {
+            setupPreviewButton()
+        } else {
+            // 根据设置决定是否显示取消休息按钮
+            let shouldShowButton = timer?.shouldShowCancelRestButton ?? true
+            if shouldShowButton {
+                setupCancelButton()
+            }
         }
     }
     
     private func setupMessageLabel() {
         messageLabel = NSTextField(frame: NSRect(x: 0, y: 0, width: 800, height: 200))
         
-        // 根据是否为熬夜时间显示不同消息
-        if let timer = timer, timer.isStayUpTime {
-            messageLabel.stringValue = "🌙 熬夜时间到了，该休息了！\n\n为了您的健康，请停止工作"
+        if isPreviewMode {
+            // 预览模式显示预览标题
+            messageLabel.stringValue = "背景预览"
         } else {
-            // 获取当前休息时间信息并显示
-            if let timer = timer {
-                let breakInfo = timer.getCurrentBreakInfo()
-                let breakType = breakInfo.isLongBreak ? "长休息" : "休息"
-                messageLabel.stringValue = "番茄钟时间到！\n\n\(breakType)时间，\(breakInfo.breakMinutes)分钟后自动恢复"
+            // 正常模式根据是否为熬夜时间显示不同消息
+            if let timer = timer, timer.isStayUpTime {
+                messageLabel.stringValue = "🌙 熬夜时间到了，该休息了！\n\n为了您的健康，请停止工作"
             } else {
-                messageLabel.stringValue = "番茄钟时间到！\n\n休息时间"
+                // 获取当前休息时间信息并显示
+                if let timer = timer {
+                    let breakInfo = timer.getCurrentBreakInfo()
+                    let breakType = breakInfo.isLongBreak ? "长休息" : "休息"
+                    messageLabel.stringValue = "番茄钟时间到！\n\n\(breakType)时间，\(breakInfo.breakMinutes)分钟后自动恢复"
+                } else {
+                    messageLabel.stringValue = "番茄钟时间到！\n\n休息时间"
+                }
             }
         }
         messageLabel.isEditable = false
@@ -628,6 +698,58 @@ class OverlayView: NSView {
         })
     }
     
+    private func setupPreviewButton() {
+        cancelButton = NSButton(frame: NSRect(x: 0, y: 0, width: 90, height: 32))
+        cancelButton.title = "关闭预览"
+        cancelButton.bezelStyle = .shadowlessSquare
+        cancelButton.isBordered = false
+        cancelButton.font = NSFont.systemFont(ofSize: 14, weight: .regular)
+        cancelButton.target = self
+        cancelButton.action = #selector(previewButtonClicked)
+        cancelButton.keyEquivalent = "\u{1b}" // ESC键
+        
+        // 设置完全透明背景和白色边框（与 CancelButton 相同的样式）
+        cancelButton.wantsLayer = true
+        cancelButton.layer?.backgroundColor = NSColor.clear.cgColor
+        cancelButton.layer?.cornerRadius = 6
+        cancelButton.layer?.borderWidth = 1.5
+        cancelButton.layer?.borderColor = NSColor.white.cgColor
+        
+        // 设置文字颜色为白色
+        cancelButton.contentTintColor = NSColor.white
+        
+        addSubview(cancelButton)
+        
+        // 设置按钮位置（与 CancelButton 相同的位置）
+        cancelButton.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            cancelButton.centerXAnchor.constraint(equalTo: centerXAnchor),
+            cancelButton.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -bounds.height * 0.2), // 距离底部约20%的位置
+            cancelButton.widthAnchor.constraint(equalToConstant: 90),
+            cancelButton.heightAnchor.constraint(equalToConstant: 32)
+        ])
+        
+        // 3秒后淡化按钮（但不完全消失）
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+            self?.fadeCancelButton()
+        }
+        
+        // 添加提示标签
+        let hintLabel = NSTextField(labelWithString: "按 ESC 键或点击关闭按钮退出预览")
+        hintLabel.font = NSFont.systemFont(ofSize: 14)
+        hintLabel.textColor = NSColor.white.withAlphaComponent(0.8)
+        hintLabel.alignment = .center
+        addSubview(hintLabel)
+        
+        hintLabel.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            hintLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
+            hintLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -50),
+            hintLabel.widthAnchor.constraint(equalToConstant: 400),
+            hintLabel.heightAnchor.constraint(equalToConstant: 20)
+        ])
+    }
+    
     private func enableButtonHoverEffect() {
         guard let cancelButton = cancelButton else { return }
         
@@ -676,6 +798,10 @@ class OverlayView: NSView {
     }
     
     @objc private func cancelButtonClicked() {
+        onDismiss?()
+    }
+    
+    @objc private func previewButtonClicked() {
         onDismiss?()
     }
     

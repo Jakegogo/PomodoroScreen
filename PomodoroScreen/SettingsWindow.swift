@@ -55,6 +55,7 @@ class SettingsWindow: NSWindow {
     private var removeBackgroundButton: NSButton!
     private var moveUpButton: NSButton!
     private var moveDownButton: NSButton!
+    private var previewButton: NSButton!  // 预览按钮
     private var backgroundTypeLabel: NSTextField!
     
     // 通用控件
@@ -473,6 +474,14 @@ class SettingsWindow: NSWindow {
         moveDownButton.frame = NSRect(x: buttonX, y: buttonY, width: 80, height: 32)
         moveDownButton.bezelStyle = .rounded
         backgroundView.addSubview(moveDownButton)
+        buttonY -= 50  // 增加间距
+        
+        // 预览按钮
+        previewButton = NSButton(title: "预览", target: self, action: #selector(previewBackground))
+        previewButton.frame = NSRect(x: buttonX, y: buttonY, width: 80, height: 32)
+        previewButton.bezelStyle = .rounded
+        previewButton.keyEquivalent = "p"  // 快捷键 Cmd+P
+        backgroundView.addSubview(previewButton)
         
         // 说明文字
         let infoLabel = NSTextField(labelWithString: "支持图片格式：jpg, png, gif\n支持视频格式：mp4, mov, avi\n多个文件将按顺序轮播显示")
@@ -793,6 +802,17 @@ class SettingsWindow: NSWindow {
             backgroundFilesList.reloadData()
             backgroundFilesList.selectRowIndexes(IndexSet(integer: selectedRow + 1), byExtendingSelection: false)
         }
+    }
+    
+    @objc private func previewBackground() {
+        guard !backgroundFiles.isEmpty else { return }
+        
+        let selectedRow = backgroundFilesList.selectedRow
+        let selectedIndex = selectedRow >= 0 && selectedRow < backgroundFiles.count ? selectedRow : -1
+        
+        // 使用 OverlayWindow 的预览模式
+        let previewOverlay = OverlayWindow(previewFiles: backgroundFiles, selectedIndex: selectedIndex)
+        previewOverlay.showOverlay()
     }
     
     @objc private func saveSettings() {
@@ -1252,3 +1272,4 @@ class BackgroundFileCellView: NSView {
         }
     }
 }
+
