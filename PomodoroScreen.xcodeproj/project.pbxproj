@@ -7,8 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		23249BA32E825DBC00F45D58 /* icon_video.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 23249BA02E825DBC00F45D58 /* icon_video.mp4 */; };
+		23249BA42E825DBC00F45D58 /* rest_video.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 23249BA12E825DBC00F45D58 /* rest_video.mp4 */; };
 		234823262E7EAAC500DC507E /* AutoRestartStateMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 234823252E7EAAC500DC507E /* AutoRestartStateMachine.swift */; };
-		23B916E72E7E7A7C00B644BE /* rest_video.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 23B916E62E7E7A7C00B644BE /* rest_video.mp4 */; };
 		23BD5A8B2E80F742008AEE45 /* BeautifulPoliceOfficer-rvv8x.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 23BD5A892E80F742008AEE45 /* BeautifulPoliceOfficer-rvv8x.ttf */; };
 		23BD5AA92E80F9CD008AEE45 /* ClockIconGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BD5AA82E80F9CD008AEE45 /* ClockIconGenerator.swift */; };
 		23BD5B2F2E818E48008AEE45 /* HoverButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BD5B2C2E818E48008AEE45 /* HoverButton.swift */; };
@@ -43,9 +44,10 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		23249BA02E825DBC00F45D58 /* icon_video.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = icon_video.mp4; sourceTree = "<group>"; };
+		23249BA12E825DBC00F45D58 /* rest_video.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = rest_video.mp4; sourceTree = "<group>"; };
 		234823252E7EAAC500DC507E /* AutoRestartStateMachine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoRestartStateMachine.swift; sourceTree = "<group>"; };
 		2348232B2E7EAAF800DC507E /* PomodoroScreenTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PomodoroScreenTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		23B916E62E7E7A7C00B644BE /* rest_video.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = rest_video.mp4; sourceTree = "<group>"; };
 		23BD5A892E80F742008AEE45 /* BeautifulPoliceOfficer-rvv8x.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "BeautifulPoliceOfficer-rvv8x.ttf"; sourceTree = "<group>"; };
 		23BD5AA82E80F9CD008AEE45 /* ClockIconGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockIconGenerator.swift; sourceTree = "<group>"; };
 		23BD5B2C2E818E48008AEE45 /* HoverButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverButton.swift; sourceTree = "<group>"; };
@@ -94,6 +96,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		23249BA22E825DBC00F45D58 /* video */ = {
+			isa = PBXGroup;
+			children = (
+				23249BA02E825DBC00F45D58 /* icon_video.mp4 */,
+				23249BA12E825DBC00F45D58 /* rest_video.mp4 */,
+			);
+			path = video;
+			sourceTree = "<group>";
+		};
 		23BD5A8A2E80F742008AEE45 /* font */ = {
 			isa = PBXGroup;
 			children = (
@@ -123,7 +134,6 @@
 		A1234567890ABCDEF012 = {
 			isa = PBXGroup;
 			children = (
-				23B916E62E7E7A7C00B644BE /* rest_video.mp4 */,
 				A1234567890ABCDEF013 /* PomodoroScreen */,
 				2348232C2E7EAAF800DC507E /* PomodoroScreenTests */,
 				A1234567890ABCDEF014 /* Products */,
@@ -170,6 +180,7 @@
 		JS1234567890ABCDEF003 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				23249BA22E825DBC00F45D58 /* video */,
 				23BD5A8A2E80F742008AEE45 /* font */,
 				JS1234567890ABCDEF004 /* js */,
 			);
@@ -278,8 +289,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				23BD5A8B2E80F742008AEE45 /* BeautifulPoliceOfficer-rvv8x.ttf in Resources */,
-				23B916E72E7E7A7C00B644BE /* rest_video.mp4 in Resources */,
 				A1234567890ABCDEF009 /* Assets.xcassets in Resources */,
+				23249BA32E825DBC00F45D58 /* icon_video.mp4 in Resources */,
+				23249BA42E825DBC00F45D58 /* rest_video.mp4 in Resources */,
 				A1234567890ABCDEF00B /* MainMenu.xib in Resources */,
 				JS1234567890ABCDEF001 /* chart.js in Resources */,
 			);
