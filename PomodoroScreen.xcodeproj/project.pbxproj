@@ -13,6 +13,7 @@
 		23BD5AA92E80F9CD008AEE45 /* ClockIconGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BD5AA82E80F9CD008AEE45 /* ClockIconGenerator.swift */; };
 		23BD5B2F2E818E48008AEE45 /* HoverButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BD5B2C2E818E48008AEE45 /* HoverButton.swift */; };
 		23BD5B302E818F49008AEE45 /* OnboardingWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BD5B312E818F49008AEE45 /* OnboardingWindow.swift */; };
+		23BD5C352E824FE6008AEE45 /* RoundIndicatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BD5C342E824FE3008AEE45 /* RoundIndicatorView.swift */; };
 		A1234567890ABCDEF001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF002 /* AppDelegate.swift */; };
 		A1234567890ABCDEF003 /* PomodoroTimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF004 /* PomodoroTimer.swift */; };
 		A1234567890ABCDEF005 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF006 /* StatusBarController.swift */; };
@@ -49,6 +50,7 @@
 		23BD5AA82E80F9CD008AEE45 /* ClockIconGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockIconGenerator.swift; sourceTree = "<group>"; };
 		23BD5B2C2E818E48008AEE45 /* HoverButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverButton.swift; sourceTree = "<group>"; };
 		23BD5B312E818F49008AEE45 /* OnboardingWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingWindow.swift; sourceTree = "<group>"; };
+		23BD5C342E824FE3008AEE45 /* RoundIndicatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoundIndicatorView.swift; sourceTree = "<group>"; };
 		5F523799673D4942B090EFE3 /* LaunchAtLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLogin.swift; sourceTree = "<group>"; };
 		A1234567890ABCDEF000 /* PomodoroScreen.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PomodoroScreen.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1234567890ABCDEF002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -103,6 +105,7 @@
 		23BD5B2D2E818E48008AEE45 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				23BD5C342E824FE3008AEE45 /* RoundIndicatorView.swift */,
 				23BD5B2C2E818E48008AEE45 /* HoverButton.swift */,
 				23BD5B312E818F49008AEE45 /* OnboardingWindow.swift */,
 			);
@@ -303,6 +306,7 @@
 				A1234567890ABCDEF003 /* PomodoroTimer.swift in Sources */,
 				A1234567890ABCDEF005 /* StatusBarController.swift in Sources */,
 				A1234567890ABCDEF007 /* OverlayWindow.swift in Sources */,
+				23BD5C352E824FE6008AEE45 /* RoundIndicatorView.swift in Sources */,
 				234823262E7EAAC500DC507E /* AutoRestartStateMachine.swift in Sources */,
 				CD1234567890ABCDEF001 /* CountdownNotificationWindow.swift in Sources */,
 				PW1234567890ABCDEF001 /* StatusBarPopupWindow.swift in Sources */,

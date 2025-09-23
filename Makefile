@@ -5,7 +5,7 @@
 # 
 # 提供便捷的构建命令
 
-.PHONY: help clean test debug release dmg quick ci install run
+.PHONY: help clean test debug release dmg quick ci install run universal
 
 # 默认目标
 .DEFAULT_GOAL := help
@@ -57,6 +57,10 @@ quick: ## 快速构建DMG（推荐）
 ci: ## 持续集成构建
 	@echo "$(YELLOW)🤖 持续集成构建...$(NC)"
 	@./ci-build.sh
+
+universal: ## 构建通用二进制（ARM64 + Intel）
+	@echo "$(CYAN)🌍 构建通用二进制包...$(NC)"
+	@./build-universal.sh
 
 all: ## 完整构建流程
 	@echo "$(YELLOW)🔄 执行完整构建流程...$(NC)"

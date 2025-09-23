@@ -353,6 +353,14 @@ class PomodoroTimer: ObservableObject {
         return backgroundFiles
     }
     
+    func getCompletedPomodoros() -> Int {
+        return completedPomodoros
+    }
+    
+    func getLongBreakCycle() -> Int {
+        return longBreakCycle
+    }
+    
     /// 获取当前休息时间信息
     func getCurrentBreakInfo() -> (isLongBreak: Bool, breakMinutes: Int) {
         if isLongBreak {

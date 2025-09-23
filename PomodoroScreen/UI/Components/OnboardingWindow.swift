@@ -144,15 +144,15 @@ class OnboardingWindow: NSWindow {
     }
     
     private func setupButtons(in contentView: NSView) {
-        // 下一步/完成按钮
-        nextButton = HoverButton(frame: NSRect(x: 300, y: 10, width: 80, height: 30))
+        // 下一步/完成按钮 - 右下角位置，距离底部和右边缘各20px
+        nextButton = HoverButton(frame: NSRect(x: 380, y: 20, width: 80, height: 32))
         nextButton.configurePrimaryStyle(title: "下一步")
         nextButton.target = self
         nextButton.action = #selector(nextButtonClicked)
         contentView.addSubview(nextButton)
         
-        // 跳过按钮
-        skipButton = NSButton(frame: NSRect(x: 210, y: 10, width: 80, height: 30))
+        // 跳过按钮 - 左下角位置，距离底部和左边缘各20px
+        skipButton = NSButton(frame: NSRect(x: 20, y: 20, width: 80, height: 32))
         skipButton.title = "跳过"
         skipButton.bezelStyle = .rounded
         skipButton.font = NSFont.systemFont(ofSize: 13)
@@ -174,9 +174,9 @@ class OnboardingWindow: NSWindow {
         case 1:
             titleLabel.stringValue = "状态栏图标"
             contentLabel.stringValue = "应用启动后，您会在屏幕右上角的状态栏中\n看到一个动态时钟图标，显示当前倒计时进度\n点击它可以查看详细进度和控制计时器"
-            // 使用ClockIconGenerator生成示例时钟图标 (显示75%进度)
+            // 使用ClockIconGenerator生成大尺寸示例时钟图标 (显示75%进度)
             let clockGenerator = ClockIconGenerator()
-            imageView.image = clockGenerator.generateClockIcon(progress: 0.75, totalTime: 1500, remainingTime: 375)
+            imageView.image = clockGenerator.generateLargeClockIcon(progress: 0.75, size: CGSize(width: 80, height: 80))
             nextButton.title = "我知道了"
             
         case 2:

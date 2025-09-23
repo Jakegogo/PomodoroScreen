@@ -141,6 +141,9 @@ class StatusBarController {
         // 更新按钮状态
         updatePopupButtonStates()
         
+        // 更新轮数指示器
+        updateRoundIndicator()
+        
         // 根据计时器状态设置健康环动画
         popup.healthRingsView.setTimerRunning(pomodoroTimer.isRunning)
         
@@ -298,6 +301,8 @@ class StatusBarController {
         updateHealthRingsData()
         // 更新popup按钮状态
         updatePopupButtonStates()
+        // 更新轮数指示器
+        updateRoundIndicator()
         // 控制健康环动画：计时器开始时展开并启动动画
         popupWindow?.healthRingsView.setTimerRunning(true)
     }
@@ -310,6 +315,8 @@ class StatusBarController {
         updateHealthRingsData()
         // 更新popup按钮状态
         updatePopupButtonStates()
+        // 更新轮数指示器
+        updateRoundIndicator()
         // 控制健康环动画：计时器停止时收缩并停止动画
         popupWindow?.healthRingsView.setTimerRunning(false)
     }
@@ -322,6 +329,8 @@ class StatusBarController {
         updateHealthRingsData()
         // 更新popup按钮状态
         updatePopupButtonStates()
+        // 更新轮数指示器
+        updateRoundIndicator()
         // 控制健康环动画：重置时收缩并停止动画（因为重置后计时器未运行）
         popupWindow?.healthRingsView.setTimerRunning(false)
     }
@@ -354,6 +363,15 @@ class StatusBarController {
         }
         
         popupWindow?.updateControlButtonTitle(title)
+    }
+    
+    private func updateRoundIndicator() {
+        guard let popup = popupWindow else { return }
+        
+        let completedRounds = pomodoroTimer.getCompletedPomodoros()
+        let longBreakCycle = pomodoroTimer.getLongBreakCycle()
+        
+        popup.updateRoundIndicator(completedRounds: completedRounds, longBreakCycle: longBreakCycle)
     }
     
     @objc private func testFinishTimer() {

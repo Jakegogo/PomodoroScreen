@@ -16,6 +16,7 @@ class StatusBarPopupWindow: NSWindow {
     private var resetButton: HoverButton!    // 重置按钮
     private var titleLabel: NSTextField!
     private var backgroundView: NSVisualEffectView!
+    private var roundIndicatorView: RoundIndicatorView!  // 轮数指示器
     
     // MARK: - Callbacks
     private var onMenuButtonClicked: (() -> Void)?
@@ -85,6 +86,10 @@ class StatusBarPopupWindow: NSWindow {
         var legendItemHeight: CGFloat { 20 }
         var legendSpacing: CGFloat { 3 } // 稍微紧凑一些
         
+        // 轮数指示器相关尺寸
+        var roundIndicatorHeight: CGFloat { 16 }  // 指示器总高度
+        var roundIndicatorWidth: CGFloat { 80 }   // 指示器总宽度
+        
         // 优化的位置计算（自适应、可读性更强）
         // 顶部区域：标题与右上角菜单按钮
         // Title 顶部不留白（紧贴窗口顶部）
@@ -95,6 +100,7 @@ class StatusBarPopupWindow: NSWindow {
         // 内容区内部通用间距（适度放宽，观感更舒适）
         var spacingAfterTitle: CGFloat { verticalSpacing * 1.3 }
         var spacingRingToButtons: CGFloat { verticalSpacing * 1.8 }
+        var spacingIndicatorToButtons: CGFloat { verticalSpacing * 0.8 }  // 指示器到按钮的间距
         var spacingButtonsToLegend: CGFloat { verticalSpacing * 1.4 }
 
         // 图例整体高度（四行）
@@ -105,9 +111,9 @@ class StatusBarPopupWindow: NSWindow {
         private var contentAreaBottomY: CGFloat { verticalPadding }
         private var contentAreaHeight: CGFloat { contentAreaTopY - contentAreaBottomY }
 
-        // 内容块（健康环 + 按钮 + 图例）的总高度
+        // 内容块（健康环 + 指示器 + 按钮 + 图例）的总高度
         private var contentBlockHeight: CGFloat {
-            return healthRingSize + spacingRingToButtons + buttonHeight + spacingButtonsToLegend + legendTotalHeight
+            return healthRingSize + spacingRingToButtons + roundIndicatorHeight + spacingIndicatorToButtons + buttonHeight + spacingButtonsToLegend + legendTotalHeight
         }
 
         // 使内容块在内容区内垂直居中，略微上移（45%/55%分配）
@@ -123,11 +129,15 @@ class StatusBarPopupWindow: NSWindow {
         // 分别计算每一块的底部/顶部位置，避免魔法数
         var legendTopY: CGFloat { contentBaseY + legendTotalHeight - legendItemHeight }
         var buttonY: CGFloat { contentBaseY + legendTotalHeight + spacingButtonsToLegend } // 按钮底部Y
-        var healthRingY: CGFloat { buttonY + buttonHeight * 2 + spacingRingToButtons * 2 } // 健康环底部Y
+        var roundIndicatorY: CGFloat { buttonY + buttonHeight + spacingIndicatorToButtons } // 指示器底部Y
+        var healthRingY: CGFloat { roundIndicatorY + roundIndicatorHeight + spacingRingToButtons + buttonHeight } // 健康环底部Y
 
         // 按钮水平位置
         var controlButtonX: CGFloat { horizontalPadding }
         var resetButtonX: CGFloat { horizontalPadding + buttonWidth + horizontalSpacing }
+        
+        // 轮数指示器水平居中
+        var roundIndicatorX: CGFloat { (windowWidth - roundIndicatorWidth) / 2 }
 
         // 图例首行基准Y（第一行的定位基准）
         var legendStartY: CGFloat { legendTopY }
@@ -239,11 +249,24 @@ class StatusBarPopupWindow: NSWindow {
             self?.healthRingsView.updateTrackingAreas()
         }
         
+        // 添加轮数指示器
+        setupRoundIndicator(in: contentView)
+        
         // 添加控制按钮
         setupControlButtons(in: contentView)
         
         // 添加图例
         setupLegend(in: contentView)
+    }
+    
+    private func setupRoundIndicator(in contentView: NSView) {
+        roundIndicatorView = RoundIndicatorView(frame: NSRect(
+            x: layoutConfig.roundIndicatorX,
+            y: layoutConfig.roundIndicatorY,
+            width: layoutConfig.roundIndicatorWidth,
+            height: layoutConfig.roundIndicatorHeight
+        ))
+        contentView.addSubview(roundIndicatorView)
     }
     
     private func setupControlButtons(in contentView: NSView) {
@@ -331,6 +354,14 @@ class StatusBarPopupWindow: NSWindow {
             height: layoutConfig.menuButtonSize
         )
         
+        // 更新轮数指示器位置
+        roundIndicatorView.frame = NSRect(
+            x: layoutConfig.roundIndicatorX,
+            y: layoutConfig.roundIndicatorY,
+            width: layoutConfig.roundIndicatorWidth,
+            height: layoutConfig.roundIndicatorHeight
+        )
+        
         // 更新控制按钮位置和大小
         controlButton.frame = NSRect(
             x: layoutConfig.controlButtonX,
@@ -405,6 +436,10 @@ class StatusBarPopupWindow: NSWindow {
     // MARK: - Action Setters
     func setMenuButtonAction(_ action: @escaping () -> Void) {
         onMenuButtonClicked = action
+    }
+    
+    func updateRoundIndicator(completedRounds: Int, longBreakCycle: Int = 2) {
+        roundIndicatorView?.updateRounds(completed: completedRounds, cycle: longBreakCycle)
     }
     
     func setControlButtonAction(_ action: @escaping () -> Void) {
@@ -555,3 +590,4 @@ class StatusBarPopupWindow: NSWindow {
         }
     }
 }
+
