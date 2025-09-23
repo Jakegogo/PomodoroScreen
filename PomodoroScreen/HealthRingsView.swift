@@ -47,8 +47,8 @@ enum RingType: CaseIterable {
     var diameter: CGFloat {
         switch self {
         case .restAdequacy: return 0.82    // big - 最外层
-        case .workIntensity: return 0.58   // medium - 第二层
-        case .focus: return 0.38           // small - 第三层，增加直径减少与内层重叠
+        case .workIntensity: return 0.60   // medium - 第二层
+        case .focus: return 0.39           // small - 第三层，增加直径减少与内层重叠
         case .health: return 0.20          // extra small - 最内层，减小直径增加间距
         }
     }
@@ -257,10 +257,10 @@ class HealthRingsView: NSView {
                 breathingIntensity = wave1 + wave2 + wave3 + wave4
             case .workIntensity:   // 第二层 - 与最外层节奏一致，强度适中
                 let baseBreathing = smoothBreathing(currentPhase)
-                let wave1 = baseBreathing * 0.070
-                let wave2 = smoothBreathing(currentPhase * 1.3 + 0.5) * 0.044
-                let wave3 = smoothBreathing(currentPhase * 0.7 + 1.2) * 0.032
-                let wave4 = smoothBreathing(currentPhase * 2.1 + 0.9) * 0.020
+                let wave1 = baseBreathing * 0.085
+                let wave2 = smoothBreathing(currentPhase * 1.3 + 0.5) * 0.052
+                let wave3 = smoothBreathing(currentPhase * 0.7 + 1.2) * 0.038
+                let wave4 = smoothBreathing(currentPhase * 2.1 + 0.9) * 0.024
                 breathingIntensity = wave1 + wave2 + wave3 + wave4
             case .focus:           // 第三层 - 与最外层节奏一致，强度较轻
                 let baseBreathing = smoothBreathing(currentPhase)
