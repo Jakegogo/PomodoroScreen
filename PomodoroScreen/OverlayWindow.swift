@@ -818,8 +818,12 @@ class OverlayView: NSView {
     }
     
     override func keyDown(with event: NSEvent) {
-        // 按键后不再隐藏遮罩层，移除处理逻辑
-        // onDismiss?()
+        // 检查是否是 ESC 键
+        if event.keyCode == 53 { // ESC 键的键码是 53
+            onDismiss?()
+        } else {
+            super.keyDown(with: event)
+        }
     }
     
     override var acceptsFirstResponder: Bool {
