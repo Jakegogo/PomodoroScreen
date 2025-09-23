@@ -48,7 +48,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // 检查是否需要显示新手引导
         // 临时重置引导状态用于测试 - 生产环境需要删除这行
-        OnboardingWindow.resetOnboarding()
+        // OnboardingWindow.resetOnboarding()
         showOnboardingIfNeeded()
     }
     

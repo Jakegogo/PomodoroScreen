@@ -511,3 +511,99 @@ func testCoreData_FetchOperation_RetrievesCorrectData()
 ---
 
 *Remember: Testing is not just about finding bugs - it's about building confidence in the system's reliability and maintainability.*
+
+
+
+
+# Cooperation Rules
+
+Based on docs/cursor/协助机制.md - Incremental development and collaboration guidelines.
+
+## Core Principles
+
+### Incremental Change (增量变更原则)
+- Keep changes "incrementally reviewable" - modify only the minimal necessary scope
+- Follow "controlled variable method" - handle one objective at a time (readability, logic refactor, new feature)
+- Avoid hardcoding - parameterize paths, thresholds, and configuration values
+- Don't modify verified infrastructure code (model loading, configs, database foundations) unless clearly attributed
+
+### User Intent Preservation (保留用户意图)
+- When user has manually modified code, preserve existing logic and intent
+- Identify user's manual code changes and ensure new modifications retain existing code logic
+- Prioritize user semantics and intent when merging changes
+
+## Edit and Merge Strategy (编辑与合并策略)
+
+### Conflict Resolution
+- Preserve user semantics; integrate new code via "adapter/wrapper" approach to avoid overwriting
+- For conflicts: minimize injection (add methods/private functions), then "switch optional paths" at call sites
+- Consolidate duplicate implementations into single implementation with clear extension points (Strategy/Factory)
+
+### Code Integration
+- Use adapter pattern when integrating with existing user modifications
+- Prefer composition over modification when adding functionality
+- Maintain backward compatibility through deprecation warnings and gradual migration
+
+## Documentation and Reference Standards (代码与文档引用规范)
+
+### Code Citations
+- Reference existing code using line-numbered code blocks: `startLine:endLine:filepath`
+- Use standard Markdown code blocks with language annotations for new code/commands
+- Focus on key snippets and interface definitions, avoid pasting lengthy code in docs
+
+### Documentation Updates
+- Record important decisions and design choices in code comments or design docs
+- Update related documentation and example code for API changes
+- Provide usage examples and FAQ for complex business logic
+
+## TODO Management and Status Updates (TODO管理与状态更新)
+
+### Task Tracking
+- Create concise TODOs before starting (verb-led, single objective, ≤14 characters)
+- Maintain real-time status: pending/in_progress/completed/cancelled
+- Provide brief status updates (1-3 sentences) before/after operations
+- Mark TODO complete immediately after finishing each step
+
+### Progress Communication
+- Explain what was just done, what will be done next, any risks or blockers
+- Provide real-time progress feedback for long operations
+- Give clear success/failure results with next optional actions
+
+## Tool Usage and Parallelization (工具调用与并行)
+
+### Parallel Operations
+- Default to parallel for information gathering (multi-file reads, multi-keyword searches)
+- Use serial only when subsequent steps depend on previous results
+- Append "| cat" for potentially paginated commands; run long tasks in background
+
+### Command Execution
+- Check file size before large file operations; batch process or prompt user if exceeding threshold
+- Use progress indicators or staged reporting for long-running tasks
+- Release resources promptly after memory-intensive operations
+
+## Change Traceability (变更可追溯性)
+
+### Change Documentation
+- Record change purpose (why changed)
+- Note impact scope (affected modules/interfaces)
+- Describe rollback method (how to undo)
+- Add minimal unit tests or link existing test cases for important behavior changes
+
+
+## Security and Rollback (安全与回滚)
+
+### Safety Measures
+- Feature flags for controlled integration of new capabilities
+- Atomic commits with rollback capability
+- Maintain old paths available when external dependencies fail
+
+### Testing and Validation (测试与校验)
+- Run affected module tests after changes; add minimal test cases if none exist (success/failure/boundary)
+- Logs must have prefixes (module/function), avoid noise; no temporary debug logs in production code
+
+
+### User Interaction and Feedback (用户交互与反馈)
+- Clearly inform user of actions to be executed and possible impacts before operations
+- Provide real-time progress feedback for long operations, avoid "black box" waiting
+- Give clear success/failure results with subsequent optional operations
+

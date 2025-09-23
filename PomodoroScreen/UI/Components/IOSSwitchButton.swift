@@ -31,8 +31,8 @@ class IOSSwitchButton: NSView {
     private let knobSize: CGFloat = 16
     private let knobMargin: CGFloat = 2
     
-    // 颜色配置
-    private let onColor = NSColor.systemBlue
+    // 颜色配置 - 使用与停止按钮一样的颜色
+    private let onColor = NSColor.controlAccentColor  // 与停止按钮相同的蓝色
     private let offColor = NSColor.controlColor
     private let knobColor = NSColor.white
     private let borderColor = NSColor.separatorColor
