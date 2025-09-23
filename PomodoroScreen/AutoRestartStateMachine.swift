@@ -12,6 +12,7 @@ enum AutoRestartState {
     case restPeriod             // 休息期间（等待用户开始休息或取消）
     case restTimerRunning       // 休息计时器运行中
     case restTimerPausedBySystem // 休息计时器因系统事件暂停
+    case forcedSleep            // 强制睡眠状态（熬夜限制触发）
 }
 
 /// 自动重新计时的事件
@@ -29,6 +30,8 @@ enum AutoRestartEvent {
     case restStarted            // 开始休息计时
     case restFinished           // 休息完成
     case restCancelled          // 休息被取消
+    case forcedSleepTriggered   // 强制睡眠触发（熬夜时间到达）
+    case forcedSleepEnded       // 强制睡眠结束（用户取消或时间过了）
 }
 
 /// 自动重新计时的动作
@@ -39,6 +42,8 @@ enum AutoRestartAction {
     case restartTimer       // 重新开始计时器
     case showRestOverlay    // 显示休息遮罩
     case startNextPomodoro  // 开始下一个番茄钟
+    case enterForcedSleep   // 进入强制睡眠状态
+    case exitForcedSleep    // 退出强制睡眠状态
 }
 
 /// 计时器类型枚举
@@ -94,6 +99,11 @@ class AutoRestartStateMachine {
         }
     }
     
+    /// 检查是否处于强制睡眠状态
+    func isInForcedSleep() -> Bool {
+        return currentState == .forcedSleep
+    }
+    
     /// 检查是否刚刚通过屏保恢复（1秒内）
     private func wasRecentlyResumedByScreensaver() -> Bool {
         guard let lastResumeTime = lastScreensaverResumeTime else { return false }
@@ -138,6 +148,10 @@ class AutoRestartStateMachine {
             return action
         case (.userActivityDetected, .timerPausedBySystem):
             // 系统事件暂停期间，用户活动不应该触发重新计时
+            return .none
+        case (.userActivityDetected, .forcedSleep):
+            // 强制睡眠期间，用户活动不应该触发任何计时器动作
+            print("🔄 State Machine: 强制睡眠期间，忽略用户活动")
             return .none
         case (.userActivityDetected, _):
             // 其他状态下的用户活动不做处理
@@ -214,6 +228,29 @@ class AutoRestartStateMachine {
         case (.restCancelled, .restPeriod), (.restCancelled, .restTimerRunning), (.restCancelled, .restTimerPausedBySystem):
             // 取消休息，开始下一个番茄钟
             return .startNextPomodoro
+            
+        // 强制睡眠相关事件
+        case (.forcedSleepTriggered, _):
+            // 强制睡眠触发，进入强制睡眠状态
+            print("🔄 State Machine: 强制睡眠触发，进入强制睡眠状态")
+            return .enterForcedSleep
+        case (.forcedSleepEnded, .forcedSleep):
+            // 强制睡眠结束，退出强制睡眠状态
+            print("🔄 State Machine: 强制睡眠结束，退出强制睡眠状态")
+            return .exitForcedSleep
+        case (.forcedSleepEnded, _):
+            // 非强制睡眠状态下的强制睡眠结束事件，忽略
+            return .none
+            
+        // 强制睡眠期间的其他事件处理
+        case (.idleTimeExceeded, .forcedSleep):
+            // 强制睡眠期间，忽略无操作超时
+            print("🔄 State Machine: 强制睡眠期间，忽略无操作超时")
+            return .none
+        case (.screenLocked, .forcedSleep), (.screensaverStarted, .forcedSleep):
+            // 强制睡眠期间，忽略系统事件
+            print("🔄 State Machine: 强制睡眠期间，忽略系统事件")
+            return .none
             
         default:
             return .none
@@ -305,6 +342,12 @@ class AutoRestartStateMachine {
         case .restCancelled:
             // 取消休息，回到空闲状态准备下一个番茄钟
             currentTimerType = .pomodoro
+            return .idle
+        case .forcedSleepTriggered:
+            // 强制睡眠触发，进入强制睡眠状态
+            return .forcedSleep
+        case .forcedSleepEnded:
+            // 强制睡眠结束，回到空闲状态
             return .idle
         }
     }

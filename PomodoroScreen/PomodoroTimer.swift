@@ -200,6 +200,12 @@ class PomodoroTimer: ObservableObject {
             startStayUpMonitoring()
         }
         
+        // 重新启动无操作监控（如果设置启用了无操作检测且不在强制睡眠状态）
+        if idleTimeMinutes > 0 && !autoRestartStateMachine.isInForcedSleep() {
+            startIdleMonitoring()
+            print("▶️ 计时器启动：重新启动无操作监控")
+        }
+        
         // 立即更新一次显示
         updateTimeDisplay()
     }
@@ -290,8 +296,8 @@ class PomodoroTimer: ObservableObject {
         // 智能更新剩余时间：只有在必要时才更新
         updateRemainingTimeIfNeeded(oldPomodoroTime: oldPomodoroTime, newPomodoroTime: pomodoroTime)
         
-        // 重新启动空闲监控（如果设置有变化）
-        if idleRestart {
+        // 重新启动空闲监控（如果设置有变化且不在强制睡眠状态）
+        if idleRestart && !autoRestartStateMachine.isInForcedSleep() {
             startIdleMonitoring()
         } else {
             stopIdleMonitoring()
@@ -552,6 +558,13 @@ class PomodoroTimer: ObservableObject {
     
     /// 取消休息（用户主动取消）
     func cancelBreak() {
+        // 如果是强制睡眠状态，触发强制睡眠结束事件
+        if autoRestartStateMachine.isInForcedSleep() {
+            print("🌅 用户取消强制睡眠")
+            processAutoRestartEvent(.forcedSleepEnded)
+            return
+        }
+        
         if accumulateRestTime && !isLongBreak {
             // 如果启用了累积功能且当前是短休息，记录剩余时间
             accumulatedRestTime += remainingTime
@@ -615,6 +628,12 @@ class PomodoroTimer: ObservableObject {
         case .startNextPomodoro:
             // 开始下一个番茄钟
             performStartNextPomodoro()
+        case .enterForcedSleep:
+            // 进入强制睡眠状态
+            performEnterForcedSleep()
+        case .exitForcedSleep:
+            // 退出强制睡眠状态
+            performExitForcedSleep()
         }
     }
     
@@ -700,6 +719,26 @@ class PomodoroTimer: ObservableObject {
         
         print("🍅 Starting next pomodoro")
         updateTimeDisplay()
+    }
+    
+    /// 执行进入强制睡眠状态操作
+    private func performEnterForcedSleep() {
+        print("🌙 执行进入强制睡眠状态")
+        // 停止无操作监控，避免在强制睡眠期间被无操作检测中断
+        stopIdleMonitoring()
+        print("🌙 强制睡眠：停止无操作监控，避免被中断")
+    }
+    
+    /// 执行退出强制睡眠状态操作
+    private func performExitForcedSleep() {
+        print("🌅 执行退出强制睡眠状态")
+        // 重新启动无操作监控（如果设置启用了无操作检测）
+        if idleTimeMinutes > 0 {
+            startIdleMonitoring()
+            print("▶️ 强制睡眠结束：重新启动无操作监控")
+        }
+        // 重置熬夜状态
+        isStayUpTime = false
     }
     
     // MARK: - 自动重新计时功能
@@ -789,6 +828,12 @@ class PomodoroTimer: ObservableObject {
         
         // 添加调试日志
         print("🔍 IdleCheck: 当前状态=\(currentState), 无操作时间=\(Int(idleTime))s, 阈值=\(Int(maxIdleTime))s")
+        
+        // 使用状态机判断是否处于强制睡眠状态
+        if autoRestartStateMachine.isInForcedSleep() {
+            print("🌙 IdleCheck: 强制睡眠期间，跳过无操作检测")
+            return
+        }
         
         if idleTime > maxIdleTime {
             // 无操作时间超过设定值，只有在计时器运行时才触发
@@ -896,6 +941,9 @@ class PomodoroTimer: ObservableObject {
         
         // 设置为熬夜休息状态
         isStayUpTime = true
+        
+        // 通过状态机处理强制睡眠事件
+        processAutoRestartEvent(.forcedSleepTriggered)
         
         // 触发遮罩层显示回调
         onTimerFinished?()

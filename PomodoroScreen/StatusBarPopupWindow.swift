@@ -9,18 +9,149 @@
 import Cocoa
 
 class StatusBarPopupWindow: NSWindow {
+    // MARK: - UI Components
     internal var healthRingsView: HealthRingsView!
     private var menuButton: NSButton!
     private var controlButton: HoverButton!  // 开始/停止/继续按钮
     private var resetButton: HoverButton!    // 重置按钮
+    private var titleLabel: NSTextField!
+    private var backgroundView: NSVisualEffectView!
+    
+    // MARK: - Callbacks
     private var onMenuButtonClicked: (() -> Void)?
     private var onControlButtonClicked: (() -> Void)?  // 控制按钮回调
     private var onResetButtonClicked: (() -> Void)?    // 重置按钮回调
     private var onHealthRingsClicked: (() -> Void)?    // 健康环点击回调
     
-    convenience init() {
-        // 竖直布局：增加窗口高度以容纳控制按钮
-        let windowSize = NSSize(width: 360, height: 500)
+    // MARK: - Constants
+    private static let legendItems: [(String, NSColor)] = [
+        ("休息充足度", NSColor.restLight),
+        ("工作强度", NSColor.workLight),
+        ("专注度", NSColor.focusLight),
+        ("健康度", NSColor.healthLight)
+    ]
+    
+    // MARK: - Layout Configuration
+    private struct LayoutConfig {
+        let windowWidth: CGFloat
+        let windowHeight: CGFloat
+        let padding: CGFloat
+        let cornerRadius: CGFloat
+        
+        // 响应式间距计算（分离水平与垂直边距）
+        // 水平边距：决定左右留白与按钮水平起点
+        var horizontalPadding: CGFloat {
+            // 用户要求：基于宽度的自适应，范围 [16, 36]
+            return max(16, min(48, windowWidth * 0.15))
+        }
+        // 垂直边距：决定顶部/底部基础留白
+        var verticalPadding: CGFloat {
+            // 基于高度的自适应，范围 [16, 40]
+            return max(16, min(40, windowHeight * 0.05))
+        }
+        
+        var verticalSpacing: CGFloat {
+            // 根据窗口高度调整垂直间距
+            return max(12, windowHeight * 0.024)
+        }
+        
+        // 计算的布局属性
+        var titleHeight: CGFloat { 25 }
+        var menuButtonSize: CGFloat { 40 }
+        var titlePadding: CGFloat { 15 }
+        
+        // 健康环大小优化 - 320px宽度特别优化
+        var healthRingSize: CGFloat {
+            if windowWidth <= 320 {
+                return min(140, windowWidth * 0.44) // 320px时约140px
+            } else {
+                return min(160, windowWidth * 0.45) // 其他尺寸时稍小一些
+            }
+        }
+        
+        // 按钮尺寸优化 - 按比例小一些
+        // 按钮横向间距（与左右留白分离）
+        var horizontalSpacing: CGFloat { max(10, min(28, windowWidth * 0.06)) }
+        var buttonWidth: CGFloat {
+            // 可用宽度 = 左右padding + 两个按钮 + 中间间距
+            let availableWidth = windowWidth - horizontalPadding * 2 - horizontalSpacing
+            return availableWidth / 2
+        }
+        var buttonHeight: CGFloat {
+            // 根据窗口宽度调整按钮高度，320px时更紧凑
+            return windowWidth <= 320 ? 36 : 38
+        }
+        
+        var legendItemHeight: CGFloat { 20 }
+        var legendSpacing: CGFloat { 3 } // 稍微紧凑一些
+        
+        // 优化的位置计算（自适应、可读性更强）
+        // 顶部区域：标题与右上角菜单按钮
+        // Title 顶部不留白（紧贴窗口顶部）
+        var titleY: CGFloat { windowHeight - titleHeight - titlePadding }
+        var menuButtonX: CGFloat { windowWidth - menuButtonSize - horizontalPadding/2 }
+        var menuButtonY: CGFloat { windowHeight - menuButtonSize - verticalPadding/2 }
+
+        // 内容区内部通用间距（适度放宽，观感更舒适）
+        var spacingAfterTitle: CGFloat { verticalSpacing * 1.3 }
+        var spacingRingToButtons: CGFloat { verticalSpacing * 1.8 }
+        var spacingButtonsToLegend: CGFloat { verticalSpacing * 1.4 }
+
+        // 图例整体高度（四行）
+        var legendTotalHeight: CGFloat { legendItemHeight * 4 + legendSpacing * 3 }
+
+        // 内容区可用高度：标题以下到底部的区域
+        private var contentAreaTopY: CGFloat { windowHeight - (titleHeight + verticalPadding + spacingAfterTitle) }
+        private var contentAreaBottomY: CGFloat { verticalPadding }
+        private var contentAreaHeight: CGFloat { contentAreaTopY - contentAreaBottomY }
+
+        // 内容块（健康环 + 按钮 + 图例）的总高度
+        private var contentBlockHeight: CGFloat {
+            return healthRingSize + spacingRingToButtons + buttonHeight + spacingButtonsToLegend + legendTotalHeight
+        }
+
+        // 使内容块在内容区内垂直居中，略微上移（45%/55%分配）
+        private var contentBaseY: CGFloat {
+            let freeSpace = max(0, contentAreaHeight - contentBlockHeight)
+            // 更少的底部留白：将可用空白的25%放在下方、75%在上方
+            return contentAreaBottomY + freeSpace * 0.25
+        }
+
+        // 健康环水平居中
+        var healthRingX: CGFloat { (windowWidth - healthRingSize) / 2 }
+
+        // 分别计算每一块的底部/顶部位置，避免魔法数
+        var legendTopY: CGFloat { contentBaseY + legendTotalHeight - legendItemHeight }
+        var buttonY: CGFloat { contentBaseY + legendTotalHeight + spacingButtonsToLegend } // 按钮底部Y
+        var healthRingY: CGFloat { buttonY + buttonHeight * 2 + spacingRingToButtons * 2 } // 健康环底部Y
+
+        // 按钮水平位置
+        var controlButtonX: CGFloat { horizontalPadding }
+        var resetButtonX: CGFloat { horizontalPadding + buttonWidth + horizontalSpacing }
+
+        // 图例首行基准Y（第一行的定位基准）
+        var legendStartY: CGFloat { legendTopY }
+        
+        var legendX: CGFloat {
+            // 动态计算图例宽度并居中
+            let legendWidth: CGFloat = 120 // 图例文字大概宽度
+            return (windowWidth - legendWidth) / 2
+        }
+        
+        init(width: CGFloat, height: CGFloat = 500) {
+            self.windowWidth = width
+            self.windowHeight = height
+            self.padding = 20 // 保持基础padding用于兼容
+            self.cornerRadius = 12
+        }
+    }
+    
+    private var layoutConfig: LayoutConfig!
+    
+    convenience init(width: CGFloat = 320, height: CGFloat = 500) {
+        // 初始化布局配置
+        let config = LayoutConfig(width: width, height: height)
+        let windowSize = NSSize(width: config.windowWidth, height: config.windowHeight)
         
         // 获取状态栏按钮位置
         let statusBarHeight: CGFloat = 22
@@ -39,8 +170,14 @@ class StatusBarPopupWindow: NSWindow {
             defer: false
         )
         
+        self.layoutConfig = config
         setupWindow()
         setupUI()
+    }
+    
+    // 便利构造器，保持向后兼容
+    convenience init() {
+        self.init(width: 320, height: 500)
     }
     
     private func setupWindow() {
@@ -63,41 +200,31 @@ class StatusBarPopupWindow: NSWindow {
         guard let contentView = self.contentView else { return }
         
         // 创建毛玻璃背景视图
-        let backgroundView = NSVisualEffectView(frame: contentView.bounds)
+        backgroundView = NSVisualEffectView(frame: contentView.bounds)
         backgroundView.material = .popover  // 轻度毛玻璃效果，性能较好
         backgroundView.blendingMode = .behindWindow
         backgroundView.state = .active
         backgroundView.wantsLayer = true
-        backgroundView.layer?.cornerRadius = 12
+        backgroundView.layer?.cornerRadius = layoutConfig.cornerRadius
         backgroundView.layer?.borderWidth = 1
         backgroundView.layer?.borderColor = NSColor.separatorColor.cgColor
         contentView.addSubview(backgroundView)
         
-        // 竖直布局 - 标题在顶部
-        let titleLabel = NSTextField(labelWithString: "番茄钟")
-        titleLabel.font = NSFont.systemFont(ofSize: 16, weight: .semibold)
-        titleLabel.textColor = NSColor.labelColor
-        titleLabel.alignment = .center
-        titleLabel.frame = NSRect(x: 20, y: 460, width: 320, height: 25)
+        // 创建标题标签
+        titleLabel = createTitleLabel()
         contentView.addSubview(titleLabel)
         
-        // 右上角菜单按钮 - 适配新的窗口高度
-        menuButton = NSButton(frame: NSRect(x: 315, y: 455, width: 40, height: 40))
-        menuButton.title = ""
-        
-        // 创建更大的系统符号图标
-        let symbolConfig = NSImage.SymbolConfiguration(pointSize: 18, weight: .medium)
-        let menuImage = NSImage(systemSymbolName: "ellipsis.circle", accessibilityDescription: "菜单")?.withSymbolConfiguration(symbolConfig)
-        
-        menuButton.image = menuImage
-        menuButton.imagePosition = .imageOnly
-        menuButton.isBordered = false
-        menuButton.target = self
-        menuButton.action = #selector(menuButtonClicked)
+        // 创建右上角菜单按钮
+        menuButton = createMenuButton()
         contentView.addSubview(menuButton)
         
-        // 健康环视图 - 在更宽的窗口中居中放置，向上调整位置
-        let ringsFrame = NSRect(x: 100, y: 260, width: 160, height: 160)
+        // 健康环视图
+        let ringsFrame = NSRect(
+            x: layoutConfig.healthRingX,
+            y: layoutConfig.healthRingY,
+            width: layoutConfig.healthRingSize,
+            height: layoutConfig.healthRingSize
+        )
         healthRingsView = HealthRingsView(frame: ringsFrame)
         
         // 设置健康环点击回调
@@ -112,16 +239,21 @@ class StatusBarPopupWindow: NSWindow {
             self?.healthRingsView.updateTrackingAreas()
         }
         
-        // 添加控制按钮 - 在健康环下方
+        // 添加控制按钮
         setupControlButtons(in: contentView)
         
-        // 添加图例 - 放在按钮下方
+        // 添加图例
         setupLegend(in: contentView)
     }
     
     private func setupControlButtons(in contentView: NSView) {
         // 控制按钮（开始/停止/继续）- 左侧，主要按钮样式
-        controlButton = HoverButton(frame: NSRect(x: 80, y: 150, width: 90, height: 40))
+        controlButton = HoverButton(frame: NSRect(
+            x: layoutConfig.controlButtonX,
+            y: layoutConfig.buttonY,
+            width: layoutConfig.buttonWidth,
+            height: layoutConfig.buttonHeight
+        ))
         controlButton.configurePrimaryStyle(title: "开始")
         controlButton.setIcon("play.fill")
         controlButton.target = self
@@ -129,7 +261,12 @@ class StatusBarPopupWindow: NSWindow {
         contentView.addSubview(controlButton)
         
         // 重置按钮 - 右侧，次要按钮样式
-        resetButton = HoverButton(frame: NSRect(x: 190, y: 150, width: 90, height: 40))
+        resetButton = HoverButton(frame: NSRect(
+            x: layoutConfig.resetButtonX,
+            y: layoutConfig.buttonY,
+            width: layoutConfig.buttonWidth,
+            height: layoutConfig.buttonHeight
+        ))
         resetButton.configureSecondaryStyle(title: "重置")
         resetButton.setIcon("arrow.counterclockwise")
         resetButton.target = self
@@ -138,35 +275,119 @@ class StatusBarPopupWindow: NSWindow {
     }
     
     private func setupLegend(in contentView: NSView) {
-        let legendItems = [
-            ("休息充足度", NSColor.restLight),      // 使用实际的气泡蓝色
-            ("工作强度", NSColor.workLight),        // 使用实际的工作绿色
-            ("专注度", NSColor.focusLight),         // 使用实际的专注青蓝色
-            ("健康度", NSColor.healthLight)         // 使用实际的健康紫色
-        ]
+        createLegendElements(in: contentView)
+    }
+    
+    // MARK: - UI Element Creation Helpers
+    private func createTitleLabel() -> NSTextField {
+        let titleLabel = NSTextField(labelWithString: "番茄钟")
+        titleLabel.font = NSFont.systemFont(ofSize: 16, weight: .semibold)
+        titleLabel.textColor = NSColor.labelColor
+        titleLabel.alignment = .center
+        titleLabel.frame = NSRect(
+            x: layoutConfig.horizontalPadding,
+            y: layoutConfig.titleY,
+            width: layoutConfig.windowWidth - layoutConfig.horizontalPadding * 2,
+            height: layoutConfig.titleHeight
+        )
+        return titleLabel
+    }
+    
+    private func createMenuButton() -> NSButton {
+        let menuButton = NSButton(frame: NSRect(
+            x: layoutConfig.menuButtonX,
+            y: layoutConfig.menuButtonY,
+            width: layoutConfig.menuButtonSize,
+            height: layoutConfig.menuButtonSize
+        ))
+        menuButton.title = ""
         
-        // 竖直布局 - 图例放在按钮下方，行间距更紧凑
-        let startX: CGFloat = 130
-        let startY: CGFloat = 110
-        let itemHeight: CGFloat = 20
+        // 创建系统符号图标
+        let symbolConfig = NSImage.SymbolConfiguration(pointSize: 18, weight: .medium)
+        let menuImage = NSImage(systemSymbolName: "ellipsis.circle", accessibilityDescription: "菜单")?.withSymbolConfiguration(symbolConfig)
         
-        for (index, item) in legendItems.enumerated() {
+        menuButton.image = menuImage
+        menuButton.imagePosition = .imageOnly
+        menuButton.isBordered = false
+        menuButton.target = self
+        menuButton.action = #selector(menuButtonClicked)
+        return menuButton
+    }
+    
+    private func updateUIElementFrames() {
+        // 更新标题位置
+        titleLabel.frame = NSRect(
+            x: layoutConfig.horizontalPadding,
+            y: layoutConfig.titleY,
+            width: layoutConfig.windowWidth - layoutConfig.horizontalPadding * 2,
+            height: layoutConfig.titleHeight
+        )
+        
+        // 更新菜单按钮位置
+        menuButton.frame = NSRect(
+            x: layoutConfig.menuButtonX,
+            y: layoutConfig.menuButtonY,
+            width: layoutConfig.menuButtonSize,
+            height: layoutConfig.menuButtonSize
+        )
+        
+        // 更新控制按钮位置和大小
+        controlButton.frame = NSRect(
+            x: layoutConfig.controlButtonX,
+            y: layoutConfig.buttonY,
+            width: layoutConfig.buttonWidth,
+            height: layoutConfig.buttonHeight
+        )
+        
+        resetButton.frame = NSRect(
+            x: layoutConfig.resetButtonX,
+            y: layoutConfig.buttonY,
+            width: layoutConfig.buttonWidth,
+            height: layoutConfig.buttonHeight
+        )
+    }
+    
+    // MARK: - Legend Creation Helper
+    private func createLegendElements(in contentView: NSView) {
+        let startX = layoutConfig.legendX
+        let startY = layoutConfig.legendStartY
+        let itemHeight = layoutConfig.legendItemHeight + layoutConfig.legendSpacing
+        
+        for (index, item) in Self.legendItems.enumerated() {
             let y = startY - CGFloat(index) * itemHeight
             
-            // 颜色指示器 - 左侧对齐，适应紧凑行距
-            let colorIndicator = NSView(frame: NSRect(x: startX, y: y + 4, width: 14, height: 14))
-            colorIndicator.wantsLayer = true
-            colorIndicator.layer?.backgroundColor = item.1.cgColor
-            colorIndicator.layer?.cornerRadius = 7
+            // 创建颜色指示器
+            let colorIndicator = createColorIndicator(
+                frame: NSRect(x: startX, y: y + 4, width: 14, height: 14),
+                color: item.1
+            )
             contentView.addSubview(colorIndicator)
             
-            // 标签 - 紧跟颜色指示器，适应紧凑行距
-            let label = NSTextField(labelWithString: item.0)
-            label.font = NSFont.systemFont(ofSize: 12)
-            label.textColor = NSColor.secondaryLabelColor
-            label.frame = NSRect(x: startX + 20, y: y - 2, width: 180, height: 22)
+            // 创建标签
+            let label = createLegendLabel(
+                text: item.0,
+                frame: NSRect(x: startX + 20, y: y - 2, width: 180, height: 22)
+            )
             contentView.addSubview(label)
         }
+    }
+    
+    private func createColorIndicator(frame: NSRect, color: NSColor) -> NSView {
+        let colorIndicator = NSView(frame: frame)
+        colorIndicator.wantsLayer = true
+        colorIndicator.layer?.backgroundColor = color.cgColor
+        colorIndicator.layer?.cornerRadius = 7
+        colorIndicator.identifier = NSUserInterfaceItemIdentifier("legend-color")
+        return colorIndicator
+    }
+    
+    private func createLegendLabel(text: String, frame: NSRect) -> NSTextField {
+        let label = NSTextField(labelWithString: text)
+        label.font = NSFont.systemFont(ofSize: 12)
+        label.textColor = NSColor.secondaryLabelColor
+        label.frame = frame
+        label.identifier = NSUserInterfaceItemIdentifier("legend-label")
+        return label
     }
     
     @objc private func menuButtonClicked() {
@@ -181,6 +402,7 @@ class StatusBarPopupWindow: NSWindow {
         onResetButtonClicked?()
     }
     
+    // MARK: - Action Setters
     func setMenuButtonAction(_ action: @escaping () -> Void) {
         onMenuButtonClicked = action
     }
@@ -272,5 +494,64 @@ class StatusBarPopupWindow: NSWindow {
         )
         
         self.setFrame(newFrame, display: true, animate: false)
+    }
+    
+    // MARK: - Dynamic Layout Update
+    func updateWindowSize(width: CGFloat, height: CGFloat = 500) {
+        let newConfig = LayoutConfig(width: width, height: height)
+        
+        // 更新窗口大小和位置
+        let statusBarHeight: CGFloat = 22
+        let screenFrame = NSScreen.main?.frame ?? NSRect.zero
+        let newFrame = NSRect(
+            x: screenFrame.maxX - width - 20,
+            y: screenFrame.maxY - statusBarHeight - height - 10,
+            width: width,
+            height: height
+        )
+        
+        self.setFrame(newFrame, display: true, animate: true)
+        self.layoutConfig = newConfig
+        
+        // 重新布局所有UI元素
+        updateLayout()
+    }
+    
+    private func updateLayout() {
+        guard let contentView = self.contentView else { return }
+        
+        // 更新背景视图
+        backgroundView.frame = contentView.bounds
+        backgroundView.layer?.cornerRadius = layoutConfig.cornerRadius
+        
+        // 更新UI元素位置
+        updateUIElementFrames()
+        
+        // 更新健康环位置和大小
+        healthRingsView.frame = NSRect(
+            x: layoutConfig.healthRingX,
+            y: layoutConfig.healthRingY,
+            width: layoutConfig.healthRingSize,
+            height: layoutConfig.healthRingSize
+        )
+        
+        // 重新创建图例（简单方法是移除旧的并重新添加）
+        recreateLegend(in: contentView)
+    }
+    
+    private func recreateLegend(in contentView: NSView) {
+        // 移除现有的图例元素（通过identifier标识）
+        removeLegendElements(from: contentView)
+        
+        // 重新创建图例
+        createLegendElements(in: contentView)
+    }
+    
+    private func removeLegendElements(from contentView: NSView) {
+        contentView.subviews.forEach { subview in
+            if subview.identifier?.rawValue == "legend-color" || subview.identifier?.rawValue == "legend-label" {
+                subview.removeFromSuperview()
+            }
+        }
     }
 }
