@@ -45,7 +45,8 @@ class NegativeTimeTests: XCTestCase {
             backgroundFiles: [],
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
         
         // When: 获取时间字符串（即使内部时间为负数）
@@ -99,7 +100,8 @@ class NegativeTimeTests: XCTestCase {
             backgroundFiles: [],
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
         
         // 启动计时器
@@ -160,7 +162,8 @@ class NegativeTimeTests: XCTestCase {
             backgroundFiles: [],
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
         
         // When: 启动并立即完成计时器（测试功能）

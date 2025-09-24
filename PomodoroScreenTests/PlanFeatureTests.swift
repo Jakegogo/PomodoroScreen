@@ -30,7 +30,8 @@ class PlanFeatureTests: XCTestCase {
             backgroundFiles: [], // 测试中不使用背景文件
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
     }
     
@@ -129,7 +130,8 @@ class PlanFeatureTests: XCTestCase {
             backgroundFiles: [], // 测试中不使用背景文件
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
         
         // 验证设置是否正确应用

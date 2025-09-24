@@ -34,7 +34,8 @@ class RestPeriodBasicTests: XCTestCase {
             backgroundFiles: [],
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
     }
     

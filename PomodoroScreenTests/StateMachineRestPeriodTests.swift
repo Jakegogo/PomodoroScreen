@@ -36,7 +36,8 @@ class StateMachineRestPeriodTests: XCTestCase {
             backgroundFiles: [],
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
         
         // 设置回调监听
@@ -179,7 +180,8 @@ class StateMachineRestPeriodTests: XCTestCase {
             backgroundFiles: [],
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
         
         pomodoroTimer.start()
@@ -254,7 +256,8 @@ class StateMachineRestPeriodTests: XCTestCase {
             backgroundFiles: [],
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
         
         // When: 完成番茄钟并开始长休息

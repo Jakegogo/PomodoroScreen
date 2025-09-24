@@ -412,6 +412,12 @@ class OverlayWindow: NSWindow {
         // 清除之前的定时器
         dismissTimer?.invalidate()
         
+        // 如果是强制睡眠状态，不设置自动关闭定时器
+        if let timer = self.timer, timer.isStayUpTime {
+            print("🌙 强制睡眠期间，禁用自动关闭定时器")
+            return
+        }
+        
         // 设置3分钟（180秒）后自动隐藏
         dismissTimer = Timer.scheduledTimer(withTimeInterval: 180.0, repeats: false) { [weak self] _ in
             self?.dismissOverlay()
@@ -419,6 +425,12 @@ class OverlayWindow: NSWindow {
     }
     
     private func dismissOverlay() {
+        // 如果是强制睡眠状态，阻止关闭遮罩层
+        if !isPreviewMode, let timer = self.timer, timer.isStayUpTime {
+            print("🚫 强制睡眠期间，无法关闭遮罩层")
+            return
+        }
+        
         // 清除定时器
         dismissTimer?.invalidate()
         dismissTimer = nil
@@ -588,7 +600,7 @@ class OverlayView: NSView {
         } else {
             // 正常模式根据是否为熬夜时间显示不同消息
             if let timer = timer, timer.isStayUpTime {
-                messageLabel.stringValue = "🌙 熬夜时间到了，该休息了！\n\n为了您的健康，请停止工作"
+                messageLabel.stringValue = "🌙 熬夜时间到了，该休息了！\n\n为了您的健康，请停止工作\n强制休息无法取消"
             } else {
                 // 获取当前休息时间信息并显示
                 if let timer = timer {
@@ -820,6 +832,11 @@ class OverlayView: NSView {
     override func keyDown(with event: NSEvent) {
         // 检查是否是 ESC 键
         if event.keyCode == 53 { // ESC 键的键码是 53
+            // 如果是强制睡眠状态，禁止ESC键退出
+            if let timer = timer, timer.isStayUpTime {
+                print("🚫 强制睡眠期间，ESC键被禁用")
+                return
+            }
             onDismiss?()
         } else {
             super.keyDown(with: event)

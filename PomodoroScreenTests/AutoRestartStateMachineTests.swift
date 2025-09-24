@@ -14,7 +14,10 @@ class AutoRestartStateMachineTests: XCTestCase {
             screenLockEnabled: true,
             screenLockActionIsRestart: false,  // 停止计时模式
             screensaverEnabled: true,
-            screensaverActionIsRestart: false  // 停止计时模式
+            screensaverActionIsRestart: false,  // 停止计时模式
+            stayUpLimitEnabled: false,
+            stayUpLimitHour: 23,
+            stayUpLimitMinute: 0
         )
         stateMachine = AutoRestartStateMachine(settings: settings)
     }
@@ -49,7 +52,7 @@ class AutoRestartStateMachineTests: XCTestCase {
         // 暂停计时器
         let action = stateMachine.processEvent(.timerPaused)
         XCTAssertEqual(action, .none, "暂停计时器不应该触发动作")
-        XCTAssertEqual(stateMachine.getCurrentState(), .timerPausedBySystem, "暂停后状态应该是timerPausedBySystem")
+        XCTAssertEqual(stateMachine.getCurrentState(), .timerPausedByUser, "手动暂停后状态应该是timerPausedByUser")
     }
     
     // MARK: - 无操作检测测试
@@ -118,7 +121,10 @@ class AutoRestartStateMachineTests: XCTestCase {
             screenLockEnabled: true,
             screenLockActionIsRestart: true,
             screensaverEnabled: true,
-            screensaverActionIsRestart: true  // 重新计时模式
+            screensaverActionIsRestart: true,  // 重新计时模式
+            stayUpLimitEnabled: false,
+            stayUpLimitHour: 23,
+            stayUpLimitMinute: 0
         )
         stateMachine.updateSettings(restartSettings)
         
@@ -168,7 +174,10 @@ class AutoRestartStateMachineTests: XCTestCase {
             screenLockEnabled: true,
             screenLockActionIsRestart: true,  // 重新计时模式
             screensaverEnabled: true,
-            screensaverActionIsRestart: true
+            screensaverActionIsRestart: true,
+            stayUpLimitEnabled: false,
+            stayUpLimitHour: 23,
+            stayUpLimitMinute: 0
         )
         stateMachine.updateSettings(restartSettings)
         
@@ -196,7 +205,10 @@ class AutoRestartStateMachineTests: XCTestCase {
             screenLockEnabled: true,
             screenLockActionIsRestart: false,
             screensaverEnabled: true,
-            screensaverActionIsRestart: false
+            screensaverActionIsRestart: false,
+            stayUpLimitEnabled: false,
+            stayUpLimitHour: 23,
+            stayUpLimitMinute: 0
         )
         stateMachine.updateSettings(disabledSettings)
         
@@ -217,7 +229,10 @@ class AutoRestartStateMachineTests: XCTestCase {
             screenLockEnabled: true,
             screenLockActionIsRestart: false,
             screensaverEnabled: false,  // 禁用屏保处理
-            screensaverActionIsRestart: false
+            screensaverActionIsRestart: false,
+            stayUpLimitEnabled: false,
+            stayUpLimitHour: 23,
+            stayUpLimitMinute: 0
         )
         stateMachine.updateSettings(disabledSettings)
         
@@ -308,7 +323,10 @@ class AutoRestartStateMachineTests: XCTestCase {
             screenLockEnabled: false,
             screenLockActionIsRestart: true,
             screensaverEnabled: false,
-            screensaverActionIsRestart: true
+            screensaverActionIsRestart: true,
+            stayUpLimitEnabled: false,
+            stayUpLimitHour: 23,
+            stayUpLimitMinute: 0
         )
         
         // 更新设置
@@ -333,7 +351,10 @@ class AutoRestartStateMachineTests: XCTestCase {
             screenLockEnabled: true,
             screenLockActionIsRestart: false,
             screensaverEnabled: true,
-            screensaverActionIsRestart: false
+            screensaverActionIsRestart: false,
+            stayUpLimitEnabled: false,
+            stayUpLimitHour: 23,
+            stayUpLimitMinute: 0
         )
         stateMachine.updateSettings(restartSettings)
         
@@ -359,7 +380,10 @@ class AutoRestartStateMachineTests: XCTestCase {
             screenLockEnabled: true,
             screenLockActionIsRestart: false,
             screensaverEnabled: true,
-            screensaverActionIsRestart: false  // 关键：设置为暂停计时模式（不是重新计时）
+            screensaverActionIsRestart: false,  // 关键：设置为暂停计时模式（不是重新计时）
+            stayUpLimitEnabled: false,
+            stayUpLimitHour: 23,
+            stayUpLimitMinute: 0
         )
         stateMachine.updateSettings(pauseSettings)
         
@@ -424,7 +448,8 @@ class PomodoroTimerScreensaverIntegrationTests: XCTestCase {
             backgroundFiles: [], // 测试中不使用背景文件
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
     }
     
@@ -542,7 +567,8 @@ class PomodoroTimerScreensaverIntegrationTests: XCTestCase {
             backgroundFiles: [], // 测试中不使用背景文件
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
         
         // 2. 启动计时器
@@ -626,7 +652,8 @@ class PomodoroTimerScreensaverIntegrationTests: XCTestCase {
             backgroundFiles: [], // 测试中不使用背景文件
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
         
         // 启动计时器
@@ -692,7 +719,8 @@ class PomodoroTimerScreensaverIntegrationTests: XCTestCase {
             backgroundFiles: [], // 测试中不使用背景文件
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
         
         pomodoroTimer.start()
@@ -753,7 +781,8 @@ class PomodoroTimerScreensaverIntegrationTests: XCTestCase {
             backgroundFiles: [], // 测试中不使用背景文件
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
         
         pomodoroTimer.start()
@@ -812,7 +841,8 @@ class PomodoroTimerScreensaverIntegrationTests: XCTestCase {
             backgroundFiles: [], // 测试中不使用背景文件
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
         
         pomodoroTimer.start()
@@ -877,7 +907,8 @@ class PomodoroTimerScreensaverIntegrationTests: XCTestCase {
             backgroundFiles: [], // 测试中不使用背景文件
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
         
         pomodoroTimer.start()
@@ -948,7 +979,8 @@ class PomodoroTimerScreensaverIntegrationTests: XCTestCase {
             backgroundFiles: [], // 测试中不使用背景文件
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
         
         pomodoroTimer.start()
@@ -1063,7 +1095,8 @@ class PomodoroTimerScreensaverIntegrationTests: XCTestCase {
             backgroundFiles: [], // 测试中不使用背景文件
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
         
         // 启动计时器

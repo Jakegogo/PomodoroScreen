@@ -45,7 +45,8 @@ class BreakMessageTests: XCTestCase {
             backgroundFiles: [],
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
         
         // When: 获取当前休息信息（默认为短休息）
@@ -77,7 +78,8 @@ class BreakMessageTests: XCTestCase {
             backgroundFiles: [],
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
         
         // 模拟进入长休息状态
@@ -121,7 +123,8 @@ class BreakMessageTests: XCTestCase {
                 backgroundFiles: [],
                 stayUpLimitEnabled: false,
                 stayUpLimitHour: 23,
-                stayUpLimitMinute: 0
+                stayUpLimitMinute: 0,
+            meetingMode: false
             )
             
             // When: 获取休息信息
@@ -154,7 +157,8 @@ class BreakMessageTests: XCTestCase {
             backgroundFiles: [],
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
         
         // When: 获取休息信息
@@ -186,7 +190,8 @@ class BreakMessageTests: XCTestCase {
             backgroundFiles: [],
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
         
         // When: 获取休息信息
@@ -217,7 +222,8 @@ class BreakMessageTests: XCTestCase {
             backgroundFiles: [],
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
         
         // When: 获取休息信息

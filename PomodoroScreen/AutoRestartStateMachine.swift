@@ -6,11 +6,13 @@ import Foundation
 enum AutoRestartState {
     case idle                    // 空闲状态，等待事件
     case timerRunning           // 计时器运行中
+    case timerPausedByUser      // 因用户手动暂停
     case timerPausedByIdle      // 因无操作而暂停
     case timerPausedBySystem    // 因系统事件（锁屏、屏保）而暂停
     case awaitingRestart        // 等待重新启动
     case restPeriod             // 休息期间（等待用户开始休息或取消）
     case restTimerRunning       // 休息计时器运行中
+    case restTimerPausedByUser  // 休息计时器因用户手动暂停
     case restTimerPausedBySystem // 休息计时器因系统事件暂停
     case forcedSleep            // 强制睡眠状态（熬夜限制触发）
 }
@@ -60,6 +62,10 @@ class AutoRestartStateMachine {
     private var lastScreensaverResumeTime: Date?
     private var currentTimerType: TimerType = .pomodoro // 当前计时器类型
     
+    // 熬夜状态管理
+    private var isStayUpTime: Bool = false // 当前是否处于熬夜时间
+    private var stayUpMonitoringTimer: Timer? // 熬夜监控定时器
+    
     struct AutoRestartSettings {
         let idleEnabled: Bool
         let idleActionIsRestart: Bool
@@ -67,6 +73,11 @@ class AutoRestartStateMachine {
         let screenLockActionIsRestart: Bool
         let screensaverEnabled: Bool
         let screensaverActionIsRestart: Bool
+        
+        // 熬夜限制设置
+        let stayUpLimitEnabled: Bool
+        let stayUpLimitHour: Int // 限制小时（21-1）
+        let stayUpLimitMinute: Int // 限制分钟（0, 15, 30, 45）
     }
     
     init(settings: AutoRestartSettings) {
@@ -102,6 +113,32 @@ class AutoRestartStateMachine {
     /// 检查是否处于强制睡眠状态
     func isInForcedSleep() -> Bool {
         return currentState == .forcedSleep
+    }
+    
+    /// 检查当前是否处于熬夜时间
+    func isInStayUpTime() -> Bool {
+        return isStayUpTime
+    }
+    
+    /// 检查是否处于暂停状态（包括手动暂停和系统暂停）
+    func isInPausedState() -> Bool {
+        switch currentState {
+        case .timerPausedByUser, .timerPausedByIdle, .timerPausedBySystem, 
+             .restTimerPausedByUser, .restTimerPausedBySystem:
+            return true
+        default:
+            return false
+        }
+    }
+    
+    /// 检查是否处于运行状态（包括番茄钟运行和休息运行）
+    func isInRunningState() -> Bool {
+        switch currentState {
+        case .timerRunning, .restTimerRunning:
+            return true
+        default:
+            return false
+        }
     }
     
     /// 检查是否刚刚通过屏保恢复（1秒内）
@@ -273,9 +310,11 @@ class AutoRestartStateMachine {
             // 根据当前状态决定暂停类型
             switch state {
             case .restTimerRunning:
-                return .restTimerPausedBySystem
+                return .restTimerPausedByUser // 手动暂停休息计时器
+            case .timerRunning:
+                return .timerPausedByUser // 手动暂停番茄钟计时器
             default:
-                return .timerPausedBySystem // 手动暂停视为系统暂停
+                return state // 其他状态不变
             }
         case .idleTimeExceeded:
             // 只有在功能启用时才改变状态
@@ -350,5 +389,85 @@ class AutoRestartStateMachine {
             // 强制睡眠结束，回到空闲状态
             return .idle
         }
+    }
+    
+    // MARK: - 熬夜限制功能
+    
+    /// 开始熬夜监控
+    func startStayUpMonitoring() {
+        guard settings.stayUpLimitEnabled else { return }
+        
+        // 停止之前的定时器
+        stayUpMonitoringTimer?.invalidate()
+        
+        // 立即检查一次
+        updateStayUpStatus()
+        
+        // 设置定时器，每分钟检查一次
+        stayUpMonitoringTimer = Timer.scheduledTimer(withTimeInterval: 60.0, repeats: true) { [weak self] _ in
+            self?.updateStayUpStatus()
+        }
+        
+        print("🌙 状态机：开始熬夜监控")
+    }
+    
+    /// 停止熬夜监控
+    func stopStayUpMonitoring() {
+        stayUpMonitoringTimer?.invalidate()
+        stayUpMonitoringTimer = nil
+        print("🌙 状态机：停止熬夜监控")
+    }
+    
+    /// 检查当前时间是否处于熬夜限制时间范围内
+    /// - Returns: 如果当前时间超过设定的熬夜限制时间则返回true
+    private func checkStayUpTime() -> Bool {
+        guard settings.stayUpLimitEnabled else { return false }
+        
+        let now = Date()
+        let calendar = Calendar.current
+        let currentHour = calendar.component(.hour, from: now)
+        let currentMinute = calendar.component(.minute, from: now)
+        
+        // 将当前时间转换为分钟数（从00:00开始计算）
+        let currentTimeInMinutes = currentHour * 60 + currentMinute
+        
+        // 将设定的熬夜限制时间转换为分钟数
+        let limitTimeInMinutes = settings.stayUpLimitHour * 60 + settings.stayUpLimitMinute
+        
+        // 处理跨日期的情况
+        if settings.stayUpLimitHour >= 21 {
+            // 如果限制时间是21:00-23:59，则当前时间超过限制时间就算熬夜
+            return currentTimeInMinutes >= limitTimeInMinutes
+        } else {
+            // 如果限制时间是00:00-01:00（次日），则需要考虑跨日期
+            // 当前时间在00:00-01:00之间，或者在21:00-23:59之间都算熬夜
+            return currentTimeInMinutes <= limitTimeInMinutes || currentTimeInMinutes >= 21 * 60
+        }
+    }
+    
+    /// 更新熬夜状态并触发相应的处理
+    private func updateStayUpStatus() {
+        let wasStayUpTime = isStayUpTime
+        isStayUpTime = checkStayUpTime()
+        
+        // 如果从非熬夜时间进入熬夜时间，立即触发熬夜遮罩
+        if !wasStayUpTime && isStayUpTime {
+            print("🌙 状态机：检测到熬夜时间，触发强制睡眠事件")
+            // 这里需要通过回调通知外部触发强制睡眠
+            onStayUpTimeChanged?(true)
+        }
+        // 如果从熬夜时间退出到非熬夜时间，且当前处于强制睡眠状态，则结束强制睡眠
+        else if wasStayUpTime && !isStayUpTime && isInForcedSleep() {
+            print("🌙 状态机：熬夜时间结束，触发强制睡眠结束事件")
+            onStayUpTimeChanged?(false)
+        }
+    }
+    
+    /// 熬夜时间变化回调
+    var onStayUpTimeChanged: ((Bool) -> Void)?
+    
+    /// 获取熬夜限制设置信息（用于统计和显示）
+    func getStayUpLimitInfo() -> (enabled: Bool, hour: Int, minute: Int) {
+        return (settings.stayUpLimitEnabled, settings.stayUpLimitHour, settings.stayUpLimitMinute)
     }
 }

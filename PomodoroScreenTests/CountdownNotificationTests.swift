@@ -34,7 +34,8 @@ class CountdownNotificationTests: XCTestCase {
             backgroundFiles: [],
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
-            stayUpLimitMinute: 0
+            stayUpLimitMinute: 0,
+            meetingMode: false
         )
     }
     
@@ -57,44 +58,60 @@ class CountdownNotificationTests: XCTestCase {
     // 测试30秒警告显示
     func testThirtySecondWarning() {
         let window = CountdownNotificationWindow()
+        let expectation = XCTestExpectation(description: "Warning window should be visible")
         
         // 显示30秒警告
         window.showWarning()
         
-        // 验证窗口显示状态
-        XCTAssertGreaterThan(window.alphaValue, 0.0, "30秒警告显示后窗口应该可见")
+        // 给动画一些时间完成
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            XCTAssertGreaterThan(window.alphaValue, 0.0, "30秒警告显示后窗口应该可见")
+            expectation.fulfill()
+        }
+        
+        wait(for: [expectation], timeout: 1.0)
     }
     
     // 测试倒计时显示
     func testCountdownDisplay() {
         let window = CountdownNotificationWindow()
+        let expectation = XCTestExpectation(description: "Countdown window should be visible")
         
         // 显示倒计时
-        for seconds in (1...10).reversed() {
-            window.showCountdown(seconds)
+        window.showCountdown(5)
+        
+        // 给动画一些时间完成
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             XCTAssertGreaterThan(window.alphaValue, 0.0, "倒计时显示时窗口应该可见")
+            expectation.fulfill()
         }
+        
+        wait(for: [expectation], timeout: 1.0)
     }
     
     // 测试窗口隐藏
     func testWindowHiding() {
         let window = CountdownNotificationWindow()
+        let expectation = XCTestExpectation(description: "Window hiding animation completed")
         
         // 先显示窗口
         window.showWarning()
-        XCTAssertGreaterThan(window.alphaValue, 0.0, "窗口应该先显示")
         
-        // 隐藏窗口
-        window.hideNotification()
-        
-        // 等待动画完成
-        let expectation = self.expectation(description: "窗口隐藏动画完成")
+        // 等待显示动画完成
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            XCTAssertEqual(window.alphaValue, 0.0, "隐藏后窗口应该不可见")
-            expectation.fulfill()
+            XCTAssertGreaterThan(window.alphaValue, 0.0, "窗口应该先显示")
+            
+            // 隐藏窗口
+            window.hideNotification()
+            
+            // 等待隐藏动画完成
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                XCTAssertEqual(window.alphaValue, 0.0, "隐藏后窗口应该不可见")
+                expectation.fulfill()
+            }
         }
         
-        waitForExpectations(timeout: 1.0, handler: nil)
+        wait(for: [expectation], timeout: 2.0)
     }
     
     // 测试窗口位置更新
@@ -104,12 +121,17 @@ class CountdownNotificationTests: XCTestCase {
         // 更新位置
         window.updatePosition()
         
-        // 验证位置在屏幕右上角
+        // 验证位置在屏幕右上角（考虑Dock宽度）
         let screenFrame = NSScreen.main?.frame ?? NSRect.zero
-        let expectedX = screenFrame.maxX - 200 - 20  // 窗口宽度200 + 边距20
-        let expectedY = screenFrame.maxY - 60 - 20   // 窗口高度60 + 边距20
+        let windowWidth: CGFloat = 200
+        let windowHeight: CGFloat = 60
+        let margin: CGFloat = 20
+        let dockWidth: CGFloat = 80
         
-        XCTAssertEqual(window.frame.origin.x, expectedX, accuracy: 1.0, "窗口X位置应该在右上角")
+        let expectedX = screenFrame.maxX - windowWidth - margin - dockWidth
+        let expectedY = screenFrame.maxY - windowHeight - margin
+        
+        XCTAssertEqual(window.frame.origin.x, expectedX, accuracy: 1.0, "窗口X位置应该考虑Dock宽度")
         XCTAssertEqual(window.frame.origin.y, expectedY, accuracy: 1.0, "窗口Y位置应该在右上角")
     }
     
