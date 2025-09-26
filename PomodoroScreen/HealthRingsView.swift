@@ -678,13 +678,19 @@ class HealthRingsView: NSView {
             // Background ring (outline color) - 对应CirclesWorkout的background ring
             // 先绘制普通背景环（所有圆环都需要）
             // 最外层圆环的背景环向内加粗（通过向内收缩半径实现）
-            if ring.type == .restAdequacy {
-                // 最外层：向内加粗，半径向内收缩
-                let inwardOffset = effectiveThickness * 0.4  // 向内偏移
-                let thickerRadius = effectiveRadius - inwardOffset
-                let thickerThickness = effectiveThickness * 1.8
-                drawBackgroundRing(in: context, center: center, radius: thickerRadius, thickness: thickerThickness, color: colors[3])
-            } else {
+            // if ring.type == .restAdequacy {
+            //     // 最外层：向内加粗，半径向内收缩
+            //     let inwardOffset = effectiveThickness * 0.4  // 向内偏移
+            //     let thickerRadius = effectiveRadius - inwardOffset
+            //     let thickerThickness = effectiveThickness * 1.8
+            //     drawBackgroundRing(in: context, center: center, radius: thickerRadius, thickness: thickerThickness, color: colors[3])
+            // } else {
+            //     // 其他圆环：保持原样
+            //     drawBackgroundRing(in: context, center: center, radius: effectiveRadius, thickness: effectiveThickness, color: colors[3])
+            // }
+
+            // 取消最外层圆环的白色背景，只绘制其他圆环的背景
+            if ring.type != .restAdequacy {
                 // 其他圆环：保持原样
                 drawBackgroundRing(in: context, center: center, radius: effectiveRadius, thickness: effectiveThickness, color: colors[3])
             }
@@ -728,16 +734,27 @@ class HealthRingsView: NSView {
     private func drawIrregularBackgroundRing(in context: CGContext, center: CGPoint, radius: CGFloat, thickness: CGFloat, color: NSColor, breathingEffects: BreathingEffects) {
         context.saveGState()
         
-        // 使用贝塞尔曲线绘制不规则圆环，性能比分段绘制提升3-5倍
-        context.setStrokeColor(color.cgColor)
-        context.setLineWidth(thickness)
-        context.setLineCap(.round)
-        context.setLineJoin(.round)
+        // 创建不规则外壁 + 规则内壁的环形区域
+        // 设置半透明背景颜色 (透明度 0.9)
+        let transparentColor = color.withAlphaComponent(0.8)
+        context.setFillColor(transparentColor.cgColor)
         
-        // 使用预计算的呼吸相位，避免重复计算
-        let bezierPath = createIrregularBezierPath(center: center, baseRadius: radius, time: breathingEffects.currentPhase)
-        context.addPath(bezierPath)
-        context.strokePath()
+        // 1. 创建不规则的外边界路径
+        let outerIrregularPath = createIrregularBezierPath(center: center, baseRadius: radius + thickness/2, time: breathingEffects.currentPhase)
+        
+        // 2. 创建规则的内边界路径（标准圆形）
+        let innerRegularPath = CGMutablePath()
+        let innerRadius = radius - thickness/2
+        innerRegularPath.addArc(center: center, radius: innerRadius, startAngle: 0, endAngle: 2 * .pi, clockwise: false)
+        
+        // 3. 将外壁路径添加到上下文
+        context.addPath(outerIrregularPath)
+        
+        // 4. 添加内壁路径作为洞（逆时针方向，创建洞）
+        context.addPath(innerRegularPath)
+        
+        // 5. 使用 even-odd 填充规则，创建环形区域
+        context.fillPath(using: .evenOdd)
         
         context.restoreGState()
     }
@@ -809,7 +826,11 @@ class HealthRingsView: NSView {
         let globalSqueeze = sin(time * 1.5) * 0.04
         
         let totalVariation = wave1 + wave2 + globalSqueeze
-        return baseRadius * (1.0 + totalVariation)
+        let radius = baseRadius * (1.0 + totalVariation)
+        
+        // 限制最小收缩半径，确保始终能覆盖最外层进度环
+        let minCoverageRadius = baseRadius * 1.05  // 最小保持5%的向外偏移
+        return max(radius, minCoverageRadius)
     }
     
     private func drawProgressRing(in context: CGContext, center: CGPoint, radius: CGFloat, thickness: CGFloat, progress: CGFloat, colors: [NSColor], ring: RingData, breathingEffects: BreathingEffects) {
