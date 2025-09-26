@@ -62,6 +62,7 @@ stateDiagram-v2
     RestTimerRunning --> ForcedSleep : 状态机检测到熬夜时间 / triggerStayUpOverlay()
     Idle --> ForcedSleep : 启动时检测到熬夜时间 / triggerStayUpOverlay()
     ForcedSleep --> Idle : 熬夜时间结束（自动退出） / performExitForcedSleep()
+    ForcedSleep --> Idle : 屏幕解锁时检测到非熬夜时间 / screenUnlocked + isInStayUpTime()=false
     
     %% 状态内部细节
     state TimerRunning {
@@ -187,6 +188,7 @@ stateDiagram-v2
             [*] --> TriggerForcedSleep : 触发强制睡眠事件
             TriggerForcedSleep --> WaitingForTimeEnd : 等待熬夜时间结束
             WaitingForTimeEnd --> [*] : 时间结束，自动退出
+            WaitingForTimeEnd --> [*] : 屏幕解锁时检测到时间已过，立即退出
         }
     }
     
@@ -328,7 +330,7 @@ graph LR
 - **idleTimeExceeded**: 无操作时间超时
 - **userActivityDetected**: 检测到用户活动
 - **screenLocked**: 屏幕锁定
-- **screenUnlocked**: 屏幕解锁
+- **screenUnlocked**: 屏幕解锁（在强制睡眠状态下会智能检测是否还在熬夜时间）
 - **screensaverStarted**: 屏保启动
 - **screensaverStopped**: 屏保停止
 
@@ -367,6 +369,7 @@ graph LR
 - 背景文件加载失败时使用默认背景
 - 屏幕检测异常时禁用自动切换
 - 设置加载失败时使用默认值
+- 强制睡眠状态在屏幕解锁时智能检测时间，自动退出过期的强制睡眠
 
 ### 用户干预
 - 强制睡眠状态不可被用户取消（仅当熬夜时间结束时自动退出）

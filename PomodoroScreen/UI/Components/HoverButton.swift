@@ -128,8 +128,22 @@ extension HoverButton {
         wantsLayer = true
         
         // 主要按钮 - 蓝色背景
-        let normalColor = NSColor.controlAccentColor.cgColor
-        let hoverColor = NSColor.controlAccentColor.withAlphaComponent(0.8).cgColor
+        let normalColor = NSColor.controlAccentColor.withAlphaComponent(0.95).cgColor
+        // 创建加浓的颜色：增加饱和度而不是加黑
+        guard let rgbColor = NSColor.controlAccentColor.usingColorSpace(.deviceRGB) else {
+            // 回退方案：使用完全不透明
+            let hoverColor = NSColor.controlAccentColor.withAlphaComponent(1.0).cgColor
+            setBackgroundColors(normal: normalColor, hover: hoverColor)
+            return
+        }
+        
+        var hue: CGFloat = 0, saturation: CGFloat = 0, brightness: CGFloat = 0, alpha: CGFloat = 0
+        rgbColor.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
+        
+        // 增加饱和度让颜色更浓郁，而不是变暗
+        let enhancedSaturation = min(1.0, saturation * 1.2)  // 饱和度增加20%，但不超过1.0
+        let richerColor = NSColor(hue: hue, saturation: enhancedSaturation, brightness: brightness, alpha: 1.0)
+        let hoverColor = richerColor.cgColor
         setBackgroundColors(normal: normalColor, hover: hoverColor)
         layer?.cornerRadius = 8
         contentTintColor = NSColor.white

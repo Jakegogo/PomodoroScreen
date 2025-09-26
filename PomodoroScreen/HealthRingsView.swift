@@ -829,7 +829,7 @@ class HealthRingsView: NSView {
         let radius = baseRadius * (1.0 + totalVariation)
         
         // 限制最小收缩半径，确保始终能覆盖最外层进度环
-        let minCoverageRadius = baseRadius * 1.05  // 最小保持5%的向外偏移
+        let minCoverageRadius = baseRadius * 1.03  // 最小保持5%的向外偏移
         return max(radius, minCoverageRadius)
     }
     

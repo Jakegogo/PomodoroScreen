@@ -162,6 +162,11 @@ class PomodoroTimer: ObservableObject {
                 self?.processAutoRestartEvent(.forcedSleepEnded)
             }
         }
+        
+        // 设置倒计时警告回调
+        autoRestartStateMachine.onCountdownWarning = { [weak self] minutesRemaining in
+            self?.showCountdownWarning(minutesRemaining: minutesRemaining)
+        }
     }
     
     deinit {
@@ -920,5 +925,36 @@ class PomodoroTimer: ObservableObject {
     /// 添加一个便利属性，用于向后兼容
     var isStayUpTime: Bool {
         return autoRestartStateMachine.isInStayUpTime()
+    }
+    
+    /// 显示强制睡眠倒计时警告
+    private func showCountdownWarning(minutesRemaining: Int) {
+        // 创建倒计时通知窗口（如果还没有）
+        if countdownNotificationWindow == nil {
+            countdownNotificationWindow = CountdownNotificationWindow()
+        }
+        
+        // 根据剩余分钟数显示不同的消息
+        switch minutesRemaining {
+        case 5:
+            countdownNotificationWindow?.messageLabel.stringValue = "5分钟后将进入强制睡眠"
+            countdownNotificationWindow?.backgroundView.layer?.backgroundColor = NSColor.systemOrange.withAlphaComponent(0.9).cgColor
+        case 1:
+            countdownNotificationWindow?.messageLabel.stringValue = "1分钟后将进入强制睡眠"
+            countdownNotificationWindow?.backgroundView.layer?.backgroundColor = NSColor.systemRed.withAlphaComponent(0.9).cgColor
+        default:
+            countdownNotificationWindow?.messageLabel.stringValue = "\(minutesRemaining)分钟后将进入强制睡眠"
+            countdownNotificationWindow?.backgroundView.layer?.backgroundColor = NSColor.systemOrange.withAlphaComponent(0.9).cgColor
+        }
+        
+        // 显示通知窗口
+        countdownNotificationWindow?.showWithAnimation()
+        
+        // 3秒后自动隐藏
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+            self?.countdownNotificationWindow?.hideNotification()
+        }
+        
+        print("🚨 显示强制睡眠倒计时警告: \(minutesRemaining)分钟")
     }
 }

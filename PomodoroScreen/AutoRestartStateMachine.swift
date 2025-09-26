@@ -214,6 +214,16 @@ class AutoRestartStateMachine {
                 return .none
             }
             return settings.screenLockActionIsRestart ? .restartTimer : .none
+        case (.screenUnlocked, .forcedSleep):
+            guard settings.screenLockEnabled else { return .none }
+            // 屏幕解锁时如果是强制睡眠状态，检查是否需要退出
+            if !isInStayUpTime() {
+                print("🔄 State Machine: 屏幕解锁时不再是熬夜时间，退出强制睡眠")
+                return .exitForcedSleep
+            } else {
+                print("🔄 State Machine: 屏幕解锁时仍在熬夜时间，保持强制睡眠")
+                return .none
+            }
         case (.screenUnlocked, _):
             // 其他状态下的解锁不做处理
             return .none
@@ -337,6 +347,21 @@ class AutoRestartStateMachine {
             return state
         case .screenUnlocked:
             guard settings.screenLockEnabled else { return state }
+            
+            // 特殊处理：如果当前是强制睡眠状态，检查是否还在熬夜时间
+            if state == .forcedSleep {
+                // 检查当前是否还在熬夜时间范围内
+                if !isInStayUpTime() {
+                    print("🔄 State Machine: 屏幕解锁时检测到不再是熬夜时间，自动退出强制睡眠")
+                    // 不再是熬夜时间，应该退出强制睡眠
+                    return .idle
+                } else {
+                    // 仍在熬夜时间，保持强制睡眠状态
+                    print("🔄 State Machine: 屏幕解锁时仍在熬夜时间，保持强制睡眠状态")
+                    return .forcedSleep
+                }
+            }
+            
             // 从系统暂停状态恢复到相应的运行状态
             switch state {
             case .timerPausedBySystem:
@@ -450,6 +475,9 @@ class AutoRestartStateMachine {
         let wasStayUpTime = isStayUpTime
         isStayUpTime = checkStayUpTime()
         
+        // 检查是否需要显示倒计时警告
+        checkForCountdownWarnings()
+        
         // 如果从非熬夜时间进入熬夜时间，立即触发熬夜遮罩
         if !wasStayUpTime && isStayUpTime {
             print("🌙 状态机：检测到熬夜时间，触发强制睡眠事件")
@@ -463,8 +491,48 @@ class AutoRestartStateMachine {
         }
     }
     
+    /// 检查是否需要显示强制睡眠倒计时警告
+    private func checkForCountdownWarnings() {
+        guard settings.stayUpLimitEnabled && !isStayUpTime else { return }
+        
+        let now = Date()
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.hour, .minute], from: now)
+        
+        guard let currentHour = components.hour, let currentMinute = components.minute else { return }
+        
+        // 计算到强制睡眠时间的分钟数
+        let limitHour = settings.stayUpLimitHour
+        let limitMinute = settings.stayUpLimitMinute
+        
+        // 处理跨天情况
+        var targetMinutes = limitHour * 60 + limitMinute
+        let currentMinutes = currentHour * 60 + currentMinute
+        
+        // 如果限制时间小于当前时间，说明是第二天的时间
+        if targetMinutes <= currentMinutes {
+            targetMinutes += 24 * 60 // 加上一天的分钟数
+        }
+        
+        let minutesUntilForcedSleep = targetMinutes - currentMinutes
+        
+        // 检查是否需要显示5分钟警告
+        if minutesUntilForcedSleep == 5 {
+            print("🌙 状态机：强制睡眠前5分钟警告")
+            onCountdownWarning?(5)
+        }
+        // 检查是否需要显示1分钟警告
+        else if minutesUntilForcedSleep == 1 {
+            print("🌙 状态机：强制睡眠前1分钟警告")
+            onCountdownWarning?(1)
+        }
+    }
+    
     /// 熬夜时间变化回调
     var onStayUpTimeChanged: ((Bool) -> Void)?
+    
+    /// 倒计时警告回调 (参数为剩余分钟数)
+    var onCountdownWarning: ((Int) -> Void)?
     
     /// 获取熬夜限制设置信息（用于统计和显示）
     func getStayUpLimitInfo() -> (enabled: Bool, hour: Int, minute: Int) {

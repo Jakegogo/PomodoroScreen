@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		230514E72E864ABA00691DCC /* CountdownNotificationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 230514E62E864ABA00691DCC /* CountdownNotificationWindow.swift */; };
 		23249BA42E825DBC00F45D58 /* rest_video.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 23249BA12E825DBC00F45D58 /* rest_video.mp4 */; };
 		23249BA62E82662F00F45D58 /* icon_video.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 23249BA52E82662F00F45D58 /* icon_video.mp4 */; };
 		23249BA82E826FCF00F45D58 /* IOSSwitchButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23249BA72E826FCF00F45D58 /* IOSSwitchButton.swift */; };
@@ -24,7 +25,6 @@
 		A1234567890ABCDEF009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF00A /* Assets.xcassets */; };
 		A1234567890ABCDEF00B /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF00C /* MainMenu.xib */; };
 		A1234567890ABCDEF015 /* SettingsWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF016 /* SettingsWindow.swift */; };
-		CD1234567890ABCDEF001 /* CountdownNotificationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD1234567890ABCDEF002 /* CountdownNotificationWindow.swift */; };
 		FDF3445FA03D44929CE879D5 /* LaunchAtLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F523799673D4942B090EFE3 /* LaunchAtLogin.swift */; };
 		HR1234567890ABCDEF001 /* HealthRingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1234567890ABCDEF002 /* HealthRingsView.swift */; };
 		JS1234567890ABCDEF001 /* chart.js in Resources */ = {isa = PBXBuildFile; fileRef = JS1234567890ABCDEF002 /* chart.js */; };
@@ -46,6 +46,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		230514E62E864ABA00691DCC /* CountdownNotificationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountdownNotificationWindow.swift; sourceTree = "<group>"; };
 		23249BA12E825DBC00F45D58 /* rest_video.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = rest_video.mp4; sourceTree = "<group>"; };
 		23249BA52E82662F00F45D58 /* icon_video.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = icon_video.mp4; sourceTree = "<group>"; };
 		23249BA72E826FCF00F45D58 /* IOSSwitchButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSSwitchButton.swift; sourceTree = "<group>"; };
@@ -68,7 +69,6 @@
 		A1234567890ABCDEF00F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1234567890ABCDEF010 /* PomodoroScreen.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PomodoroScreen.entitlements; sourceTree = "<group>"; };
 		A1234567890ABCDEF016 /* SettingsWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindow.swift; sourceTree = "<group>"; };
-		CD1234567890ABCDEF002 /* CountdownNotificationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountdownNotificationWindow.swift; sourceTree = "<group>"; };
 		HR1234567890ABCDEF002 /* HealthRingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthRingsView.swift; sourceTree = "<group>"; };
 		JS1234567890ABCDEF002 /* chart.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = chart.js; sourceTree = "<group>"; };
 		PW1234567890ABCDEF002 /* StatusBarPopupWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarPopupWindow.swift; sourceTree = "<group>"; };
@@ -120,6 +120,7 @@
 		23BD5B2D2E818E48008AEE45 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				230514E62E864ABA00691DCC /* CountdownNotificationWindow.swift */,
 				23249BA72E826FCF00F45D58 /* IOSSwitchButton.swift */,
 				23BD5C342E824FE3008AEE45 /* RoundIndicatorView.swift */,
 				23BD5B2C2E818E48008AEE45 /* HoverButton.swift */,
@@ -157,7 +158,6 @@
 				A1234567890ABCDEF004 /* PomodoroTimer.swift */,
 				A1234567890ABCDEF006 /* StatusBarController.swift */,
 				A1234567890ABCDEF008 /* OverlayWindow.swift */,
-				CD1234567890ABCDEF002 /* CountdownNotificationWindow.swift */,
 				PW1234567890ABCDEF002 /* StatusBarPopupWindow.swift */,
 				HR1234567890ABCDEF002 /* HealthRingsView.swift */,
 				A1234567890ABCDEF016 /* SettingsWindow.swift */,
@@ -325,11 +325,11 @@
 				23BD5AA92E80F9CD008AEE45 /* ClockIconGenerator.swift in Sources */,
 				A1234567890ABCDEF003 /* PomodoroTimer.swift in Sources */,
 				A1234567890ABCDEF015 /* SettingsWindow.swift in Sources */,
+				230514E72E864ABA00691DCC /* CountdownNotificationWindow.swift in Sources */,
 				A1234567890ABCDEF005 /* StatusBarController.swift in Sources */,
 				A1234567890ABCDEF007 /* OverlayWindow.swift in Sources */,
 				23BD5C352E824FE6008AEE45 /* RoundIndicatorView.swift in Sources */,
 				234823262E7EAAC500DC507E /* AutoRestartStateMachine.swift in Sources */,
-				CD1234567890ABCDEF001 /* CountdownNotificationWindow.swift in Sources */,
 				PW1234567890ABCDEF001 /* StatusBarPopupWindow.swift in Sources */,
 				HR1234567890ABCDEF001 /* HealthRingsView.swift in Sources */,
 				A1234567890ABCDEF015 /* SettingsWindow.swift in Sources */,

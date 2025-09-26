@@ -321,6 +321,12 @@ class StatusBarController {
         reportItem.image = NSImage(systemSymbolName: "chart.bar.fill", accessibilityDescription: "今日报告")
         menu.addItem(reportItem)
         
+        // 查看新手引导按钮
+        let onboardingItem = NSMenuItem(title: "新手引导", action: #selector(showOnboarding), keyEquivalent: "")
+        onboardingItem.target = self
+        onboardingItem.image = NSImage(systemSymbolName: "questionmark.circle", accessibilityDescription: "查看新手引导")
+        menu.addItem(onboardingItem)
+        
         // 设置按钮
         let settingsItem = NSMenuItem(title: "设置", action: #selector(showSettings), keyEquivalent: ",")
         settingsItem.target = self
@@ -447,6 +453,23 @@ class StatusBarController {
     
     @objc private func showTodayReport() {
         pomodoroTimer.showTodayReport()
+        NSApp.activate(ignoringOtherApps: true)
+    }
+    
+    @objc private func showOnboarding() {
+        // 创建并显示新手引导窗口
+        let onboardingWindow = OnboardingWindow()
+        
+        // 设置完成回调
+        onboardingWindow.setOnboardingCompletedHandler {
+            print("✅ 手动查看新手引导完成")
+        }
+        
+        // 显示引导窗口
+        onboardingWindow.makeKeyAndOrderFront(nil)
+        onboardingWindow.center()
+        
+        // 激活应用程序
         NSApp.activate(ignoringOtherApps: true)
     }
     

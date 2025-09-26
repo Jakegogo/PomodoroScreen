@@ -334,6 +334,9 @@ class StatusBarPopupWindow: NSWindow {
             self?.handleMeetingModeSwitchChanged(isOn)
         }
         
+        // 设置tooltip提示
+        meetingModeSwitch.toolTip = "开启后休息时间将静默显示，不会弹出遮罩层和右上角提示"
+        
         // 创建会议模式标签
         meetingModeLabel = NSTextField(labelWithString: "会议模式")
         meetingModeLabel.frame = NSRect(
@@ -345,6 +348,9 @@ class StatusBarPopupWindow: NSWindow {
         meetingModeLabel.font = NSFont.systemFont(ofSize: 12)
         meetingModeLabel.textColor = NSColor.secondaryLabelColor
         meetingModeLabel.alignment = .left // 左对齐，文字在左侧
+        
+        // 为标签也设置tooltip提示
+        meetingModeLabel.toolTip = "开启后休息时间将静默显示，不会弹出遮罩层和右上角提示"
         
         contentView.addSubview(meetingModeSwitch)
         contentView.addSubview(meetingModeLabel)

@@ -32,15 +32,16 @@ class IOSSwitchButton: NSView {
     private let knobMargin: CGFloat = 2
     
     // 颜色配置 - 使用与停止按钮一样的颜色
-    private let onColor = NSColor.controlAccentColor  // 与停止按钮相同的蓝色
-    private let offColor = NSColor.controlColor
-    private let knobColor = NSColor.white
+    private let onColor = NSColor.controlAccentColor.withAlphaComponent(0.8)  // 与停止按钮相同的蓝色
+    private let offColor = NSColor.controlColor.withAlphaComponent(0.5)  // 透明白色轨道背景
+    private let knobColor = NSColor.white.withAlphaComponent(0.8)
     private let borderColor = NSColor.separatorColor
     
     // UI组件
     private var trackLayer: CALayer!
     private var knobLayer: CALayer!
     private var isAnimating = false
+    private var isHovering = false
     
     // MARK: - Initialization
     
@@ -99,6 +100,25 @@ class IOSSwitchButton: NSView {
         // 不需要额外的手势识别器
     }
     
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        
+        // 移除旧的跟踪区域
+        for trackingArea in trackingAreas {
+            removeTrackingArea(trackingArea)
+        }
+        
+        // 创建新的鼠标跟踪区域
+        let trackingArea = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeAlways],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(trackingArea)
+        print("🎛️ IOSSwitchButton: 创建跟踪区域 bounds: \(bounds)")
+    }
+    
     // MARK: - Actions
     
     /// 切换开关状态
@@ -139,8 +159,36 @@ class IOSSwitchButton: NSView {
     }
     
     private func updateAppearance() {
+        // 根据hover状态调整颜色
+        let currentOnColor: NSColor
+        let currentOffColor: NSColor
+        let currentKnobColor: NSColor
+        
+        if isHovering {
+            // hover时使用更明显的效果
+            if isOn {
+                // 开启状态：让蓝色更鲜艳
+                currentOnColor = NSColor.controlAccentColor.withAlphaComponent(1.0)
+                currentOffColor = offColor
+            } else {
+                // 关闭状态：让灰色更深
+                currentOnColor = onColor
+                currentOffColor = NSColor.controlColor.withAlphaComponent(0.6)
+            }
+            currentKnobColor = NSColor.white.withAlphaComponent(1.0)
+            print("🎛️ IOSSwitchButton: hover状态 - isOn: \(isOn)")
+        } else {
+            currentOnColor = onColor
+            currentOffColor = offColor
+            currentKnobColor = knobColor
+            print("🎛️ IOSSwitchButton: 正常状态")
+        }
+        
         // 更新轨道颜色
-        trackLayer.backgroundColor = isOn ? onColor.cgColor : offColor.cgColor
+        trackLayer.backgroundColor = isOn ? currentOnColor.cgColor : currentOffColor.cgColor
+        
+        // 更新滑块颜色
+        knobLayer.backgroundColor = currentKnobColor.cgColor
         
         // 更新滑块位置
         let knobX = isOn ? (switchWidth - knobSize - knobMargin) : knobMargin
@@ -148,7 +196,52 @@ class IOSSwitchButton: NSView {
         knobLayer.frame = NSRect(x: knobX, y: knobY, width: knobSize, height: knobSize)
     }
     
+    // MARK: - Color Enhancement
+    
+    private func enhanceColorSaturation(_ color: NSColor, factor: CGFloat) -> NSColor {
+        // 先转换到RGB颜色空间
+        guard let rgbColor = color.usingColorSpace(.deviceRGB) else {
+            print("🎛️ IOSSwitchButton: 无法转换颜色空间，返回原色")
+            return color
+        }
+        
+        var hue: CGFloat = 0, saturation: CGFloat = 0, brightness: CGFloat = 0, alpha: CGFloat = 0
+        rgbColor.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
+        
+        // 增加饱和度和亮度，创造更明显的效果
+        let enhancedSaturation = min(1.0, saturation * factor)
+        let enhancedBrightness = min(1.0, brightness * 1.1) // 稍微增加亮度
+        
+        let enhancedColor = NSColor(hue: hue, saturation: enhancedSaturation, brightness: enhancedBrightness, alpha: alpha)
+        
+        print("🎛️ IOSSwitchButton: 原色 S:\(saturation) B:\(brightness) -> 增强色 S:\(enhancedSaturation) B:\(enhancedBrightness)")
+        
+        return enhancedColor
+    }
+    
     // MARK: - Mouse Events
+    
+    override func mouseEntered(with event: NSEvent) {
+        print("🎛️ IOSSwitchButton: 鼠标进入")
+        isHovering = true
+        animateHoverChange()
+    }
+    
+    override func mouseExited(with event: NSEvent) {
+        print("🎛️ IOSSwitchButton: 鼠标离开")
+        isHovering = false
+        animateHoverChange()
+    }
+    
+    private func animateHoverChange() {
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(0.15)
+        CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeInEaseOut))
+        
+        updateAppearance()
+        
+        CATransaction.commit()
+    }
     
     override func mouseDown(with event: NSEvent) {
         print("🎛️ IOSSwitchButton mouseDown triggered")

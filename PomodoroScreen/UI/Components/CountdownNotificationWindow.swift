@@ -8,8 +8,8 @@
 import Cocoa
 
 class CountdownNotificationWindow: NSWindow {
-    private var messageLabel: NSTextField!
-    private var backgroundView: NSView!
+    var messageLabel: NSTextField!
+    var backgroundView: NSView!
     
     convenience init() {
         // 获取主屏幕尺寸
@@ -17,7 +17,7 @@ class CountdownNotificationWindow: NSWindow {
         
         // 设置窗口大小和位置（右上角，避开Dock）
         let windowWidth: CGFloat = 200
-        let windowHeight: CGFloat = 60
+        let windowHeight: CGFloat = 40
         let margin: CGFloat = 20
         let dockWidth: CGFloat = 80  // 预估Dock宽度
         
@@ -101,7 +101,7 @@ class CountdownNotificationWindow: NSWindow {
         }
     }
     
-    private func showWithAnimation() {
+    func showWithAnimation() {
         self.orderFront(nil)
         
         NSAnimationContext.runAnimationGroup({ context in
@@ -117,8 +117,8 @@ class CountdownNotificationWindow: NSWindow {
         
         let windowWidth: CGFloat = 200
         let windowHeight: CGFloat = 60
-        let margin: CGFloat = 20
-        let dockWidth: CGFloat = 80  // 预估Dock宽度
+        let margin: CGFloat = 24
+        let dockWidth: CGFloat = 60  // 预估Dock宽度
         
         let newFrame = NSRect(
             x: screenFrame.maxX - windowWidth - margin - dockWidth,

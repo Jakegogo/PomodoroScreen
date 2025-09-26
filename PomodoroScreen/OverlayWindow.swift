@@ -531,13 +531,113 @@ class OverlayWindow: NSWindow {
 
 // MARK: - OverlayView
 
+// MARK: - Button Configuration
+
+struct OverlayButtonConfig {
+    let title: String
+    let width: CGFloat
+    let height: CGFloat
+    let backgroundColor: NSColor
+    let borderColor: NSColor
+    let borderWidth: CGFloat
+    let cornerRadius: CGFloat
+    let font: NSFont
+    let fadeAlpha: CGFloat
+    let hoverAlpha: CGFloat
+    let action: Selector
+    let keyEquivalent: String?
+    let hasShadow: Bool
+    let shadowColor: NSColor?
+    let shadowOffset: NSSize?
+    let shadowRadius: CGFloat?
+    let shadowOpacity: Float?
+    
+    init(title: String, 
+         width: CGFloat, 
+         height: CGFloat,
+         backgroundColor: NSColor = NSColor.clear,
+         borderColor: NSColor = NSColor.white,
+         borderWidth: CGFloat = 1.5,
+         cornerRadius: CGFloat = 6,
+         font: NSFont = NSFont.systemFont(ofSize: 14, weight: .regular),
+         fadeAlpha: CGFloat = 0.4,
+         hoverAlpha: CGFloat = 1.0,
+         action: Selector,
+         keyEquivalent: String? = nil,
+         hasShadow: Bool = false,
+         shadowColor: NSColor? = nil,
+         shadowOffset: NSSize? = nil,
+         shadowRadius: CGFloat? = nil,
+         shadowOpacity: Float? = nil) {
+        
+        self.title = title
+        self.width = width
+        self.height = height
+        self.backgroundColor = backgroundColor
+        self.borderColor = borderColor
+        self.borderWidth = borderWidth
+        self.cornerRadius = cornerRadius
+        self.font = font
+        self.fadeAlpha = fadeAlpha
+        self.hoverAlpha = hoverAlpha
+        self.action = action
+        self.keyEquivalent = keyEquivalent
+        self.hasShadow = hasShadow
+        self.shadowColor = shadowColor
+        self.shadowOffset = shadowOffset
+        self.shadowRadius = shadowRadius
+        self.shadowOpacity = shadowOpacity
+    }
+}
+
 class OverlayView: NSView {
     
     var onDismiss: (() -> Void)?
     private var cancelButton: NSButton!
+    private var shutdownButton: NSButton!  // 关机按钮
     private var messageLabel: NSTextField!
     private var timer: PomodoroTimer?
     private var isPreviewMode: Bool = false
+    
+    // MARK: - Button Configurations
+    
+    private var cancelButtonConfig: OverlayButtonConfig {
+        return OverlayButtonConfig(
+            title: "取消休息",
+            width: 90,
+            height: 32,
+            action: #selector(cancelButtonClicked)
+        )
+    }
+    
+    private var previewButtonConfig: OverlayButtonConfig {
+        return OverlayButtonConfig(
+            title: "关闭预览",
+            width: 90,
+            height: 32,
+            action: #selector(previewButtonClicked),
+            keyEquivalent: "\u{1b}" // ESC键
+        )
+    }
+    
+    private var shutdownButtonConfig: OverlayButtonConfig {
+        return OverlayButtonConfig(
+            title: "关机休息",
+            width: 120,
+            height: 36,
+            backgroundColor: NSColor.systemRed.withAlphaComponent(0.8),
+            borderWidth: 2.0,
+            cornerRadius: 8,
+            font: NSFont.systemFont(ofSize: 14, weight: .medium),
+            fadeAlpha: 0.7,
+            action: #selector(shutdownButtonClicked),
+            hasShadow: true,
+            shadowColor: NSColor.black,
+            shadowOffset: NSSize(width: 0, height: -2),
+            shadowRadius: 4,
+            shadowOpacity: 0.5
+        )
+    }
     
     init(frame frameRect: NSRect, timer: PomodoroTimer?, isPreviewMode: Bool = false) {
         self.timer = timer
@@ -581,12 +681,17 @@ class OverlayView: NSView {
         
         // 根据模式决定是否显示按钮
         if isPreviewMode {
-            setupPreviewButton()
+            setupButton(with: previewButtonConfig, as: &cancelButton, buttonType: "cancel")
         } else {
-            // 根据设置决定是否显示取消休息按钮
-            let shouldShowButton = timer?.shouldShowCancelRestButton ?? true
-            if shouldShowButton {
-                setupCancelButton()
+            // 检查是否为强制睡眠状态
+            if let timer = timer, timer.isStayUpTime {
+                setupButton(with: shutdownButtonConfig, as: &shutdownButton, buttonType: "shutdown")
+            } else {
+                // 根据设置决定是否显示取消休息按钮
+                let shouldShowButton = timer?.shouldShowCancelRestButton ?? true
+                if shouldShowButton {
+                    setupButton(with: cancelButtonConfig, as: &cancelButton, buttonType: "cancel")
+                }
             }
         }
     }
@@ -661,152 +766,137 @@ class OverlayView: NSView {
         })
     }
     
-        private func setupCancelButton() {
-            cancelButton = NSButton(frame: NSRect(x: 0, y: 0, width: 90, height: 32))
-            cancelButton.title = "取消休息"
-            cancelButton.bezelStyle = .shadowlessSquare
-            cancelButton.isBordered = false
-            cancelButton.font = NSFont.systemFont(ofSize: 14, weight: .regular)
-            cancelButton.target = self
-            cancelButton.action = #selector(cancelButtonClicked)
-            
-            // 设置完全透明背景和白色边框（更精致的样式）
-            cancelButton.wantsLayer = true
-            cancelButton.layer?.backgroundColor = NSColor.clear.cgColor
-            cancelButton.layer?.cornerRadius = 6
-            cancelButton.layer?.borderWidth = 1.5
-            cancelButton.layer?.borderColor = NSColor.white.cgColor
-            
-            // 设置文字颜色为白色
-            cancelButton.contentTintColor = NSColor.white
-            
-            addSubview(cancelButton)
+    // MARK: - Unified Button Setup
+    
+    private func setupButton(with config: OverlayButtonConfig, as button: inout NSButton!, buttonType: String) {
+        // 创建按钮
+        let newButton = NSButton(frame: NSRect(x: 0, y: 0, width: config.width, height: config.height))
+        newButton.title = config.title
+        newButton.bezelStyle = .shadowlessSquare
+        newButton.isBordered = false
+        newButton.font = config.font
+        newButton.target = self
+        newButton.action = config.action
         
-        // 设置按钮位置（类似苹果锁屏密码输入框的位置，屏幕下方1/3处）
-        cancelButton.translatesAutoresizingMaskIntoConstraints = false
+        // 设置键盘快捷键（如果有）
+        if let keyEquivalent = config.keyEquivalent {
+            newButton.keyEquivalent = keyEquivalent
+        }
+        
+        // 设置样式
+        newButton.wantsLayer = true
+        newButton.layer?.backgroundColor = config.backgroundColor.cgColor
+        newButton.layer?.cornerRadius = config.cornerRadius
+        newButton.layer?.borderWidth = config.borderWidth
+        newButton.layer?.borderColor = config.borderColor.cgColor
+        newButton.contentTintColor = NSColor.white
+        
+        // 设置阴影（如果需要）
+        if config.hasShadow {
+            newButton.layer?.shadowColor = config.shadowColor?.cgColor
+            newButton.layer?.shadowOffset = config.shadowOffset ?? NSSize.zero
+            newButton.layer?.shadowRadius = config.shadowRadius ?? 0
+            newButton.layer?.shadowOpacity = config.shadowOpacity ?? 0
+        }
+        
+        addSubview(newButton)
+        
+        // 设置约束
+        newButton.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            cancelButton.centerXAnchor.constraint(equalTo: centerXAnchor),
-            cancelButton.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -bounds.height * 0.2), // 距离底部约20%的位置
-            cancelButton.widthAnchor.constraint(equalToConstant: 90),
-            cancelButton.heightAnchor.constraint(equalToConstant: 32)
+            newButton.centerXAnchor.constraint(equalTo: centerXAnchor),
+            newButton.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -bounds.height * 0.2),
+            newButton.widthAnchor.constraint(equalToConstant: config.width),
+            newButton.heightAnchor.constraint(equalToConstant: config.height)
         ])
         
-        // 3秒后淡化按钮（但不完全消失）
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
-            self?.fadeCancelButton()
+        // 赋值给inout参数
+        button = newButton
+        
+        // 3秒后淡化按钮
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self, weak newButton] in
+            guard let strongButton = newButton else { return }
+            self?.fadeButton(strongButton, to: config.fadeAlpha, buttonType: buttonType)
         }
     }
     
-    private func fadeCancelButton() {
-        guard let cancelButton = cancelButton else { return }
-        
+    private func fadeButton(_ button: NSButton, to alpha: CGFloat, buttonType: String) {
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 1.0 // 淡化动画持续1秒
+            context.duration = 1.0
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            cancelButton.animator().alphaValue = 0.4 // 淡化到40%透明度，仍然可见和可点击
+            button.animator().alphaValue = alpha
         }, completionHandler: { [weak self] in
-            // 动画完成后启用鼠标悬停效果
-            self?.enableButtonHoverEffect()
+            self?.enableButtonHoverEffect(for: button, buttonType: buttonType)
         })
     }
     
-    private func setupPreviewButton() {
-        cancelButton = NSButton(frame: NSRect(x: 0, y: 0, width: 90, height: 32))
-        cancelButton.title = "关闭预览"
-        cancelButton.bezelStyle = .shadowlessSquare
-        cancelButton.isBordered = false
-        cancelButton.font = NSFont.systemFont(ofSize: 14, weight: .regular)
-        cancelButton.target = self
-        cancelButton.action = #selector(previewButtonClicked)
-        cancelButton.keyEquivalent = "\u{1b}" // ESC键
-        
-        // 设置完全透明背景和白色边框（与 CancelButton 相同的样式）
-        cancelButton.wantsLayer = true
-        cancelButton.layer?.backgroundColor = NSColor.clear.cgColor
-        cancelButton.layer?.cornerRadius = 6
-        cancelButton.layer?.borderWidth = 1.5
-        cancelButton.layer?.borderColor = NSColor.white.cgColor
-        
-        // 设置文字颜色为白色
-        cancelButton.contentTintColor = NSColor.white
-        
-        addSubview(cancelButton)
-        
-        // 设置按钮位置（与 CancelButton 相同的位置）
-        cancelButton.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            cancelButton.centerXAnchor.constraint(equalTo: centerXAnchor),
-            cancelButton.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -bounds.height * 0.2), // 距离底部约20%的位置
-            cancelButton.widthAnchor.constraint(equalToConstant: 90),
-            cancelButton.heightAnchor.constraint(equalToConstant: 32)
-        ])
-        
-        // 3秒后淡化按钮（但不完全消失）
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
-            self?.fadeCancelButton()
-        }
-        
-        // 添加提示标签
-        let hintLabel = NSTextField(labelWithString: "按 ESC 键或点击关闭按钮退出预览")
-        hintLabel.font = NSFont.systemFont(ofSize: 14)
-        hintLabel.textColor = NSColor.white.withAlphaComponent(0.8)
-        hintLabel.alignment = .center
-        addSubview(hintLabel)
-        
-        hintLabel.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            hintLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
-            hintLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -50),
-            hintLabel.widthAnchor.constraint(equalToConstant: 400),
-            hintLabel.heightAnchor.constraint(equalToConstant: 20)
-        ])
+    private func enableButtonHoverEffect(for button: NSButton, buttonType: String) {
+        let trackingArea = NSTrackingArea(
+            rect: button.bounds,
+            options: [.mouseEnteredAndExited, .activeInKeyWindow],
+            owner: self,
+            userInfo: ["button": buttonType]
+        )
+        button.addTrackingArea(trackingArea)
     }
     
-    private func enableButtonHoverEffect() {
-        guard let cancelButton = cancelButton else { return }
-        
-        // 创建鼠标追踪区域
-        let trackingArea = NSTrackingArea(
-            rect: cancelButton.bounds,
-            options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
-            owner: self,
-            userInfo: ["button": "cancel"]
-        )
-        cancelButton.addTrackingArea(trackingArea)
-    }
+    
+    
     
     override func mouseEntered(with event: NSEvent) {
         super.mouseEntered(with: event)
         
-        // 检查是否是取消按钮的悬停事件
+        // 检查是哪个按钮的悬停事件
         if let userInfo = event.trackingArea?.userInfo as? [String: String],
-           userInfo["button"] == "cancel",
-           let cancelButton = cancelButton {
-            
-            // 鼠标进入时恢复完全不透明
-            NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.2 // 快速动画
-                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                cancelButton.animator().alphaValue = 1.0
-            }, completionHandler: nil)
+           let buttonType = userInfo["button"] {
+            handleButtonHover(buttonType: buttonType, isEntering: true)
         }
     }
     
     override func mouseExited(with event: NSEvent) {
         super.mouseExited(with: event)
         
-        // 检查是否是取消按钮的悬停事件
+        // 检查是哪个按钮的离开事件
         if let userInfo = event.trackingArea?.userInfo as? [String: String],
-           userInfo["button"] == "cancel",
-           let cancelButton = cancelButton {
-            
-            // 鼠标离开时恢复半透明
-            NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.2 // 快速动画
-                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                cancelButton.animator().alphaValue = 0.4
-            }, completionHandler: nil)
+           let buttonType = userInfo["button"] {
+            handleButtonHover(buttonType: buttonType, isEntering: false)
         }
+    }
+    
+    // MARK: - Unified Hover Effect Handler
+    
+    private func handleButtonHover(buttonType: String, isEntering: Bool) {
+        switch buttonType {
+        case "cancel":
+            guard let cancelButton = cancelButton else { return }
+            let targetAlpha: CGFloat = isEntering ? 1.0 : 0.4
+            animateButtonAlpha(cancelButton, to: targetAlpha, duration: 0.2)
+            
+        case "shutdown":
+            guard let shutdownButton = shutdownButton else { return }
+            let targetAlpha: CGFloat = isEntering ? 1.0 : 0.7
+            let backgroundColor = isEntering ? 
+                NSColor.systemRed.cgColor : 
+                NSColor.systemRed.withAlphaComponent(0.8).cgColor
+            
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = isEntering ? 0.2 : 0.3
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                shutdownButton.animator().alphaValue = targetAlpha
+                shutdownButton.layer?.backgroundColor = backgroundColor
+            }, completionHandler: nil)
+            
+        default:
+            break
+        }
+    }
+    
+    private func animateButtonAlpha(_ button: NSButton, to alpha: CGFloat, duration: TimeInterval) {
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = duration
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            button.animator().alphaValue = alpha
+        }, completionHandler: nil)
     }
     
     @objc private func cancelButtonClicked() {
@@ -815,6 +905,89 @@ class OverlayView: NSView {
     
     @objc private func previewButtonClicked() {
         onDismiss?()
+    }
+    
+    @objc private func shutdownButtonClicked() {
+        print("🔴 用户点击关机按钮")
+        
+        // 显示确认对话框
+        let alert = NSAlert()
+        alert.messageText = "确认关机"
+        alert.informativeText = "您确定要关闭电脑吗？这将结束当前的强制睡眠状态。"
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "关机")
+        alert.addButton(withTitle: "取消")
+        
+        // 设置关机按钮为红色警告样式
+        if let shutdownButton = alert.buttons.first {
+            shutdownButton.hasDestructiveAction = true
+        }
+        
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            // 用户确认关机
+            triggerSystemShutdown()
+        }
+    }
+    
+    private func triggerSystemShutdown() {
+        print("🔴 执行系统关机")
+        
+        // 使用AppleScript触发系统关机
+        let script = """
+        tell application "System Events"
+            shut down
+        end tell
+        """
+        
+        if let appleScript = NSAppleScript(source: script) {
+            var error: NSDictionary?
+            appleScript.executeAndReturnError(&error)
+            
+            if let error = error {
+                print("❌ 关机脚本执行失败: \(error)")
+                // 如果AppleScript失败，尝试使用命令行
+                fallbackShutdown()
+            }
+        } else {
+            fallbackShutdown()
+        }
+    }
+    
+    private func fallbackShutdown() {
+        print("🔴 使用备用关机方法")
+        
+        let task = Process()
+        task.launchPath = "/usr/bin/sudo"
+        task.arguments = ["shutdown", "-h", "now"]
+        
+        do {
+            try task.run()
+            print("✅ 关机命令已执行")
+        } catch {
+            print("❌ 关机命令执行失败: \(error)")
+            
+            // 最后的备用方案：显示系统关机对话框
+            showSystemShutdownDialog()
+        }
+    }
+    
+    private func showSystemShutdownDialog() {
+        // 使用系统的关机对话框
+        let script = """
+        tell application "loginwindow"
+            «event aevtshut»
+        end tell
+        """
+        
+        if let appleScript = NSAppleScript(source: script) {
+            var error: NSDictionary?
+            appleScript.executeAndReturnError(&error)
+            
+            if let error = error {
+                print("❌ 系统关机对话框调用失败: \(error)")
+            }
+        }
     }
     
     override func draw(_ dirtyRect: NSRect) {
