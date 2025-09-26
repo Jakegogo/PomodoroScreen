@@ -84,6 +84,10 @@ class HealthRingsView: NSView {
     private var isTimerRunning = false
     private var frozenBreathingPhase: Double = 0.0 // 冻结时的呼吸相位
     
+    // 性能优化控制
+    private var lastUpdateTime: CFTimeInterval = 0
+    private let minUpdateInterval: CFTimeInterval = 1.0 / 20.0  // 最大20fps，避免过度更新
+    
     // 倒计时显示
     private var countdownTime: TimeInterval = 0
     
@@ -215,73 +219,457 @@ class HealthRingsView: NSView {
         // 将圆环中心稍微向上偏移，避免与底部标题重合
         let center = CGPoint(x: bounds.midX, y: bounds.midY - 8)
         
+        // 预计算呼吸动画效果，避免重复计算
+        let breathingEffects = precomputeBreathingEffects()
+        
         // 绘制每个环（从外到里）
         for ring in rings {
-            drawActivityRing(in: context, center: center, ring: ring)
+            drawActivityRing(in: context, center: center, ring: ring, breathingEffects: breathingEffects)
         }
         
-        // 绘制圆环数值
-        drawRingValues(in: context, center: center)
+        // 绘制圆环数值（复用呼吸效果计算）
+        drawRingValues(in: context, center: center, breathingEffects: breathingEffects)
         
         // 绘制中心文字
         drawCenterText(in: context, center: center)
     }
     
-    // MARK: - Drawing Methods (Based on CirclesWorkout.swift ActivityRing)
+    // MARK: - Performance Optimization Structures
     
-    private func drawActivityRing(in context: CGContext, center: CGPoint, ring: RingData) {
-        let progress = ring.animatedProgress
-        let diameter = ring.type.diameter
-        let radius = baseSize * diameter / 2
-        let colors = ring.type.colors
+    /// 预计算的呼吸效果数据，避免在多个绘制方法中重复计算
+    private struct BreathingEffects {
+        let currentPhase: CGFloat
+        let shouldApplyEffect: Bool
+        let intensities: [RingType: CGFloat]
+        let effectiveRadii: [RingType: CGFloat]
+        let effectiveThicknesses: [RingType: CGFloat]
+        let alphaIntensities: [RingType: CGFloat]  // 透明度效果
+        let breathingAlphas: [RingType: CGFloat]   // 最终透明度值
+    }
+    
+    /// 预计算的渐变数据，避免实时颜色插值和大量绘制调用
+    private struct GradientCache {
+        let colors: [CGColor]           // 预计算的颜色数组
+        let progressSteps: Int          // 进度环步数
+        let fullRingSteps: Int         // 完整环步数
+        let progressAngleStep: CGFloat  // 进度环角度步长
+        let fullRingAngleStep: CGFloat  // 完整环角度步长
         
-        // Apply breathing animation scale (基于CirclesWorkout的渐进式呼吸效果)
-        var effectiveRadius = radius
-        var effectiveThickness = ringThickness
+        static let shared = GradientCache()
         
-        // 计算呼吸效果：动画活跃时使用实时相位，停止时使用冻结相位
-        let currentPhase = isBreathingAnimationActive ? breathingPhase : frozenBreathingPhase
-        let shouldApplyBreathingEffect = isBreathingAnimationActive || frozenBreathingPhase != 0.0
-        
-        if shouldApplyBreathingEffect {
-            // 渐进式呼吸效果 - 外层效果最强，内层效果递减
-            let breathingIntensity: CGFloat
-            switch ring.type {
-            case .restAdequacy:    // 最外层 - 最强的不规则气泡效果
-                // 使用更平滑的缓动函数组合
-                let baseBreathing = smoothBreathing(currentPhase)
-                let wave1 = baseBreathing * 0.12
-                let wave2 = smoothBreathing(currentPhase * 1.3 + 0.5) * 0.08
-                let wave3 = smoothBreathing(currentPhase * 0.7 + 1.2) * 0.06
-                let wave4 = smoothBreathing(currentPhase * 2.1 + 0.9) * 0.04
-                breathingIntensity = wave1 + wave2 + wave3 + wave4
-            case .workIntensity:   // 第二层 - 与最外层节奏一致，强度适中
-                let baseBreathing = smoothBreathing(currentPhase)
-                let wave1 = baseBreathing * 0.085
-                let wave2 = smoothBreathing(currentPhase * 1.3 + 0.5) * 0.052
-                let wave3 = smoothBreathing(currentPhase * 0.7 + 1.2) * 0.038
-                let wave4 = smoothBreathing(currentPhase * 2.1 + 0.9) * 0.024
-                breathingIntensity = wave1 + wave2 + wave3 + wave4
-            case .focus:           // 第三层 - 与最外层节奏一致，强度较轻
-                let baseBreathing = smoothBreathing(currentPhase)
-                let wave1 = baseBreathing * 0.045
-                let wave2 = smoothBreathing(currentPhase * 1.3 + 0.5) * 0.030
-                let wave3 = smoothBreathing(currentPhase * 0.7 + 1.2) * 0.022
-                let wave4 = smoothBreathing(currentPhase * 2.1 + 0.9) * 0.013
-                breathingIntensity = wave1 + wave2 + wave3 + wave4
-            case .health:          // 最内层 - 与最外层节奏一致，强度最轻
-                let baseBreathing = smoothBreathing(currentPhase)
-                let wave1 = baseBreathing * 0.025
-                let wave2 = smoothBreathing(currentPhase * 1.3 + 0.5) * 0.017
-                let wave3 = smoothBreathing(currentPhase * 0.7 + 1.2) * 0.012
-                let wave4 = smoothBreathing(currentPhase * 2.1 + 0.9) * 0.008
-                breathingIntensity = wave1 + wave2 + wave3 + wave4
+        private init() {
+            // 优化后的步数：大幅减少绘制调用
+            progressSteps = 12      // 从50减少到12，减少76%
+            fullRingSteps = 24      // 从100减少到24，减少76%
+            progressAngleStep = 2 * .pi / CGFloat(progressSteps)
+            fullRingAngleStep = 2 * .pi / CGFloat(fullRingSteps)
+            
+            // 预计算颜色查找表，避免实时插值
+            var precomputedColors: [CGColor] = []
+            let maxSteps = max(progressSteps, fullRingSteps)
+            
+            // 使用临时颜色进行预计算（实际使用时会动态替换）
+            let tempFromColor = NSColor.red
+            let tempToColor = NSColor.blue
+            
+            for i in 0...maxSteps {
+                let ratio = CGFloat(i) / CGFloat(maxSteps)
+                let smoothRatio = Self.smoothstepStatic(0, 1, ratio)
+                let color = Self.interpolateColorStatic(from: tempFromColor, to: tempToColor, ratio: smoothRatio)
+                precomputedColors.append(color.cgColor)
             }
             
-            let irregularScale = 1.0 + breathingIntensity
-            effectiveRadius *= irregularScale
-            effectiveThickness *= irregularScale
+            self.colors = precomputedColors
         }
+        
+        // 静态方法，避免实例方法调用开销
+        private static func smoothstepStatic(_ edge0: CGFloat, _ edge1: CGFloat, _ x: CGFloat) -> CGFloat {
+            let t = max(0, min(1, (x - edge0) / (edge1 - edge0)))
+            return t * t * (3 - 2 * t)
+        }
+        
+        private static func interpolateColorStatic(from: NSColor, to: NSColor, ratio: CGFloat) -> NSColor {
+            let fromRGB = from.usingColorSpace(.deviceRGB)!
+            let toRGB = to.usingColorSpace(.deviceRGB)!
+            
+            let r = fromRGB.redComponent + (toRGB.redComponent - fromRGB.redComponent) * ratio
+            let g = fromRGB.greenComponent + (toRGB.greenComponent - fromRGB.greenComponent) * ratio
+            let b = fromRGB.blueComponent + (toRGB.blueComponent - fromRGB.blueComponent) * ratio
+            let a = fromRGB.alphaComponent + (toRGB.alphaComponent - fromRGB.alphaComponent) * ratio
+            
+            return NSColor(red: r, green: g, blue: b, alpha: a)
+        }
+    }
+    
+    /// 颜色空间转换缓存系统，避免重复的颜色空间转换
+    private struct ColorSpaceCache {
+        /// 缓存的RGB分量数据
+        struct RGBComponents {
+            let r: CGFloat
+            let g: CGFloat
+            let b: CGFloat
+            let a: CGFloat
+            
+            init(from color: NSColor) {
+                let rgbColor = color.usingColorSpace(.deviceRGB)!
+                self.r = rgbColor.redComponent
+                self.g = rgbColor.greenComponent
+                self.b = rgbColor.blueComponent
+                self.a = rgbColor.alphaComponent
+            }
+        }
+        
+        /// 全局缓存实例
+        static let shared = ColorSpaceCache()
+        
+        /// 颜色组合的缓存字典（使用线程安全的字典）
+        private let colorCache: NSMutableDictionary = NSMutableDictionary()
+        private let cacheQueue = DispatchQueue(label: "ColorSpaceCache", attributes: .concurrent)
+        
+        private init() {
+            // 预缓存常用的圆环颜色，避免运行时转换
+            precacheRingColors()
+        }
+        
+        /// 预缓存所有圆环颜色的RGB分量
+        private func precacheRingColors() {
+            let ringColors: [NSColor] = [
+                // Rest Adequacy (红色)
+                .restDark, .restLight, .restCircleEnd, .restOutline,
+                // Work Intensity (绿色)
+                .workDark, .workLight, .workCircleEnd, .workOutline,
+                // Focus (蓝色)
+                .focusDark, .focusLight, .focusCircleEnd, .focusOutline,
+                // Health (紫色)
+                .healthDark, .healthLight, .healthCircleEnd, .healthOutline
+            ]
+            
+            for color in ringColors {
+                let key = colorCacheKey(for: color)
+                colorCache.setObject(RGBComponents(from: color), forKey: key as NSString)
+            }
+        }
+        
+        /// 生成颜色的缓存键
+        private func colorCacheKey(for color: NSColor) -> String {
+            // 使用颜色的内存地址作为唯一标识（比较高效）
+            return String(describing: color)
+        }
+        
+        /// 获取缓存的RGB分量，如果不存在则计算并缓存
+        func getRGBComponents(for color: NSColor) -> RGBComponents {
+            let key = colorCacheKey(for: color)
+            
+            return cacheQueue.sync {
+                if let cached = colorCache.object(forKey: key as NSString) as? RGBComponents {
+                    return cached
+                }
+                
+                // 缓存未命中，计算并存储
+                let components = RGBComponents(from: color)
+                cacheQueue.async(flags: .barrier) {
+                    self.colorCache.setObject(components, forKey: key as NSString)
+                }
+                return components
+            }
+        }
+        
+        /// 清理缓存（在内存压力时调用）
+        func clearCache() {
+            cacheQueue.async(flags: .barrier) {
+                self.colorCache.removeAllObjects()
+                self.precacheRingColors()
+            }
+        }
+    }
+    
+    /// 预计算所有圆环的呼吸动画效果
+    private func precomputeBreathingEffects() -> BreathingEffects {
+        let currentPhase = isBreathingAnimationActive ? breathingPhase : frozenBreathingPhase
+        let shouldApplyEffect = isBreathingAnimationActive || frozenBreathingPhase != 0.0
+        
+        var intensities: [RingType: CGFloat] = [:]
+        var effectiveRadii: [RingType: CGFloat] = [:]
+        var effectiveThicknesses: [RingType: CGFloat] = [:]
+        var alphaIntensities: [RingType: CGFloat] = [:]
+        var breathingAlphas: [RingType: CGFloat] = [:]
+        
+        for ringType in RingType.allCases {
+            let baseRadius = (baseSize * ringType.diameter) / 2
+            let baseThickness = ringThickness
+            
+            if shouldApplyEffect {
+                // 计算呼吸强度（复用现有逻辑）
+                let breathingIntensity = calculateBreathingIntensity(for: ringType, phase: currentPhase)
+                let irregularScale = 1.0 + breathingIntensity
+                
+                // 计算透明度呼吸效果
+                let alphaIntensity = calculateAlphaIntensity(for: ringType, phase: currentPhase)
+                let breathingAlpha = 0.8 + alphaIntensity
+                
+                intensities[ringType] = breathingIntensity
+                effectiveRadii[ringType] = baseRadius * irregularScale
+                effectiveThicknesses[ringType] = baseThickness * irregularScale
+                alphaIntensities[ringType] = alphaIntensity
+                breathingAlphas[ringType] = breathingAlpha
+            } else {
+                intensities[ringType] = 0.0
+                effectiveRadii[ringType] = baseRadius
+                effectiveThicknesses[ringType] = baseThickness
+                alphaIntensities[ringType] = 0.0
+                breathingAlphas[ringType] = 1.0  // 默认完全不透明
+            }
+        }
+        
+        return BreathingEffects(
+            currentPhase: currentPhase,
+            shouldApplyEffect: shouldApplyEffect,
+            intensities: intensities,
+            effectiveRadii: effectiveRadii,
+            effectiveThicknesses: effectiveThicknesses,
+            alphaIntensities: alphaIntensities,
+            breathingAlphas: breathingAlphas
+        )
+    }
+    
+    /// 计算指定圆环类型的呼吸强度
+    private func calculateBreathingIntensity(for ringType: RingType, phase: CGFloat) -> CGFloat {
+        let baseBreathing = smoothBreathing(phase)
+        let wave2 = smoothBreathing(phase * 1.3 + 0.5)
+        let wave3 = smoothBreathing(phase * 0.7 + 1.2)
+        let wave4 = smoothBreathing(phase * 2.1 + 0.9)
+        
+        switch ringType {
+        case .restAdequacy:    // 最外层 - 最强的不规则气泡效果
+            return baseBreathing * 0.12 + wave2 * 0.08 + wave3 * 0.06 + wave4 * 0.04
+        case .workIntensity:   // 第二层 - 与最外层节奏一致，强度适中
+            return baseBreathing * 0.085 + wave2 * 0.052 + wave3 * 0.038 + wave4 * 0.024
+        case .focus:           // 第三层 - 与最外层节奏一致，强度较轻
+            return baseBreathing * 0.045 + wave2 * 0.030 + wave3 * 0.022 + wave4 * 0.013
+        case .health:          // 最内层 - 与最外层节奏一致，强度最轻
+            return baseBreathing * 0.025 + wave2 * 0.017 + wave3 * 0.012 + wave4 * 0.008
+        }
+    }
+    
+    /// 计算指定圆环类型的透明度呼吸强度
+    private func calculateAlphaIntensity(for ringType: RingType, phase: CGFloat) -> CGFloat {
+        let bubbleAlpha1 = sin(phase)
+        let bubbleAlpha2 = sin(phase * 1.7 + 0.8)
+        
+        switch ringType {
+        case .restAdequacy:
+            return bubbleAlpha1 * 0.15 + bubbleAlpha2 * 0.1
+        case .workIntensity:
+            return bubbleAlpha1 * 0.15 + bubbleAlpha2 * 0.11
+        case .focus:
+            return bubbleAlpha1 * 0.10 + bubbleAlpha2 * 0.06
+        case .health:
+            return bubbleAlpha1 * 0.06 + bubbleAlpha2 * 0.04
+        }
+    }
+    
+    // MARK: - Optimized Gradient Drawing Methods
+    
+    /// 高效的渐变颜色计算，使用缓存的RGB分量避免颜色空间转换
+    private func getOptimizedGradientColor(from fromColor: NSColor, to toColor: NSColor, ratio: CGFloat) -> CGColor {
+        // 使用预计算的平滑插值结果
+        let smoothRatio = smoothstep(0, 1, ratio)
+        
+        // 使用缓存的RGB分量，避免重复的颜色空间转换
+        let fromRGB = ColorSpaceCache.shared.getRGBComponents(for: fromColor)
+        let toRGB = ColorSpaceCache.shared.getRGBComponents(for: toColor)
+        
+        // 快速线性插值，无需颜色空间转换
+        let r = fromRGB.r + (toRGB.r - fromRGB.r) * smoothRatio
+        let g = fromRGB.g + (toRGB.g - fromRGB.g) * smoothRatio
+        let b = fromRGB.b + (toRGB.b - fromRGB.b) * smoothRatio
+        let a = fromRGB.a + (toRGB.a - fromRGB.a) * smoothRatio
+        
+        return CGColor(red: r, green: g, blue: b, alpha: a)
+    }
+    
+    /// 超高效的颜色插值（直接使用预计算的RGB分量）
+    private func fastInterpolateColor(fromComponents: ColorSpaceCache.RGBComponents, toComponents: ColorSpaceCache.RGBComponents, ratio: CGFloat) -> CGColor {
+        // 使用预计算的平滑插值
+        let smoothRatio = smoothstep(0, 1, ratio)
+        
+        // 直接插值，零颜色空间转换开销
+        let r = fromComponents.r + (toComponents.r - fromComponents.r) * smoothRatio
+        let g = fromComponents.g + (toComponents.g - fromComponents.g) * smoothRatio
+        let b = fromComponents.b + (toComponents.b - fromComponents.b) * smoothRatio
+        let a = fromComponents.a + (toComponents.a - fromComponents.a) * smoothRatio
+        
+        return CGColor(red: r, green: g, blue: b, alpha: a)
+    }
+    
+    /// 使用连续路径和角度渐变的高质量圆环绘制方法
+    private func drawNativeGradientRing(in context: CGContext, center: CGPoint, radius: CGFloat, thickness: CGFloat, startAngle: CGFloat, endAngle: CGFloat, colors: [NSColor]) {
+        context.saveGState()
+        
+        // 创建角度范围内的连续渐变
+        let angleRange = endAngle - startAngle
+        
+        // 使用更精细的分段来创建平滑的角度渐变，但使用重叠绘制避免间隙
+        let segments = max(12, min(36, Int(angleRange * 180 / .pi / 5)))  // 更精细的分段
+        let _ = angleRange / CGFloat(segments)  // 移除未使用的segmentAngle
+        
+        // 预缓存颜色组件
+        let fromComponents = ColorSpaceCache.shared.getRGBComponents(for: colors[0])
+        let toComponents = ColorSpaceCache.shared.getRGBComponents(for: colors[1])
+        
+        // 根本解决方案：单一连续路径，避免多次strokePath()调用导致的分割线
+        // 分割线的真正原因：每次strokePath()都有独立的抗锯齿边界
+        
+        context.setLineWidth(thickness)
+        
+        // 方法：创建一个完整的连续路径，然后使用渐变遮罩
+        let completePath = CGMutablePath()
+        completePath.addArc(center: center, radius: radius, startAngle: startAngle, endAngle: endAngle, clockwise: false)
+        
+        // 设置圆角末端（如果需要）
+        if endAngle - startAngle < 2 * .pi - 0.01 {
+            context.setLineCap(.round)
+        } else {
+            context.setLineCap(.butt)
+        }
+        
+        // 使用路径创建描边遮罩
+        context.addPath(completePath)
+        context.replacePathWithStrokedPath()
+        context.clip()
+        
+        // 在遮罩区域内绘制渐变
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let gradientColors = [colors[0].cgColor, colors[1].cgColor]
+        let locations: [CGFloat] = [0.0, 1.0]
+        
+        if let gradient = CGGradient(colorsSpace: colorSpace, colors: gradientColors as CFArray, locations: locations) {
+            // 计算渐变方向（沿弧线方向的近似）
+            let startPoint = CGPoint(
+                x: center.x + radius * cos(startAngle),
+                y: center.y + radius * sin(startAngle)
+            )
+            let endPoint = CGPoint(
+                x: center.x + radius * cos(endAngle),
+                y: center.y + radius * sin(endAngle)
+            )
+            
+            // 绘制线性渐变（在遮罩区域内）
+            context.drawLinearGradient(gradient, start: startPoint, end: endPoint, options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+        } else {
+            // 回退：使用中间色填充
+            let middleColor = fastInterpolateColor(fromComponents: fromComponents, toComponents: toComponents, ratio: 0.5)
+            context.setFillColor(middleColor)
+            let fillRect = CGRect(x: center.x - radius - thickness, y: center.y - radius - thickness, 
+                                 width: 2 * (radius + thickness), height: 2 * (radius + thickness))
+            context.fill(fillRect)
+        }
+        
+        context.restoreGState()
+    }
+    
+    /// 使用单一路径和线性渐变的高效绘制方法（适用于短弧）
+    private func drawLinearGradientRing(in context: CGContext, center: CGPoint, radius: CGFloat, thickness: CGFloat, startAngle: CGFloat, endAngle: CGFloat, colors: [NSColor]) {
+        context.saveGState()
+        
+        // 创建单一弧形路径，避免多次绘制调用
+        let path = CGMutablePath()
+        path.addArc(center: center, radius: radius, startAngle: startAngle, endAngle: endAngle, clockwise: false)
+        
+        // 设置线条属性
+        context.setLineWidth(thickness)
+        context.setLineCap(.round)
+        
+        // 使用Core Graphics的原生渐变支持
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let gradientColors = [colors[0].cgColor, colors[1].cgColor]
+        let locations: [CGFloat] = [0.0, 1.0]
+        
+        guard let gradient = CGGradient(colorsSpace: colorSpace, colors: gradientColors as CFArray, locations: locations) else {
+            // 回退到单色绘制
+            context.setStrokeColor(colors[0].cgColor)
+            context.addPath(path)
+            context.strokePath()
+            context.restoreGState()
+            return
+        }
+        
+        // 计算渐变的起点和终点（沿着弧的方向）
+        let startPoint = CGPoint(
+            x: center.x + radius * cos(startAngle),
+            y: center.y + radius * sin(startAngle)
+        )
+        let endPoint = CGPoint(
+            x: center.x + radius * cos(endAngle),
+            y: center.y + radius * sin(endAngle)
+        )
+        
+        // 应用路径作为剪切区域
+        context.addPath(path)
+        context.replacePathWithStrokedPath()
+        context.clip()
+        
+        // 绘制线性渐变（在剪切区域内）
+        context.drawLinearGradient(gradient, start: startPoint, end: endPoint, options: [])
+        
+        context.restoreGState()
+    }
+    
+    /// 统一使用原生圆锥渐变绘制所有圆环
+    private func drawUnifiedNativeGradientRing(in context: CGContext, center: CGPoint, radius: CGFloat, thickness: CGFloat, startAngle: CGFloat, endAngle: CGFloat, colors: [NSColor]) {
+        // 统一使用原生圆锥渐变，适应所有角度范围
+        drawNativeGradientRing(in: context, center: center, radius: radius, thickness: thickness, startAngle: startAngle, endAngle: endAngle, colors: colors)
+    }
+    
+    /// 高效的分段渐变绘制（使用颜色缓存的超优化版本）
+    private func drawOptimizedSegmentedGradient(in context: CGContext, center: CGPoint, radius: CGFloat, thickness: CGFloat, startAngle: CGFloat, endAngle: CGFloat, colors: [NSColor], steps: Int) {
+        context.saveGState()
+        
+        let angleRange = endAngle - startAngle
+        let angleStep = angleRange / CGFloat(steps)
+        
+        // 预缓存起始和结束颜色的RGB分量，避免重复转换
+        let fromComponents = ColorSpaceCache.shared.getRGBComponents(for: colors[0])
+        let toComponents = ColorSpaceCache.shared.getRGBComponents(for: colors[1])
+        
+        // 预计算所有颜色和角度，减少循环内计算
+        var segmentData: [(angle: CGFloat, nextAngle: CGFloat, color: CGColor)] = []
+        segmentData.reserveCapacity(steps)
+        
+        for i in 0..<steps {
+            let currentAngle = startAngle + CGFloat(i) * angleStep
+            let nextAngle = currentAngle + angleStep
+            let ratio = CGFloat(i) / CGFloat(steps - 1)
+            
+            // 使用超高效的颜色插值（零颜色空间转换）
+            let color = fastInterpolateColor(fromComponents: fromComponents, toComponents: toComponents, ratio: ratio)
+            
+            segmentData.append((currentAngle, nextAngle, color))
+        }
+        
+        // 批量设置线条属性（避免重复设置）
+        context.setLineWidth(thickness)
+        context.setLineCap(.round)
+        
+        // 批量绘制所有段
+        for segment in segmentData {
+            context.setStrokeColor(segment.color)
+            context.addArc(center: center, radius: radius, startAngle: segment.angle, endAngle: segment.nextAngle, clockwise: false)
+            context.strokePath()
+        }
+        
+        context.restoreGState()
+    }
+
+    // MARK: - Drawing Methods (Based on CirclesWorkout.swift ActivityRing)
+    
+    private func drawActivityRing(in context: CGContext, center: CGPoint, ring: RingData, breathingEffects: BreathingEffects) {
+        let progress = ring.animatedProgress
+        let colors = ring.type.colors
+        
+        // 使用预计算的呼吸效果，避免重复计算
+        let effectiveRadius = breathingEffects.effectiveRadii[ring.type] ?? (baseSize * ring.type.diameter / 2)
+        let effectiveThickness = breathingEffects.effectiveThicknesses[ring.type] ?? ringThickness
         
         context.saveGState()
         
@@ -303,20 +691,20 @@ class HealthRingsView: NSView {
             
             // 为最外层圆环额外绘制不规则背景环（叠加效果）
             // 在动画活跃时或有冻结相位时都绘制不规则圈
-            if ring.type == .restAdequacy && (isBreathingAnimationActive || frozenBreathingPhase != 0.0) {
-                drawIrregularBackgroundRing(in: context, center: center, radius: effectiveRadius, thickness: effectiveThickness, color: colors[3])
+            if ring.type == .restAdequacy && breathingEffects.shouldApplyEffect {
+                drawIrregularBackgroundRing(in: context, center: center, radius: effectiveRadius, thickness: effectiveThickness, color: colors[3], breathingEffects: breathingEffects)
             }
             
             // Progress ring with gradient - 对应CirclesWorkout的Activity Ring with trim
             if progress > 0.01 {
-                drawProgressRing(in: context, center: center, radius: effectiveRadius, thickness: effectiveThickness, progress: progress, colors: colors, ring: ring)
+                drawProgressRing(in: context, center: center, radius: effectiveRadius, thickness: effectiveThickness, progress: progress, colors: colors, ring: ring, breathingEffects: breathingEffects)
                 
                 // Start dot (fix overlapping gradient from full cycle) - 对应CirclesWorkout的fix overlapping gradient
                 drawStartDot(in: context, center: center, radius: effectiveRadius, thickness: effectiveThickness, color: colors[0])
             }
         } else {
             // Full ring with gradient - 对应CirclesWorkout的else分支
-            drawFullRing(in: context, center: center, radius: effectiveRadius, thickness: effectiveThickness, progress: progress, colors: colors, ring: ring)
+            drawFullRing(in: context, center: center, radius: effectiveRadius, thickness: effectiveThickness, progress: progress, colors: colors, ring: ring, breathingEffects: breathingEffects)
             
             // End circle with shadow - 对应CirclesWorkout的end circle with shadow
             drawEndCircle(in: context, center: center, radius: effectiveRadius, thickness: effectiveThickness, progress: progress, color: colors[2])
@@ -337,7 +725,7 @@ class HealthRingsView: NSView {
         context.restoreGState()
     }
     
-    private func drawIrregularBackgroundRing(in context: CGContext, center: CGPoint, radius: CGFloat, thickness: CGFloat, color: NSColor) {
+    private func drawIrregularBackgroundRing(in context: CGContext, center: CGPoint, radius: CGFloat, thickness: CGFloat, color: NSColor, breathingEffects: BreathingEffects) {
         context.saveGState()
         
         // 使用贝塞尔曲线绘制不规则圆环，性能比分段绘制提升3-5倍
@@ -346,9 +734,8 @@ class HealthRingsView: NSView {
         context.setLineCap(.round)
         context.setLineJoin(.round)
         
-        // 创建不规则贝塞尔曲线路径，使用当前相位（动画时为实时相位，冻结时为冻结相位）
-        let currentPhase = isBreathingAnimationActive ? breathingPhase : frozenBreathingPhase
-        let bezierPath = createIrregularBezierPath(center: center, baseRadius: radius, time: currentPhase)
+        // 使用预计算的呼吸相位，避免重复计算
+        let bezierPath = createIrregularBezierPath(center: center, baseRadius: radius, time: breathingEffects.currentPhase)
         context.addPath(bezierPath)
         context.strokePath()
         
@@ -425,68 +812,31 @@ class HealthRingsView: NSView {
         return baseRadius * (1.0 + totalVariation)
     }
     
-    private func drawProgressRing(in context: CGContext, center: CGPoint, radius: CGFloat, thickness: CGFloat, progress: CGFloat, colors: [NSColor], ring: RingData) {
+    private func drawProgressRing(in context: CGContext, center: CGPoint, radius: CGFloat, thickness: CGFloat, progress: CGFloat, colors: [NSColor], ring: RingData, breathingEffects: BreathingEffects) {
         guard progress > 0.01 else { return }
         
         context.saveGState()
         
-        // 计算呼吸效果：动画活跃时使用实时相位，停止时使用冻结相位
-        let currentPhase = isBreathingAnimationActive ? breathingPhase : frozenBreathingPhase
-        let shouldApplyBreathingEffect = isBreathingAnimationActive || frozenBreathingPhase != 0.0
-        
-        // Apply breathing animation alpha (渐进式透明度效果)
-        if shouldApplyBreathingEffect {
-            let alphaIntensity: CGFloat
-            switch ring.type {
-            case .restAdequacy:
-                let bubbleAlpha1 = sin(currentPhase) * 0.15
-                let bubbleAlpha2 = sin(currentPhase * 1.7 + 0.8) * 0.1
-                alphaIntensity = bubbleAlpha1 + bubbleAlpha2
-            case .workIntensity:
-                // 与最外层节奏一致的多波形透明度变化
-                let bubbleAlpha1 = sin(currentPhase) * 0.15
-                let bubbleAlpha2 = sin(currentPhase * 1.7 + 0.8) * 0.11
-                alphaIntensity = bubbleAlpha1 + bubbleAlpha2
-            case .focus:
-                // 与最外层节奏一致的多波形透明度变化，强度较轻
-                let bubbleAlpha1 = sin(currentPhase) * 0.10
-                let bubbleAlpha2 = sin(currentPhase * 1.7 + 0.8) * 0.06
-                alphaIntensity = bubbleAlpha1 + bubbleAlpha2
-            case .health:
-                // 与最外层节奏一致的多波形透明度变化，强度最轻
-                let bubbleAlpha1 = sin(currentPhase) * 0.06
-                let bubbleAlpha2 = sin(currentPhase * 1.7 + 0.8) * 0.04
-                alphaIntensity = bubbleAlpha1 + bubbleAlpha2
-            }
-            
-            let breathingAlpha = 0.8 + alphaIntensity
+        // 使用预计算的透明度呼吸效果
+        if breathingEffects.shouldApplyEffect {
+            let breathingAlpha = breathingEffects.breathingAlphas[ring.type] ?? 1.0
             context.setAlpha(breathingAlpha)
         }
         
-        // Create angular gradient (simulated with multiple arcs) - 基于CirclesWorkout的AngularGradient
+        // 优化的渐变绘制：大幅减少绘制调用
         let startAngle: CGFloat = -.pi / 2  // Start from top (-90 degrees like CirclesWorkout)
         let endAngle = startAngle + 2 * .pi * min(progress, 1.0)
         
-        // Draw gradient effect by drawing multiple thin arcs - 减少步数提升性能
-        let steps = 50  // 从200减少到50，减少75%的绘制调用
-        let angleStep = (endAngle - startAngle) / CGFloat(steps)
-        
-        for i in 0..<steps {
-            let currentAngle = startAngle + CGFloat(i) * angleStep
-            let nextAngle = currentAngle + angleStep
-            
-            // 使用平滑插值模拟AngularGradient
-            let ratio = CGFloat(i) / CGFloat(steps - 1)
-            let smoothRatio = smoothstep(0, 1, ratio)
-            let color = interpolateColor(from: colors[0], to: colors[1], ratio: smoothRatio)
-            
-            context.setStrokeColor(color.cgColor)
-            context.setLineWidth(thickness)
-            context.setLineCap(.round)
-            
-            context.addArc(center: center, radius: radius, startAngle: currentAngle, endAngle: nextAngle, clockwise: false)
-            context.strokePath()
-        }
+        // 统一使用原生圆锥渐变绘制
+        drawUnifiedNativeGradientRing(
+            in: context,
+            center: center,
+            radius: radius,
+            thickness: thickness,
+            startAngle: startAngle,
+            endAngle: endAngle,
+            colors: colors
+        )
         
         context.restoreGState()
     }
@@ -503,61 +853,29 @@ class HealthRingsView: NSView {
         context.restoreGState()
     }
     
-    private func drawFullRing(in context: CGContext, center: CGPoint, radius: CGFloat, thickness: CGFloat, progress: CGFloat, colors: [NSColor], ring: RingData) {
+    private func drawFullRing(in context: CGContext, center: CGPoint, radius: CGFloat, thickness: CGFloat, progress: CGFloat, colors: [NSColor], ring: RingData, breathingEffects: BreathingEffects) {
         context.saveGState()
         
-        // 计算呼吸效果：动画活跃时使用实时相位，停止时使用冻结相位
-        let currentPhase = isBreathingAnimationActive ? breathingPhase : frozenBreathingPhase
-        let shouldApplyBreathingEffect = isBreathingAnimationActive || frozenBreathingPhase != 0.0
-        
-        // Apply breathing animation alpha
-        if shouldApplyBreathingEffect {
-            let alphaIntensity: CGFloat
-            switch ring.type {
-            case .restAdequacy:
-                let bubbleAlpha1 = sin(currentPhase) * 0.15
-                let bubbleAlpha2 = sin(currentPhase * 1.7 + 0.8) * 0.1
-                alphaIntensity = bubbleAlpha1 + bubbleAlpha2
-            case .workIntensity:
-                // 与最外层节奏一致的多波形透明度变化
-                let bubbleAlpha1 = sin(currentPhase) * 0.15
-                let bubbleAlpha2 = sin(currentPhase * 1.7 + 0.8) * 0.11
-                alphaIntensity = bubbleAlpha1 + bubbleAlpha2
-            case .focus:
-                // 与最外层节奏一致的多波形透明度变化，强度较轻
-                let bubbleAlpha1 = sin(currentPhase) * 0.10
-                let bubbleAlpha2 = sin(currentPhase * 1.7 + 0.8) * 0.06
-                alphaIntensity = bubbleAlpha1 + bubbleAlpha2
-            case .health:
-                // 与最外层节奏一致的多波形透明度变化，强度最轻
-                let bubbleAlpha1 = sin(currentPhase) * 0.06
-                let bubbleAlpha2 = sin(currentPhase * 1.7 + 0.8) * 0.04
-                alphaIntensity = bubbleAlpha1 + bubbleAlpha2
-            }
-            
-            let breathingAlpha = 0.8 + alphaIntensity
+        // 使用预计算的透明度呼吸效果
+        if breathingEffects.shouldApplyEffect {
+            let breathingAlpha = breathingEffects.breathingAlphas[ring.type] ?? 1.0
             context.setAlpha(breathingAlpha)
         }
         
-        // Draw full gradient ring - 对应CirclesWorkout else分支的Activity Ring
-        let steps = 100
-        let angleStep = 2 * .pi / CGFloat(steps)
+        // 优化的完整环渐变绘制：使用原生圆锥渐变
+        let startAngle: CGFloat = -.pi / 2  // Start from top
+        let endAngle: CGFloat = startAngle + 2 * .pi
         
-        for i in 0..<steps {
-            let currentAngle = CGFloat(i) * angleStep - .pi / 2  // Start from top
-            let nextAngle = currentAngle + angleStep
-            
-            // Interpolate color for full ring gradient
-            let ratio = CGFloat(i) / CGFloat(steps - 1)
-            let color = interpolateColor(from: colors[0], to: colors[1], ratio: ratio)
-            
-            context.setStrokeColor(color.cgColor)
-            context.setLineWidth(thickness)
-            context.setLineCap(.round)
-            
-            context.addArc(center: center, radius: radius, startAngle: currentAngle, endAngle: nextAngle, clockwise: false)
-            context.strokePath()
-        }
+        // 完整圆环使用统一的原生圆锥渐变，性能最优
+        drawUnifiedNativeGradientRing(
+            in: context,
+            center: center,
+            radius: radius,
+            thickness: thickness,
+            startAngle: startAngle,
+            endAngle: endAngle,
+            colors: colors
+        )
         
         context.restoreGState()
     }
@@ -582,14 +900,17 @@ class HealthRingsView: NSView {
         context.restoreGState()
     }
     
+    /// 优化的颜色插值方法，使用颜色缓存避免重复的颜色空间转换
     private func interpolateColor(from: NSColor, to: NSColor, ratio: CGFloat) -> NSColor {
-        let fromRGB = from.usingColorSpace(.deviceRGB)!
-        let toRGB = to.usingColorSpace(.deviceRGB)!
+        // 使用缓存的RGB分量，避免重复的颜色空间转换
+        let fromRGB = ColorSpaceCache.shared.getRGBComponents(for: from)
+        let toRGB = ColorSpaceCache.shared.getRGBComponents(for: to)
         
-        let r = fromRGB.redComponent + (toRGB.redComponent - fromRGB.redComponent) * ratio
-        let g = fromRGB.greenComponent + (toRGB.greenComponent - fromRGB.greenComponent) * ratio
-        let b = fromRGB.blueComponent + (toRGB.blueComponent - fromRGB.blueComponent) * ratio
-        let a = fromRGB.alphaComponent + (toRGB.alphaComponent - fromRGB.alphaComponent) * ratio
+        // 快速线性插值，无需颜色空间转换
+        let r = fromRGB.r + (toRGB.r - fromRGB.r) * ratio
+        let g = fromRGB.g + (toRGB.g - fromRGB.g) * ratio
+        let b = fromRGB.b + (toRGB.b - fromRGB.b) * ratio
+        let a = fromRGB.a + (toRGB.a - fromRGB.a) * ratio
         
         return NSColor(red: r, green: g, blue: b, alpha: a)
     }
@@ -626,57 +947,15 @@ class HealthRingsView: NSView {
     
     // MARK: - Ring Values Display
     
-    private func drawRingValues(in context: CGContext, center: CGPoint) {
+    private func drawRingValues(in context: CGContext, center: CGPoint, breathingEffects: BreathingEffects) {
         guard !ringValues.isEmpty else { return }
         
         for (index, ring) in rings.enumerated() {
             guard index < ringValues.count else { continue }
             
-            // 计算圆环的基础半径和厚度
-            var effectiveRadius = (baseSize * ring.type.diameter) / 2
-            var effectiveThickness = ringThickness
-            
-            // 应用呼吸动画缩放效果，与 drawActivityRing 中的逻辑一致
-            let currentPhase = isBreathingAnimationActive ? breathingPhase : frozenBreathingPhase
-            let shouldApplyBreathingEffect = isBreathingAnimationActive || frozenBreathingPhase != 0.0
-            
-            if shouldApplyBreathingEffect {
-                let breathingIntensity: CGFloat
-                switch ring.type {
-                case .restAdequacy:    // 最外层 - 最强的不规则气泡效果
-                    let baseBreathing = smoothBreathing(currentPhase)
-                    let wave1 = baseBreathing * 0.12
-                    let wave2 = smoothBreathing(currentPhase * 1.3 + 0.5) * 0.08
-                    let wave3 = smoothBreathing(currentPhase * 0.7 + 1.2) * 0.06
-                    let wave4 = smoothBreathing(currentPhase * 2.1 + 0.9) * 0.04
-                    breathingIntensity = wave1 + wave2 + wave3 + wave4
-                case .workIntensity:   // 第二层 - 与最外层节奏一致，强度适中
-                    let baseBreathing = smoothBreathing(currentPhase)
-                    let wave1 = baseBreathing * 0.070
-                    let wave2 = smoothBreathing(currentPhase * 1.3 + 0.5) * 0.044
-                    let wave3 = smoothBreathing(currentPhase * 0.7 + 1.2) * 0.032
-                    let wave4 = smoothBreathing(currentPhase * 2.1 + 0.9) * 0.020
-                    breathingIntensity = wave1 + wave2 + wave3 + wave4
-                case .focus:           // 第三层 - 与最外层节奏一致，强度较轻
-                    let baseBreathing = smoothBreathing(currentPhase)
-                    let wave1 = baseBreathing * 0.045
-                    let wave2 = smoothBreathing(currentPhase * 1.3 + 0.5) * 0.030
-                    let wave3 = smoothBreathing(currentPhase * 0.7 + 1.2) * 0.022
-                    let wave4 = smoothBreathing(currentPhase * 2.1 + 0.9) * 0.013
-                    breathingIntensity = wave1 + wave2 + wave3 + wave4
-                case .health:          // 最内层 - 与最外层节奏一致，强度最轻
-                    let baseBreathing = smoothBreathing(currentPhase)
-                    let wave1 = baseBreathing * 0.025
-                    let wave2 = smoothBreathing(currentPhase * 1.3 + 0.5) * 0.017
-                    let wave3 = smoothBreathing(currentPhase * 0.7 + 1.2) * 0.012
-                    let wave4 = smoothBreathing(currentPhase * 2.1 + 0.9) * 0.008
-                    breathingIntensity = wave1 + wave2 + wave3 + wave4
-                }
-                
-                let irregularScale = 1.0 + breathingIntensity
-                effectiveRadius *= irregularScale
-                effectiveThickness *= irregularScale
-            }
+            // 使用预计算的呼吸效果，避免重复计算
+            let effectiveRadius = breathingEffects.effectiveRadii[ring.type] ?? (baseSize * ring.type.diameter / 2)
+            let effectiveThickness = breathingEffects.effectiveThicknesses[ring.type] ?? ringThickness
             
             // 计算数值显示位置（圆环线条的正中间）
             let textRadius = effectiveRadius - effectiveThickness / 2  // 在圆环线条中间位置
@@ -783,12 +1062,19 @@ class HealthRingsView: NSView {
         isBreathingAnimationActive = true
         // 不重置breathingPhase，保持当前值（可能是从冻结状态恢复的值）
         
-        // 进一步降低呼吸动画频率到10fps，减少更多CPU负载
+        // 优化：呼吸动画使用智能频率控制
         breathingAnimationTimer = Timer.scheduledTimer(withTimeInterval: 1.0/15.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             
             // 只在窗口可见时更新动画
             guard self.window?.isVisible == true else { return }
+            
+            // 智能节流：呼吸动画可以使用稍低的更新频率
+            let currentTime = CACurrentMediaTime()
+            if currentTime - self.lastUpdateTime < self.minUpdateInterval * 1.2 {  // 呼吸动画允许更低频率
+                return
+            }
+            self.lastUpdateTime = currentTime
             
             // 使用完全连续的时间累积，避免任何重置跳跃
             self.breathingPhase += (1.0/15.0) * 2 * Double.pi / self.breathingCycleDuration
@@ -800,11 +1086,9 @@ class HealthRingsView: NSView {
             }
             
             
-            // 只有在没有进度动画时才触发重绘，避免冲突
+            // 优化：只有在没有进度动画时才触发重绘，避免冲突，并直接设置needsDisplay
             if self.animationTimer == nil {
-                DispatchQueue.main.async {
-                    self.needsDisplay = true
-                }
+                self.needsDisplay = true
             }
         }
     }
@@ -850,13 +1134,14 @@ class HealthRingsView: NSView {
     private func startSmoothAnimation() {
         animationTimer?.invalidate()
         animationStartTime = CACurrentMediaTime()
+        lastUpdateTime = 0  // 重置更新时间，确保立即开始
         
         // Store initial progress values
         for i in 0..<rings.count {
             rings[i].progress = rings[i].animatedProgress
         }
         
-        // 降低进度动画频率到20fps，减少CPU负载但保持流畅
+        // 优化：使用智能频率控制，在保持流畅的同时减少CPU负载
         animationTimer = Timer.scheduledTimer(withTimeInterval: 1.0/15.0, repeats: true) { [weak self] timer in
             guard let self = self else {
                 timer.invalidate()
@@ -866,6 +1151,13 @@ class HealthRingsView: NSView {
             // 只在窗口可见时更新动画
             guard self.window?.isVisible == true else { return }
             
+            // 智能节流：避免过度频繁的更新
+            let currentTime = CACurrentMediaTime()
+            if currentTime - self.lastUpdateTime < self.minUpdateInterval {
+                return
+            }
+            self.lastUpdateTime = currentTime
+            
             let elapsed = CACurrentMediaTime() - self.animationStartTime
             let progress = min(elapsed / self.animationDuration, 1.0)
             
@@ -874,28 +1166,32 @@ class HealthRingsView: NSView {
             
             var allAnimationsComplete = true
             var needsRedraw = false
+            let progressThreshold: CGFloat = 0.005
             
+            // 批量状态更新：一次性处理所有圆环，减少重复计算
             for i in 0..<self.rings.count {
                 let startProgress = self.rings[i].progress
                 let targetProgress = self.rings[i].targetProgress
                 let currentProgress = startProgress + (targetProgress - startProgress) * CGFloat(easedProgress)
                 
-                // 只有进度变化超过阈值时才重绘
-                if abs(currentProgress - self.rings[i].animatedProgress) > 0.005 {
+                // 批量检查变化，避免重复的阈值计算
+                let progressDelta = abs(currentProgress - self.rings[i].animatedProgress)
+                let targetDelta = abs(currentProgress - targetProgress)
+                
+                if progressDelta > progressThreshold {
                     needsRedraw = true
                 }
                 
                 self.rings[i].animatedProgress = currentProgress
                 
-                if abs(currentProgress - targetProgress) > 0.005 {
+                if targetDelta > progressThreshold {
                     allAnimationsComplete = false
                 }
             }
             
+            // 优化：直接设置needsDisplay，避免不必要的主线程调度开销
             if needsRedraw && (!allAnimationsComplete || progress < 1.0) {
-                DispatchQueue.main.async {
-                    self.needsDisplay = true
-                }
+                self.needsDisplay = true
             }
             
             if allAnimationsComplete || progress >= 1.0 {
@@ -903,11 +1199,13 @@ class HealthRingsView: NSView {
                 for i in 0..<self.rings.count {
                     self.rings[i].animatedProgress = self.rings[i].targetProgress
                 }
-                DispatchQueue.main.async {
-                    self.needsDisplay = true
-                }
+                // 最终重绘也直接设置，无需主线程调度
+                self.needsDisplay = true
+                
+                // 优化：清理定时器状态，重置更新时间
                 timer.invalidate()
                 self.animationTimer = nil
+                self.lastUpdateTime = 0  // 重置以便下次动画能立即开始
             }
         }
     }
@@ -932,7 +1230,7 @@ class HealthRingsView: NSView {
     
     // MARK: - Irregular Arc Drawing (不规则胶囊效果)
     
-    private func drawIrregularArcSegment(in context: CGContext, center: CGPoint, radius: CGFloat, startAngle: CGFloat, endAngle: CGFloat, thickness: CGFloat, backgroundColor: NSColor) {
+    private func drawIrregularArcSegment(in context: CGContext, center: CGPoint, radius: CGFloat, startAngle: CGFloat, endAngle: CGFloat, thickness: CGFloat, backgroundColor: NSColor, breathingEffects: BreathingEffects) {
         // 保存当前的绘制状态
         context.saveGState()
         
@@ -949,9 +1247,8 @@ class HealthRingsView: NSView {
         var firstPoint = true
         
         for _ in 0...segmentCount {
-            // 计算不规则半径变化（胶囊挤压效果）
-            let currentPhase = isBreathingAnimationActive ? breathingPhase : frozenBreathingPhase
-            let irregularRadius = calculateIrregularRadius(baseRadius: radius, angle: currentAngle, time: currentPhase)
+            // 使用预计算的呼吸相位计算不规则半径变化（胶囊挤压效果）
+            let irregularRadius = calculateIrregularRadius(baseRadius: radius, angle: currentAngle, time: breathingEffects.currentPhase)
             
             let x = center.x + irregularRadius * cos(currentAngle)
             let y = center.y + irregularRadius * sin(currentAngle)
