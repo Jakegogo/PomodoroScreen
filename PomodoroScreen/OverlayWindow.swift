@@ -1,5 +1,6 @@
 import Cocoa
 import AVFoundation
+import IOKit.ps
 
 class OverlayWindow: NSWindow {
     
@@ -23,6 +24,10 @@ class OverlayWindow: NSWindow {
     
     // 图片背景相关属性
     private var imageView: NSImageView?
+    
+    // 设备性能检测器
+    private let performanceDetector = DevicePerformanceDetector.shared
+    private var deviceInfo: DevicePerformanceDetector.DeviceInfo?
     
     // MARK: - Initialization
     
@@ -122,6 +127,9 @@ class OverlayWindow: NSWindow {
         hasShadow = false
         isMovable = false
         isRestorable = false
+        
+        // 检测设备性能和主题模式
+        deviceInfo = performanceDetector.detectDeviceInfo()
     }
     
     private func setupOverlayProperties() {
@@ -213,13 +221,30 @@ class OverlayWindow: NSWindow {
     
     private func setupBackground() {
         if backgroundFiles.isEmpty {
-            // 如果没有背景文件，查找默认的 MP4 文件
-            if let videoURL = findVideoFile() {
-                setupPlayer(with: videoURL)
+            // 如果没有背景文件，使用智能默认背景策略
+            if let mediaURL = findDefaultBackgroundFile() {
+                setupDefaultMedia(with: mediaURL)
             }
         } else {
             // 使用配置的背景文件
             setupBackgroundFromFiles()
+        }
+    }
+    
+    private func setupDefaultMedia(with url: URL) {
+        let fileExtension = url.pathExtension.lowercased()
+        
+        switch fileExtension {
+        case "mp4", "mov", "avi", "mkv":
+            // 视频文件
+            setupPlayer(with: url)
+        case "png", "jpg", "jpeg", "gif", "bmp", "tiff":
+            // 图片文件
+            setupImageBackground(with: url)
+        default:
+            print("❌ 不支持的媒体文件格式: \(fileExtension)")
+            // 尝试作为视频处理
+            setupPlayer(with: url)
         }
     }
     
@@ -330,13 +355,97 @@ class OverlayWindow: NSWindow {
     }
     
     private func findVideoFile() -> URL? {
-        // 首先在应用程序包中查找
-        if let bundleVideoURL = Bundle.main.url(forResource: "rest_video", withExtension: "mp4") {
-            return bundleVideoURL
+        // 使用智能默认背景策略
+        return findDefaultBackgroundFile()
+    }
+    
+    
+    // MARK: - Smart Default Background Strategy
+    
+    private func findDefaultBackgroundFile() -> URL? {
+        print("🎯 开始智能默认背景选择...")
+        
+        // 获取设备信息（如果还没有检测过）
+        let info = deviceInfo ?? performanceDetector.detectDeviceInfo()
+        
+        // 根据性能选择媒体类型
+        let preferVideo = info.isHighPerformance
+        let themePrefix = info.isDarkMode ? "dark" : "light"
+        
+        print("   📊 性能评估: \(preferVideo ? "优先视频" : "优先图片")")
+        print("   🎨 主题选择: \(themePrefix)")
+        
+        if preferVideo {
+            // 高性能设备优先尝试视频
+            if let videoURL = findThemeVideo(theme: themePrefix) {
+                print("   ✅ 选择视频: \(videoURL.lastPathComponent)")
+                return videoURL
+            }
+            
+            // 视频不可用时降级到图片
+            if let imageURL = findThemeImage(theme: themePrefix) {
+                print("   📷 降级到图片: \(imageURL.lastPathComponent)")
+                return imageURL
+            }
+        } else {
+            // 低性能设备优先尝试图片
+            if let imageURL = findThemeImage(theme: themePrefix) {
+                print("   📷 选择图片: \(imageURL.lastPathComponent)")
+                return imageURL
+            }
+            
+            // 图片不可用时降级到视频
+            if let videoURL = findThemeVideo(theme: themePrefix) {
+                print("   🎬 降级到视频: \(videoURL.lastPathComponent)")
+                return videoURL
+            }
         }
         
-
+        // 最后的备用方案：查找任何可用的默认文件
+        return findFallbackMedia()
+    }
+    
+    private func findThemeVideo(theme: String) -> URL? {
+        let videoName = "rest_video_\(theme)"
+        return Bundle.main.url(forResource: videoName, withExtension: "mp4")
+    }
+    
+    private func findThemeImage(theme: String) -> URL? {
+        let imageName = "rest_image_\(theme)"
         
+        // 尝试不同的图片格式
+        let extensions = ["png", "jpg", "jpeg"]
+        for ext in extensions {
+            if let imageURL = Bundle.main.url(forResource: imageName, withExtension: ext) {
+                return imageURL
+            }
+        }
+        return nil
+    }
+    
+    private func findFallbackMedia() -> URL? {
+        print("   🔄 使用备用媒体文件...")
+        
+        // 备用视频文件
+        let fallbackVideos = ["rest_video", "icon_video"]
+        for videoName in fallbackVideos {
+            if let videoURL = Bundle.main.url(forResource: videoName, withExtension: "mp4") {
+                print("   📹 备用视频: \(videoURL.lastPathComponent)")
+                return videoURL
+            }
+        }
+        
+        // 备用图片文件（任何可用的rest_image文件）
+        let imageExtensions = ["png", "jpg", "jpeg"]
+        for ext in imageExtensions {
+            if let imageURL = Bundle.main.url(forResource: "rest_image_light", withExtension: ext) ??
+                              Bundle.main.url(forResource: "rest_image_dark", withExtension: ext) {
+                print("   🖼️ 备用图片: \(imageURL.lastPathComponent)")
+                return imageURL
+            }
+        }
+        
+        print("   ❌ 未找到任何可用的媒体文件")
         return nil
     }
     

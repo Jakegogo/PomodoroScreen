@@ -10,6 +10,7 @@ import Cocoa
 class CountdownNotificationWindow: NSWindow {
     var messageLabel: NSTextField!
     var backgroundView: NSView!
+    var closeButton: NSButton!
     
     convenience init() {
         // 获取主屏幕尺寸
@@ -17,9 +18,9 @@ class CountdownNotificationWindow: NSWindow {
         
         // 设置窗口大小和位置（右上角，避开Dock）
         let windowWidth: CGFloat = 200
-        let windowHeight: CGFloat = 40
-        let margin: CGFloat = 20
-        let dockWidth: CGFloat = 80  // 预估Dock宽度
+        let windowHeight: CGFloat = 45
+        let margin: CGFloat = 35
+        let dockWidth: CGFloat = 40  // 预估Dock宽度
         
         let windowFrame = NSRect(
             x: screenFrame.maxX - windowWidth - margin - dockWidth,
@@ -45,7 +46,7 @@ class CountdownNotificationWindow: NSWindow {
         self.isOpaque = false
         self.backgroundColor = NSColor.clear
         self.hasShadow = true
-        self.ignoresMouseEvents = true  // 不影响鼠标点击
+        self.ignoresMouseEvents = false  // 允许鼠标点击（关闭按钮需要）
         self.collectionBehavior = [.canJoinAllSpaces, .stationary]  // 在所有桌面显示
         
         // 初始状态隐藏
@@ -61,8 +62,8 @@ class CountdownNotificationWindow: NSWindow {
         backgroundView.layer?.cornerRadius = 8
         self.contentView?.addSubview(backgroundView)
         
-        // 创建消息标签
-        messageLabel = NSTextField(frame: NSRect(x: 10, y: 15, width: 180, height: 30))
+        // 创建消息标签（为关闭按钮留出空间）
+        messageLabel = NSTextField(frame: NSRect(x: 10, y: 10, width: 150, height: 20))
         messageLabel.isEditable = false
         messageLabel.isSelectable = false
         messageLabel.isBordered = false
@@ -72,6 +73,29 @@ class CountdownNotificationWindow: NSWindow {
         messageLabel.alignment = .center
         messageLabel.stringValue = ""
         backgroundView.addSubview(messageLabel)
+        
+        // 创建关闭按钮
+        closeButton = NSButton(frame: NSRect(x: 170, y: 12, width: 20, height: 20))
+        closeButton.title = ""
+        closeButton.bezelStyle = .circular
+        closeButton.isBordered = false
+        closeButton.wantsLayer = true
+        closeButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.3).cgColor
+        closeButton.layer?.cornerRadius = 10
+        closeButton.target = self
+        closeButton.action = #selector(closeButtonClicked)
+        
+        // 设置关闭按钮图标
+        if let closeImage = NSImage(systemSymbolName: "xmark", accessibilityDescription: "关闭") {
+            closeImage.isTemplate = true
+            closeButton.image = closeImage
+            closeButton.contentTintColor = NSColor.white
+        } else {
+            closeButton.title = "×"
+            closeButton.font = NSFont.systemFont(ofSize: 16, weight: .medium)
+        }
+        
+        backgroundView.addSubview(closeButton)
     }
     
     // 显示30秒警告
@@ -116,7 +140,7 @@ class CountdownNotificationWindow: NSWindow {
         guard let screenFrame = NSScreen.main?.frame else { return }
         
         let windowWidth: CGFloat = 200
-        let windowHeight: CGFloat = 60
+        let windowHeight: CGFloat = 40
         let margin: CGFloat = 24
         let dockWidth: CGFloat = 60  // 预估Dock宽度
         
@@ -128,5 +152,12 @@ class CountdownNotificationWindow: NSWindow {
         )
         
         self.setFrame(newFrame, display: true, animate: false)
+    }
+    
+    // MARK: - Actions
+    
+    @objc private func closeButtonClicked() {
+        print("🔔 用户手动关闭倒计时通知")
+        hideNotification()
     }
 }
