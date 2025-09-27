@@ -147,10 +147,7 @@ class OverlayWindow: NSWindow {
         if frame.size.width == 0 || frame.size.height == 0 {
             if let screen = NSScreen.main {
                 setFrame(screen.frame, display: true)
-                print("🖥️ 设置窗口为主屏幕尺寸: \(screen.frame)")
             }
-        } else {
-            print("🖥️ 保持现有窗口尺寸: \(frame)")
         }
     }
     
@@ -345,9 +342,7 @@ class OverlayWindow: NSWindow {
                 ])
             }
             
-            print("✅ 成功加载图片背景: \(url.lastPathComponent), 原始尺寸: \(imageSize), 缩放后: \(scaledWidth)x\(scaledHeight)")
         } else {
-            print("❌ 无法加载图片: \(url.path)")
             // 尝试下一个文件
             moveToNextBackground()
         }
@@ -369,8 +364,6 @@ class OverlayWindow: NSWindow {
     // MARK: - Smart Default Background Strategy
     
     private func findDefaultBackgroundFile() -> URL? {
-        print("🎯 开始智能默认背景选择...")
-        
         // 获取设备信息（如果还没有检测过）
         let info = deviceInfo ?? performanceDetector.detectDeviceInfo()
         
@@ -378,31 +371,24 @@ class OverlayWindow: NSWindow {
         let preferVideo = info.isHighPerformance
         let themePrefix = info.isDarkMode ? "dark" : "light"
         
-        print("   📊 性能评估: \(preferVideo ? "优先视频" : "优先图片")")
-        print("   🎨 主题选择: \(themePrefix)")
-        
         if preferVideo {
             // 高性能设备优先尝试视频
             if let videoURL = findThemeVideo(theme: themePrefix) {
-                print("   ✅ 选择视频: \(videoURL.lastPathComponent)")
                 return videoURL
             }
             
             // 视频不可用时降级到图片
             if let imageURL = findThemeImage(theme: themePrefix) {
-                print("   📷 降级到图片: \(imageURL.lastPathComponent)")
                 return imageURL
             }
         } else {
             // 低性能设备优先尝试图片
             if let imageURL = findThemeImage(theme: themePrefix) {
-                print("   📷 选择图片: \(imageURL.lastPathComponent)")
                 return imageURL
             }
             
             // 图片不可用时降级到视频
             if let videoURL = findThemeVideo(theme: themePrefix) {
-                print("   🎬 降级到视频: \(videoURL.lastPathComponent)")
                 return videoURL
             }
         }
@@ -430,13 +416,10 @@ class OverlayWindow: NSWindow {
     }
     
     private func findFallbackMedia() -> URL? {
-        print("   🔄 使用备用媒体文件...")
-        
         // 备用视频文件
         let fallbackVideos = ["rest_video", "icon_video"]
         for videoName in fallbackVideos {
             if let videoURL = Bundle.main.url(forResource: videoName, withExtension: "mp4") {
-                print("   📹 备用视频: \(videoURL.lastPathComponent)")
                 return videoURL
             }
         }
@@ -446,12 +429,10 @@ class OverlayWindow: NSWindow {
         for ext in imageExtensions {
             if let imageURL = Bundle.main.url(forResource: "rest_image_light", withExtension: ext) ??
                               Bundle.main.url(forResource: "rest_image_dark", withExtension: ext) {
-                print("   🖼️ 备用图片: \(imageURL.lastPathComponent)")
                 return imageURL
             }
         }
         
-        print("   ❌ 未找到任何可用的媒体文件")
         return nil
     }
     
