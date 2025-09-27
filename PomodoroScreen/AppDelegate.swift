@@ -6,6 +6,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController!
     private var pomodoroTimer: PomodoroTimer!
     private var overlayWindow: OverlayWindow?
+    private var multiScreenOverlayManager: MultiScreenOverlayManager?
     private var screenDetectionManager: ScreenDetectionManager!
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
@@ -56,6 +57,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // 清理资源
         pomodoroTimer.stop()
         overlayWindow = nil
+        multiScreenOverlayManager?.hideAllOverlays()
+        multiScreenOverlayManager = nil
     }
     
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
@@ -126,19 +129,43 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 return
             }
             
-            // 如果遮罩窗口已经存在且可见，不要重复创建
-            if let existingWindow = self.overlayWindow, existingWindow.isVisible {
-                print("⚠️ Overlay window already visible, skipping duplicate creation")
-                return
+            // 检查屏幕数量，决定使用单屏还是多屏模式
+            let screenCount = NSScreen.screens.count
+            
+            if screenCount > 1 {
+                // 多屏幕模式：使用多屏幕管理器
+                print("🖥️ 检测到 \(screenCount) 个屏幕，使用多屏幕模式")
+                
+                // 清理单屏幕遮罩
+                self.overlayWindow?.orderOut(nil)
+                self.overlayWindow = nil
+                
+                // 创建多屏幕管理器并显示遮罩
+                self.multiScreenOverlayManager = MultiScreenOverlayManager(timer: self.pomodoroTimer)
+                self.multiScreenOverlayManager?.showOverlaysOnAllScreens()
+                
+            } else {
+                // 单屏幕模式：使用原有逻辑
+                print("🖥️ 单屏幕模式")
+                
+                // 清理多屏幕管理器
+                self.multiScreenOverlayManager?.hideAllOverlays()
+                self.multiScreenOverlayManager = nil
+                
+                // 如果遮罩窗口已经存在且可见，不要重复创建
+                if let existingWindow = self.overlayWindow, existingWindow.isVisible {
+                    print("⚠️ Overlay window already visible, skipping duplicate creation")
+                    return
+                }
+                
+                // 清理可能存在的旧窗口
+                self.overlayWindow?.orderOut(nil)
+                self.overlayWindow = nil
+                
+                // 创建新的遮罩窗口
+                self.overlayWindow = OverlayWindow(timer: self.pomodoroTimer)
+                self.overlayWindow?.showOverlay()
             }
-            
-            // 清理可能存在的旧窗口
-            self.overlayWindow?.orderOut(nil)
-            self.overlayWindow = nil
-            
-            // 创建新的遮罩窗口
-            self.overlayWindow = OverlayWindow(timer: self.pomodoroTimer)
-            self.overlayWindow?.showOverlay()
         }
     }
     
@@ -188,6 +215,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             enableMeetingModeAutomatically()
         } else {
             disableMeetingModeAutomatically()
+        }
+        
+        // 如果当前有遮罩层显示，需要更新多屏幕配置
+        if multiScreenOverlayManager != nil {
+            print("🔄 更新多屏幕遮罩配置")
+            multiScreenOverlayManager?.updateOverlaysForScreenChanges()
+        } else if overlayWindow?.isVisible == true {
+            // 如果当前是单屏模式但现在有多个屏幕，切换到多屏模式
+            let screenCount = NSScreen.screens.count
+            if screenCount > 1 {
+                print("🔄 从单屏模式切换到多屏模式")
+                showOverlay() // 重新显示遮罩，会自动选择合适的模式
+            }
         }
     }
     

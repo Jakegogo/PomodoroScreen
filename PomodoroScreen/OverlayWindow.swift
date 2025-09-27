@@ -142,9 +142,15 @@ class OverlayWindow: NSWindow {
         // 禁用标准窗口行为
         styleMask = [.borderless]
         
-        // 确保窗口覆盖整个屏幕
-        if let screen = NSScreen.main {
-            setFrame(screen.frame, display: true)
+        // 只有在窗口尺寸为零时才设置为主屏幕尺寸
+        // 这样可以避免覆盖多屏幕管理器设置的特定屏幕尺寸
+        if frame.size.width == 0 || frame.size.height == 0 {
+            if let screen = NSScreen.main {
+                setFrame(screen.frame, display: true)
+                print("🖥️ 设置窗口为主屏幕尺寸: \(screen.frame)")
+            }
+        } else {
+            print("🖥️ 保持现有窗口尺寸: \(frame)")
         }
     }
     
