@@ -694,6 +694,7 @@ class OverlayView: NSView {
     private var messageLabel: NSTextField!
     private var timer: PomodoroTimer?
     private var isPreviewMode: Bool = false
+    private var shutdownConfirmationWindow: ShutdownConfirmationWindow?  // 关机确认对话框
     
     // MARK: - Button Configurations
     
@@ -1006,24 +1007,23 @@ class OverlayView: NSView {
     @objc private func shutdownButtonClicked() {
         print("🔴 用户点击关机按钮")
         
-        // 显示确认对话框
-        let alert = NSAlert()
-        alert.messageText = "确认关机"
-        alert.informativeText = "您确定要关闭电脑吗？这将结束当前的强制睡眠状态。"
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "关机")
-        alert.addButton(withTitle: "取消")
+        // 创建并显示自定义确认对话框
+        shutdownConfirmationWindow = ShutdownConfirmationWindow()
         
-        // 设置关机按钮为红色警告样式
-        if let shutdownButton = alert.buttons.first {
-            shutdownButton.hasDestructiveAction = true
+        // 设置回调
+        shutdownConfirmationWindow?.onConfirm = { [weak self] in
+            print("✅ 用户确认关机")
+            self?.triggerSystemShutdown()
+            self?.shutdownConfirmationWindow = nil
         }
         
-        let response = alert.runModal()
-        if response == .alertFirstButtonReturn {
-            // 用户确认关机
-            triggerSystemShutdown()
+        shutdownConfirmationWindow?.onCancel = { [weak self] in
+            print("❌ 用户取消关机")
+            self?.shutdownConfirmationWindow = nil
         }
+        
+        // 显示对话框
+        shutdownConfirmationWindow?.showWithAnimation()
     }
     
     private func triggerSystemShutdown() {
