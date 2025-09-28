@@ -1026,6 +1026,13 @@ class OverlayView: NSView {
         shutdownConfirmationWindow?.showWithAnimation()
     }
     
+    // MARK: - Testing Support
+    
+    /// 测试专用：触发关机按钮点击事件
+    internal func triggerShutdownButtonForTesting() {
+        shutdownButtonClicked()
+    }
+    
     private func triggerSystemShutdown() {
         print("🔴 执行系统关机")
         

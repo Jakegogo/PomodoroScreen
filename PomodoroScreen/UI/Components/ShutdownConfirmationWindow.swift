@@ -105,7 +105,7 @@ class ShutdownConfirmationWindow: NSWindow {
         
         // 消息标签
         messageLabel = NSTextField()
-        messageLabel.stringValue = "您确定要关闭电脑吗？\n这将结束当前的强制睡眠状态。"
+        messageLabel.stringValue = "确定要关机休息吗？\n请确认重要工作已保存完毕。"
         messageLabel.isEditable = false
         messageLabel.isSelectable = false
         messageLabel.isBordered = false
