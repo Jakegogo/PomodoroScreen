@@ -569,10 +569,10 @@ class StatusBarPopupWindow: NSWindow {
     
     func updateHealthData(restAdequacy: Double, workIntensity: Double, focus: Double, health: Double) {
         healthRingsView.updateRingValues(
-            outerRing: restAdequacy,
-            secondRing: workIntensity,
-            thirdRing: focus,
-            innerRing: health
+            workIntensity: workIntensity,
+            restAdequacy: restAdequacy,
+            focus: focus,
+            health: health
         )
     }
     

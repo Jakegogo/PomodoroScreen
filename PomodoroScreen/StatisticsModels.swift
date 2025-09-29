@@ -223,6 +223,7 @@ struct ReportData {
                     [
                         "date": ISO8601DateFormatter().string(from: stat.date),
                         "pomodoros": stat.completedPomodoros,
+                        "breakCount": stat.shortBreakCount + stat.longBreakCount,
                         "workIntensity": stat.workIntensityScore,
                         "healthScore": stat.healthScore
                     ]

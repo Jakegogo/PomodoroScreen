@@ -12,17 +12,17 @@ import CoreText
 
 // MARK: - Color Extensions (Based on CirclesWorkout.swift Color extension)
 extension NSColor {
-    // Red ring colors (Rest Adequacy - 休息充足度) - 基于CirclesWorkout的红色环
-    static var restDark: NSColor { NSColor(red: 0.8785472512, green: 0, blue: 0.07300490886, alpha: 1.0) }
-    static var restLight: NSColor { NSColor(red: 0.930870235, green: 0.2051250339, blue: 0.4874394536, alpha: 1.0) }
-    static var restCircleEnd: NSColor { NSColor(red: 0.9265889525, green: 0.2061708272, blue: 0.4833006263, alpha: 1.0) }
-    static var restOutline: NSColor { NSColor(red: 0.95, green: 0.95, blue: 0.95, alpha: 1.0) } // 浅灰色背景色，与不规则形状背景色一致，完全不透明
+    // Green ring colors (Rest Adequacy - 休息充足度) - 改为绿色环
+    static var restDark: NSColor { NSColor(red: 0.1992103457, green: 0.8570511937, blue: 0, alpha: 1.0) }
+    static var restLight: NSColor { NSColor(red: 0.6962995529, green: 0.9920799136, blue: 0, alpha: 1.0) }
+    static var restCircleEnd: NSColor { NSColor(red: 0.6870413423, green: 0.9882482886, blue: 0.002495098161, alpha: 1.0) }
+    static var restOutline: NSColor { NSColor(red: 0.03259197623, green: 0.1287679374, blue: 0.001097879023, alpha: 0.1) }
     
-    // Green ring colors (Work Intensity - 工作强度) - 基于CirclesWorkout的绿色环
-    static var workDark: NSColor { NSColor(red: 0.1992103457, green: 0.8570511937, blue: 0, alpha: 1.0) }
-    static var workLight: NSColor { NSColor(red: 0.6962995529, green: 0.9920799136, blue: 0, alpha: 1.0) }
-    static var workCircleEnd: NSColor { NSColor(red: 0.6870413423, green: 0.9882482886, blue: 0.002495098161, alpha: 1.0) }
-    static var workOutline: NSColor { NSColor(red: 0.03259197623, green: 0.1287679374, blue: 0.001097879023, alpha: 0.1) }
+    // Red ring colors (Work Intensity - 工作强度) - 改为红色环，作为最外层
+    static var workDark: NSColor { NSColor(red: 0.8785472512, green: 0, blue: 0.07300490886, alpha: 1.0) }
+    static var workLight: NSColor { NSColor(red: 0.930870235, green: 0.2051250339, blue: 0.4874394536, alpha: 1.0) }
+    static var workCircleEnd: NSColor { NSColor(red: 0.9265889525, green: 0.2061708272, blue: 0.4833006263, alpha: 1.0) }
+    static var workOutline: NSColor { NSColor(red: 0.95, green: 0.95, blue: 0.95, alpha: 1.0) } // 浅灰色背景色，与不规则形状背景色一致，完全不透明
     
     // Blue ring colors (Focus - 专注度) - 基于CirclesWorkout的蓝色环
     static var focusDark: NSColor { NSColor(red: 0, green: 0.7215889096, blue: 0.8796694875, alpha: 1.0) }
@@ -39,15 +39,15 @@ extension NSColor {
 
 // MARK: - Ring Configuration (Based on RingDiameter enum from CirclesWorkout.swift)
 enum RingType: CaseIterable {
-    case restAdequacy    // 外环 - 休息充足度 (红色) - big
-    case workIntensity   // 第二环 - 工作强度 (绿色) - medium  
+    case workIntensity   // 最外层 - 工作强度 (红色) - big
+    case restAdequacy    // 第二环 - 休息充足度 (绿色) - medium  
     case focus           // 第三环 - 专注度 (蓝色) - small
     case health          // 内环 - 健康度 (紫色) - calculated
     
     var diameter: CGFloat {
         switch self {
-        case .restAdequacy: return 0.82    // big - 最外层
-        case .workIntensity: return 0.60   // medium - 第二层
+        case .workIntensity: return 0.82   // big - 最外层
+        case .restAdequacy: return 0.60    // medium - 第二层
         case .focus: return 0.39           // small - 第三层，增加直径减少与内层重叠
         case .health: return 0.20          // extra small - 最内层，减小直径增加间距
         }
@@ -55,8 +55,8 @@ enum RingType: CaseIterable {
     
     var colors: [NSColor] {
         switch self {
-        case .restAdequacy: return [.restDark, .restLight, .restCircleEnd, .restOutline]
         case .workIntensity: return [.workDark, .workLight, .workCircleEnd, .workOutline]
+        case .restAdequacy: return [.restDark, .restLight, .restCircleEnd, .restOutline]
         case .focus: return [.focusDark, .focusLight, .focusCircleEnd, .focusOutline]
         case .health: return [.healthDark, .healthLight, .healthCircleEnd, .healthOutline]
         }
@@ -163,10 +163,10 @@ class HealthRingsView: NSView {
     private func setupRings() {
         // 初始化四个环：从外到里
         rings = [
-            RingData(type: .restAdequacy),   // 外环 - 休息充足度
-            RingData(type: .workIntensity),  // 第二环 - 工作强度
-            RingData(type: .focus),          // 第三环 - 专注度
-            RingData(type: .health)          // 内环 - 健康度
+            RingData(type: .workIntensity),  // 最外层 - 工作强度 (红色)
+            RingData(type: .restAdequacy),   // 第二环 - 休息充足度 (绿色)
+            RingData(type: .focus),          // 第三环 - 专注度 (蓝色)
+            RingData(type: .health)          // 内环 - 健康度 (紫色)
         ]
     }
     
@@ -176,16 +176,16 @@ class HealthRingsView: NSView {
     }
     
     private func updateTooltip() {
-        let restPercent = Int(ringValues[0] * 100)
-        let workPercent = Int(ringValues[1] * 100)
-        let focusPercent = Int(ringValues[2] * 100)
-        let healthPercent = Int(ringValues[3] * 100)
+        let workPercent = Int(ringValues[0] * 100)   // 工作强度 (最外层)
+        let restPercent = Int(ringValues[1] * 100)   // 休息充足度 (第二层)
+        let focusPercent = Int(ringValues[2] * 100)  // 专注度 (第三层)
+        let healthPercent = Int(ringValues[3] * 100) // 健康度 (内层)
         
         let tooltipText = """
 📊 今日健康数据
 
-🔴 休息充足度: \(restPercent)%
-🟢 工作强度: \(workPercent)%
+🔴 工作强度: \(workPercent)%
+🟢 休息充足度: \(restPercent)%
 🔵 专注度: \(focusPercent)%
 🟣 健康度: \(healthPercent)%
 
@@ -204,8 +204,8 @@ class HealthRingsView: NSView {
         let distance = sqrt(pow(clickPoint.x - center.x, 2) + pow(clickPoint.y - center.y, 2))
         
         // 如果点击在最外环的范围内，触发回调
-        let outerRadius = baseSize * RingType.restAdequacy.diameter / 2
-        if distance <= outerRadius {
+        let workIntensityRadius = baseSize * RingType.workIntensity.diameter / 2
+        if distance <= workIntensityRadius {
             onHealthRingsClicked?()
         }
     }
@@ -765,14 +765,14 @@ class HealthRingsView: NSView {
             // }
 
             // 取消最外层圆环的白色背景，只绘制其他圆环的背景
-            if ring.type != .restAdequacy {
+            if ring.type != .workIntensity {
                 // 其他圆环：保持原样
                 drawBackgroundRing(in: context, center: center, radius: effectiveRadius, thickness: effectiveThickness, color: colors[3])
             }
             
             // 为最外层圆环额外绘制不规则背景环（叠加效果）
             // 在动画活跃时或有冻结相位时都绘制不规则圈
-            if ring.type == .restAdequacy && breathingEffects.shouldApplyEffect {
+            if ring.type == .workIntensity && breathingEffects.shouldApplyEffect {
                 drawIrregularBackgroundRing(in: context, center: center, radius: effectiveRadius, thickness: effectiveThickness, color: colors[3], breathingEffects: breathingEffects)
             }
             
@@ -788,7 +788,7 @@ class HealthRingsView: NSView {
             
             // 为最外层圆环额外绘制不规则背景环（叠加效果）
             // 在进度>=98%时也需要绘制不规则圈
-            if ring.type == .restAdequacy && breathingEffects.shouldApplyEffect {
+            if ring.type == .workIntensity && breathingEffects.shouldApplyEffect {
                 drawIrregularBackgroundRing(in: context, center: center, radius: effectiveRadius, thickness: effectiveThickness, color: colors[3], breathingEffects: breathingEffects)
             }
             
@@ -822,18 +822,18 @@ class HealthRingsView: NSView {
         context.setFillColor(transparentColor.cgColor)
         
         // 1. 创建不规则的外边界路径
-        let outerIrregularPath = createIrregularBezierPath(center: center, baseRadius: radius + thickness/2, time: breathingEffects.currentPhase)
+        let irregularOuterPath = createIrregularBezierPath(center: center, baseRadius: radius + thickness/2, time: breathingEffects.currentPhase)
         
         // 2. 创建规则的内边界路径（标准圆形）
-        let innerRegularPath = CGMutablePath()
+        let regularInnerPath = CGMutablePath()
         let innerRadius = radius - thickness/2
-        innerRegularPath.addArc(center: center, radius: innerRadius, startAngle: 0, endAngle: 2 * .pi, clockwise: false)
+        regularInnerPath.addArc(center: center, radius: innerRadius, startAngle: 0, endAngle: 2 * .pi, clockwise: false)
         
         // 3. 将外壁路径添加到上下文
-        context.addPath(outerIrregularPath)
+        context.addPath(irregularOuterPath)
         
         // 4. 添加内壁路径作为洞（逆时针方向，创建洞）
-        context.addPath(innerRegularPath)
+        context.addPath(regularInnerPath)
         
         // 5. 使用 even-odd 填充规则，创建环形区域
         context.fillPath(using: .evenOdd)
@@ -1136,15 +1136,15 @@ class HealthRingsView: NSView {
         needsDisplay = true
     }
     
-    func updateRingValues(outerRing: Double, secondRing: Double, thirdRing: Double, innerRing: Double) {
-        // 保存原始数值用于显示（0-1范围）
-        ringValues = [outerRing, secondRing, thirdRing, innerRing]
+    func updateRingValues(workIntensity: Double, restAdequacy: Double, focus: Double, health: Double) {
+        // 保存原始数值用于显示（0-1范围）- 按新的环顺序映射
+        ringValues = [workIntensity, restAdequacy, focus, health] // 工作强度, 休息充足度, 专注度, 健康度
         
         let values: [CGFloat] = [
-            CGFloat(outerRing),      // 休息充足度
-            CGFloat(secondRing),     // 工作强度
-            CGFloat(thirdRing),      // 专注度
-            CGFloat(innerRing)       // 健康度
+            CGFloat(workIntensity),  // 工作强度 (最外层)
+            CGFloat(restAdequacy),   // 休息充足度 (第二层)
+            CGFloat(focus),          // 专注度 (第三层)
+            CGFloat(health)          // 健康度 (内层)
         ]
         
         for (index, value) in values.enumerated() {

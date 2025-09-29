@@ -130,11 +130,12 @@ class StatisticsManager {
         return database.getDailyStatistics(for: date) ?? DailyStatistics(date: date)
     }
     
-    /// 获取本周统计数据
+    /// 获取本周统计数据（过去7天，包括今天）
     func getThisWeekStatistics() -> WeeklyStatistics {
         let calendar = Calendar.current
         let today = Date()
-        let weekStartDate = calendar.dateInterval(of: .weekOfYear, for: today)?.start ?? today
+        // 计算过去7天的开始日期（6天前）
+        let weekStartDate = calendar.date(byAdding: .day, value: -6, to: today) ?? today
         return database.getWeeklyStatistics(for: weekStartDate)
     }
     

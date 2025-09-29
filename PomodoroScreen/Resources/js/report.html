@@ -166,9 +166,10 @@
         .legend-item { display: flex; align-items: center; gap: 6px; }
         .legend-color { width: 12px; height: 12px; border-radius: 2px; }
         .legend-text { font-size: 12px; color: #6b7280; }
-        .pomodoro-with-break-color { background: #ff9fb3; }  /* 淡红色 - 带休息的番茄钟 */
-        .pomodoro-no-break-color { background: #d12a5b; }   /* 浓红色 - 无休息的番茄钟 */
-        .pomodoro-color { background: #ed347c; }            /* 保留原色作为备用 */
+        .pomodoro-extreme-color { background: #b91c3c; }     /* 最深红色 - 只有番茄钟，无休息 */
+        .pomodoro-high-ratio-color { background: #d12a68; }  /* 深红色 - 番茄钟占主导 */
+        .pomodoro-medium-ratio-color { background: #ed347c; } /* 中等红色 - 平衡状态 */
+        .pomodoro-low-ratio-color { background: #ff9fb3; }   /* 浅红色 - 休息较多 */
         .break-color { background: #b2fd00; }
         .interruption-color { background: #04f6d1; }
         .cancelled-color { background: #cc66ff; }
@@ -236,8 +237,8 @@
          .recommendation-item { padding:14px; border-radius:12px; color:#fff; font-weight:600; letter-spacing:.2px; box-shadow: 0 6px 16px rgba(17,24,39,0.06); }
          .recommendation-item::before { content:'💡'; margin-right:8px; }
          /* Match health ring colors */
-         .recommendation-item.rec-work { background: linear-gradient(90deg, #b2fd00 0%, #8fd400 100%); }
-         .recommendation-item.rec-rest { background: linear-gradient(90deg, #ed347c 0%, #d12a68 100%); }
+         .recommendation-item.rec-work { background: linear-gradient(90deg, #ed347c 0%, #d12a68 100%); }
+         .recommendation-item.rec-rest { background: linear-gradient(90deg, #b2fd00 0%, #8fd400 100%); }
          .recommendation-item.rec-focus { background: linear-gradient(90deg, #04f6d1 0%, #03c9a8 100%); }
          .recommendation-item.rec-health { background: linear-gradient(90deg, #cc66ff 0%, #b84dff 100%); }
 
@@ -299,12 +300,12 @@
                 <h2>📈 综合评估</h2>
                 <div class="scores-grid">
                     <div class="score-item">
-                        <canvas id="restAdequacyChart" width="120" height="120"></canvas>
-                        <p>休息充足度</p>
-                    </div>
-                    <div class="score-item">
                         <canvas id="workIntensityChart" width="120" height="120"></canvas>
                         <p>工作强度</p>
+                    </div>
+                    <div class="score-item">
+                        <canvas id="restAdequacyChart" width="120" height="120"></canvas>
+                        <p>休息充足度</p>
                     </div>
                     <div class="score-item">
                         <canvas id="focusChart" width="120" height="120"></canvas>
@@ -438,20 +439,28 @@
             
             <!-- 活动热力图 -->
             <div class="heatmap-section">
-                <h2>🔥 本周活动热力图</h2>
+                <h2>🔥 活动热力图</h2>
                 <div class="heatmap-container">
                     <div class="heatmap-legend">
                         <div class="legend-item">
-                            <span class="legend-color pomodoro-with-break-color"></span>
-                            <span class="legend-text">番茄钟(带休息)</span>
+                            <span class="legend-color pomodoro-extreme-color"></span>
+                            <span class="legend-text">纯番茄钟</span>
                         </div>
                         <div class="legend-item">
-                            <span class="legend-color pomodoro-no-break-color"></span>
-                            <span class="legend-text">番茄钟(无休息)</span>
+                            <span class="legend-color pomodoro-high-ratio-color"></span>
+                            <span class="legend-text">番茄钟(主导)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color pomodoro-medium-ratio-color"></span>
+                            <span class="legend-text">番茄钟(平衡)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color pomodoro-low-ratio-color"></span>
+                            <span class="legend-text">番茄钟(休息多)</span>
                         </div>
                         <div class="legend-item">
                             <span class="legend-color break-color"></span>
-                            <span class="legend-text">休息</span>
+                            <span class="legend-text">纯休息</span>
                         </div>
                         <div class="legend-item">
                             <span class="legend-color interruption-color"></span>
@@ -573,8 +582,8 @@
                 return;
             }
             
-            createDoughnutChart('workIntensityChart', daily.workIntensityScore, '工作强度', '#b2fd00');
-            createDoughnutChart('restAdequacyChart', daily.restAdequacyScore, '休息充足度', '#ed347c');
+            createDoughnutChart('workIntensityChart', daily.workIntensityScore, '工作强度', '#ed347c');
+            createDoughnutChart('restAdequacyChart', daily.restAdequacyScore, '休息充足度', '#b2fd00');
             createDoughnutChart('focusChart', daily.focusScore, '专注度', '#04f6d1');
             createDoughnutChart('healthChart', daily.healthScore, '健康度', '#cc66ff');
         }
@@ -678,20 +687,12 @@
             console.log('Weekly data:', weekly);
             
             if (!weekly || !weekly.dailyTrend || weekly.dailyTrend.length === 0) {
-                console.warn('No weekly trend data available, using mock data');
-                // 使用模拟数据
-                const mockWeekly = {
-                    dailyTrend: [
-                        { date: new Date().toISOString(), pomodoros: 0, workIntensity: 0, healthScore: 100 },
-                        { date: new Date().toISOString(), pomodoros: 0, workIntensity: 0, healthScore: 100 },
-                        { date: new Date().toISOString(), pomodoros: 0, workIntensity: 0, healthScore: 100 },
-                        { date: new Date().toISOString(), pomodoros: 0, workIntensity: 0, healthScore: 100 },
-                        { date: new Date().toISOString(), pomodoros: 0, workIntensity: 0, healthScore: 100 },
-                        { date: new Date().toISOString(), pomodoros: 0, workIntensity: 0, healthScore: 100 },
-                        { date: new Date().toISOString(), pomodoros: 0, workIntensity: 0, healthScore: 100 }
-                    ]
+                console.warn('No weekly trend data available, showing empty chart');
+                // 显示空图表，不使用模拟数据
+                const emptyWeekly = {
+                    dailyTrend: []
                 };
-                createWeeklyTrendChartWithData(mockWeekly);
+                createWeeklyTrendChartWithData(emptyWeekly);
                 return;
             }
             
@@ -712,11 +713,23 @@
                 window.weeklyTrendChart.destroy();
             }
             
-            const labels = weekly.dailyTrend.map((day, index) => {
-                const date = new Date();
-                date.setDate(date.getDate() - (6 - index)); // 生成过去7天的日期
-                return date.toLocaleDateString('zh-CN', { weekday: 'short' });
-            });
+            // 使用后端提供的实际日期数据生成标签
+            const labels = weekly.dailyTrend.length > 0 
+                ? weekly.dailyTrend.map((day, index) => {
+                    const date = new Date(day.date);
+                    const weekdayLabel = date.toLocaleDateString('zh-CN', { weekday: 'short' });
+                    // 检查是否是最后一天（今天）
+                    const isToday = index === weekly.dailyTrend.length - 1;
+                    return isToday ? `${weekdayLabel}\n(今天)` : weekdayLabel;
+                })
+                : Array.from({ length: 7 }, (_, index) => {
+                    const date = new Date();
+                    date.setDate(date.getDate() - (6 - index)); // 过去7天（包括今天）
+                    const weekdayLabel = date.toLocaleDateString('zh-CN', { weekday: 'short' });
+                    // 最后一个索引是今天
+                    const isToday = index === 6;
+                    return isToday ? `${weekdayLabel}\n(今天)` : weekdayLabel;
+                });
             console.log('Chart labels:', labels);
             
             window.weeklyTrendChart = new Chart(ctx, {
@@ -726,23 +739,29 @@
                     datasets: [
                         {
                             label: '番茄钟数量',
-                            data: weekly.dailyTrend.map(day => day.pomodoros),
+                            data: weekly.dailyTrend.length > 0 
+                                ? weekly.dailyTrend.map(day => day.pomodoros || 0)
+                                : Array(7).fill(0),
                             borderColor: '#ed347c',
                             backgroundColor: 'rgba(237, 52, 124, 0.1)',
                             tension: 0.4,
                             yAxisID: 'y'
                         },
                         {
-                            label: '工作强度',
-                            data: weekly.dailyTrend.map(day => day.workIntensity),
+                            label: '休息次数',
+                            data: weekly.dailyTrend.length > 0 
+                                ? weekly.dailyTrend.map(day => day.breakCount || 0)
+                                : Array(7).fill(0),
                             borderColor: '#b2fd00',
                             backgroundColor: 'rgba(178, 253, 0, 0.1)',
                             tension: 0.4,
-                            yAxisID: 'y1'
+                            yAxisID: 'y'
                         },
                         {
                             label: '健康度',
-                            data: weekly.dailyTrend.map(day => day.healthScore),
+                            data: weekly.dailyTrend.length > 0 
+                                ? weekly.dailyTrend.map(day => day.healthScore || 0)
+                                : Array(7).fill(0),
                             borderColor: '#cc66ff',
                             backgroundColor: 'rgba(204, 102, 255, 0.1)',
                             tension: 0.4,
@@ -776,7 +795,7 @@
                             position: 'left',
                             title: {
                                 display: true,
-                                text: '番茄钟数量'
+                                text: '数量'
                             },
                             min: 0
                         },
@@ -786,7 +805,7 @@
                             position: 'right',
                             title: {
                                 display: true,
-                                text: '评分'
+                                text: '健康度评分'
                             },
                             min: 0,
                             max: 100,
@@ -824,17 +843,24 @@
             // 清空现有内容
             heatmapGrid.innerHTML = '';
             
-            // 计算今天和本周开始日期，用于数据判断
+            // 计算今天和过去7天开始日期，用于数据判断（与一周趋势图表保持一致）
             const today = new Date();
-            const weekStart = getWeekStartDate(today);
+            const weekStart = new Date(today);
+            weekStart.setDate(today.getDate() - 6); // 过去7天（包括今天）
             
             console.log('📅 Today:', today.toDateString());
             console.log('📅 Week start:', weekStart.toDateString());
             console.log('📅 Days to show: 7 (full week)');
             
-            // 始终显示完整的一周
-            const allDayLabels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-            const dayLabels = allDayLabels; // 显示全部7天
+            // 根据实际日期生成标签（过去7天）
+            const dayLabels = [];
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(weekStart);
+                date.setDate(weekStart.getDate() + i);
+                const weekdayLabel = date.toLocaleDateString('zh-CN', { weekday: 'short' });
+                dayLabels.push(weekdayLabel);
+            }
+            console.log('📅 Heatmap day labels:', dayLabels);
             const daysToShow = 7; // 固定显示7天
             
             // CSS Grid模板固定为7天
@@ -1071,25 +1097,49 @@
         
         // 根据活动类型获取颜色
         function getActivityColor(activityType, hourData = null) {
-            // 如果是番茄钟，需要判断是否带休息
-            if (activityType === 'pomodoro' && hourData) {
-                // 检查同一小时内是否有休息活动
-                const hasBreak = hourData.activities.some(activity => 
-                    activity.type === 'break' && activity.count > 0
-                );
-                
-                if (hasBreak) {
-                    // 带休息的番茄钟：淡红色
-                    return '#ff9fb3'; // 淡红色
-                } else {
-                    // 不带休息的番茄钟：浓红色
-                    return '#d12a5b'; // 浓红色
+            // 如果是番茄钟，显示红色（与工作强度颜色一致），根据番茄钟/休息比例调整浓淡
+            if (activityType === 'pomodoro') {
+                if (hourData && hourData.activities) {
+                    // 计算番茄钟和休息的数量
+                    let pomodoroCount = 0;
+                    let breakCount = 0;
+                    
+                    hourData.activities.forEach(activity => {
+                        if (activity.type === 'pomodoro') {
+                            pomodoroCount += activity.count;
+                        } else if (activity.type === 'break') {
+                            breakCount += activity.count;
+                        }
+                    });
+                    
+                    // 计算番茄钟/休息比例，比例越大红色越浓
+                    const totalCount = pomodoroCount + breakCount;
+                    if (totalCount > 0) {
+                        const pomodoroRatio = pomodoroCount / totalCount;
+                        // 根据比例调整红色浓度：比例高用深红色，比例低用浅红色
+                        if (pomodoroRatio === 1.0) {
+                            return '#b91c3c'; // 最深红色 - 只有番茄钟，无休息（工作强度极高）
+                        } else if (pomodoroRatio >= 0.8) {
+                            return '#d12a68'; // 深红色 - 番茄钟占主导
+                        } else if (pomodoroRatio >= 0.5) {
+                            return '#ed347c'; // 中等红色 - 平衡状态
+                        } else {
+                            return '#ff9fb3'; // 浅红色 - 休息较多
+                        }
+                    }
                 }
+                // 默认红色（与工作强度颜色一致）
+                return '#ed347c';
+            }
+            
+            // 如果该小时只有休息，显示绿色（与休息充足度颜色一致）
+            if (activityType === 'break') {
+                return '#b2fd00'; // 绿色
             }
             
             const colors = {
-                'pomodoro': '#ed347c', // 默认番茄钟颜色（备用）
-                'break': '#b2fd00',
+                'pomodoro': '#ed347c', // 红色番茄钟颜色
+                'break': '#b2fd00',    // 绿色休息
                 'interruption': '#04f6d1',
                 'cancelled': '#cc66ff'
             };
@@ -1107,6 +1157,11 @@
                 content += `<br>未来时间`;
             } else if (hourData.hasActivity) {
                 content += `<br>`;
+                
+                // 计算番茄钟和休息的数量用于显示比例
+                let pomodoroCount = 0;
+                let breakCount = 0;
+                
                 hourData.activities.forEach(activity => {
                     const activityNames = {
                         'pomodoro': '番茄钟',
@@ -1115,14 +1170,26 @@
                         'cancelled': '取消休息'
                     };
                     content += `${activityNames[activity.type]}: ${activity.count}次<br>`;
+                    
+                    // 统计番茄钟和休息数量
+                    if (activity.type === 'pomodoro') {
+                        pomodoroCount += activity.count;
+                    } else if (activity.type === 'break') {
+                        breakCount += activity.count;
+                    }
                 });
                 
-                // 如果主要活动是番茄钟，显示是否带休息
-                if (hourData.primaryActivity === 'pomodoro') {
-                    const hasBreak = hourData.activities.some(activity => 
-                        activity.type === 'break' && activity.count > 0
-                    );
-                    content += `<span style="font-size: 10px; color: #666;">${hasBreak ? '(带休息)' : '(无休息)'}</span>`;
+                // 如果有番茄钟，显示比例或强度信息
+                if (pomodoroCount > 0) {
+                    if (breakCount > 0) {
+                        // 有番茄钟和休息，显示比例
+                        const totalCount = pomodoroCount + breakCount;
+                        const pomodoroRatio = (pomodoroCount / totalCount * 100).toFixed(0);
+                        content += `<br>番茄钟比例: ${pomodoroRatio}%`;
+                    } else {
+                        // 只有番茄钟，无休息
+                        content += `<br>⚠️ 高强度工作，无休息`;
+                    }
                 }
             } else {
                 content += `<br>无活动`;
