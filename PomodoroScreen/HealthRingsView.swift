@@ -615,10 +615,85 @@ class HealthRingsView: NSView {
         context.restoreGState()
     }
     
-    /// 统一使用原生圆锥渐变绘制所有圆环
+    
+    /// 优化的线性渐变绘制方法（专用于大角度弧形）
+    private func drawOptimizedLinearGradientRing(in context: CGContext, center: CGPoint, radius: CGFloat, thickness: CGFloat, startAngle: CGFloat, endAngle: CGFloat, colors: [NSColor]) {
+        context.saveGState()
+        
+        // 创建弧形路径
+        let path = CGMutablePath()
+        path.addArc(center: center, radius: radius, startAngle: startAngle, endAngle: endAngle, clockwise: false)
+        
+        // 设置线条属性
+        context.setLineWidth(thickness)
+        context.setLineCap(.round)
+        
+        // 使用路径创建描边遮罩
+        context.addPath(path)
+        context.replacePathWithStrokedPath()
+        context.clip()
+        
+        // 创建线性渐变
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let gradientColors = [colors[0].cgColor, colors[1].cgColor]
+        let locations: [CGFloat] = [0.0, 1.0]
+        
+        if let gradient = CGGradient(colorsSpace: colorSpace, colors: gradientColors as CFArray, locations: locations) {
+            // 优化的起终点计算：对于大角度弧形，使用弧形中点的切线方向
+            let midAngle = (startAngle + endAngle) / 2
+            let angleRange = endAngle - startAngle
+            
+            // 计算渐变方向：垂直于弧形中点的切线
+            let gradientAngle = midAngle + .pi / 2  // 垂直于切线方向
+            
+            // 渐变距离基于弧形的弦长，确保覆盖整个弧形
+            let chordLength = 2 * radius * sin(angleRange / 2)
+            let gradientDistance = max(chordLength, radius)
+            
+            // 计算优化的起终点
+            let gradientCenter = CGPoint(
+                x: center.x + radius * cos(midAngle),
+                y: center.y + radius * sin(midAngle)
+            )
+            
+            let startPoint = CGPoint(
+                x: gradientCenter.x - gradientDistance * cos(gradientAngle) / 2,
+                y: gradientCenter.y - gradientDistance * sin(gradientAngle) / 2
+            )
+            
+            let endPoint = CGPoint(
+                x: gradientCenter.x + gradientDistance * cos(gradientAngle) / 2,
+                y: gradientCenter.y + gradientDistance * sin(gradientAngle) / 2
+            )
+            
+            // 绘制优化的线性渐变
+            context.drawLinearGradient(gradient, start: startPoint, end: endPoint, options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+        } else {
+            // 回退：使用中间色填充
+            let fromComponents = ColorSpaceCache.shared.getRGBComponents(for: colors[0])
+            let toComponents = ColorSpaceCache.shared.getRGBComponents(for: colors[1])
+            let middleColor = fastInterpolateColor(fromComponents: fromComponents, toComponents: toComponents, ratio: 0.5)
+            context.setFillColor(middleColor)
+            let fillRect = CGRect(x: center.x - radius - thickness, y: center.y - radius - thickness, 
+                                 width: 2 * (radius + thickness), height: 2 * (radius + thickness))
+            context.fill(fillRect)
+        }
+        
+        context.restoreGState()
+    }
+    
+    /// 统一使用优化的线性渐变绘制所有圆环
     private func drawUnifiedNativeGradientRing(in context: CGContext, center: CGPoint, radius: CGFloat, thickness: CGFloat, startAngle: CGFloat, endAngle: CGFloat, colors: [NSColor]) {
-        // 统一使用原生圆锥渐变，适应所有角度范围
-        drawNativeGradientRing(in: context, center: center, radius: radius, thickness: thickness, startAngle: startAngle, endAngle: endAngle, colors: colors)
+        let angleRange = endAngle - startAngle
+        
+        // 当角度范围超过270度（1.5π）时，使用优化的线性渐变
+        if angleRange > 1.5 * .pi {
+            // 大角度弧形：使用优化的线性渐变，调整起终点位置以获得更好的渐变效果
+            drawOptimizedLinearGradientRing(in: context, center: center, radius: radius, thickness: thickness, startAngle: startAngle, endAngle: endAngle, colors: colors)
+        } else {
+            // 小角度弧形：使用标准线性渐变
+            drawNativeGradientRing(in: context, center: center, radius: radius, thickness: thickness, startAngle: startAngle, endAngle: endAngle, colors: colors)
+        }
     }
     
     /// 高效的分段渐变绘制（使用颜色缓存的超优化版本）
@@ -710,6 +785,13 @@ class HealthRingsView: NSView {
             }
         } else {
             // Full ring with gradient - 对应CirclesWorkout的else分支
+            
+            // 为最外层圆环额外绘制不规则背景环（叠加效果）
+            // 在进度>=98%时也需要绘制不规则圈
+            if ring.type == .restAdequacy && breathingEffects.shouldApplyEffect {
+                drawIrregularBackgroundRing(in: context, center: center, radius: effectiveRadius, thickness: effectiveThickness, color: colors[3], breathingEffects: breathingEffects)
+            }
+            
             drawFullRing(in: context, center: center, radius: effectiveRadius, thickness: effectiveThickness, progress: progress, colors: colors, ring: ring, breathingEffects: breathingEffects)
             
             // End circle with shadow - 对应CirclesWorkout的end circle with shadow
@@ -883,11 +965,12 @@ class HealthRingsView: NSView {
             context.setAlpha(breathingAlpha)
         }
         
-        // 优化的完整环渐变绘制：使用原生圆锥渐变
+        // 优化的完整环渐变绘制：将100%进度限制为99%避免渐变分界线
         let startAngle: CGFloat = -.pi / 2  // Start from top
-        let endAngle: CGFloat = startAngle + 2 * .pi
+        let adjustedProgress = min(progress, 0.99)  // 将100%限制为99%，避免完整圆环的渐变分界线问题
+        let endAngle: CGFloat = startAngle + 2 * .pi * adjustedProgress
         
-        // 完整圆环使用统一的原生圆锥渐变，性能最优
+        // 使用线性渐变绘制，避免圆锥渐变的复杂性
         drawUnifiedNativeGradientRing(
             in: context,
             center: center,

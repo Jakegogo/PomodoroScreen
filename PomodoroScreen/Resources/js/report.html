@@ -1,0 +1,1526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>今日工作报告</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+            overflow-x: hidden;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+        /* Header */
+        .report-header { text-align: center; margin-bottom: 16px; color: #111827; }
+        .report-header h1 { font-size: 32px; font-weight: 800; letter-spacing: .2px; }
+        .report-header h1::before { content: '📊'; display: inline-block; margin-right: 10px; }
+        .report-date { margin-top: 6px; font-size: 13px; color: #6b7280; }
+
+        /* Dashboard wrapper */
+        .dashboard {
+            background: #fff;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 24px rgba(17,24,39,0.06);
+        }
+
+        /* Metric cards */
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 28px; }
+        .metric-card { background: #f9fafb; border: 1px solid #eef2f7; border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 14px; transition: box-shadow .2s ease; }
+        .metric-card:hover { box-shadow: 0 6px 16px rgba(17,24,39,0.06); }
+        .metric-icon { font-size: 22px; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: #edf2ff; color: #3b82f6; margin-right: 6px; }
+        .metric-content h3 { font-size: 28px; line-height: 1; font-weight: 800; color: #111827; margin-bottom: 4px; }
+        .metric-content p { font-size: 12px; color: #6b7280; letter-spacing: .2px; }
+        .pomodoro-card .metric-icon { background:#ffe9ea; color:#ef4444; }
+        .work-time-card .metric-icon { background:#e6f3ff; color:#2563eb; }
+        .break-time-card .metric-icon { background:#fff3e6; color:#f59e0b; }
+        .health-card .metric-icon { background:#e7f8f0; color:#10b981; }
+
+        /* Scores */
+        .scores-section { margin-bottom: 16px; }
+        .scores-section h2 { margin-bottom: 12px; color:#111827; font-size:18px; }
+        .scores-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; text-align: center; }
+        .score-item p { margin-top: 8px; font-weight: 600; color: #6b7280; font-size: 12px; }
+
+        /* Calculation trigger */
+        .calculation-trigger { 
+            text-align: center; 
+            margin-top: 16px; 
+            padding-top: 12px; 
+            border-top: 1px solid #eef2f7;
+        }
+        .calculation-trigger a {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            color: #6b7280;
+            font-weight: 400;
+            font-size: 13px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            background: transparent;
+            border: none;
+        }
+        .calculation-trigger a:hover {
+            color: #4b5563;
+            background: rgba(0, 0, 0, 0.02);
+        }
+        .trigger-icon {
+            font-size: 12px;
+            transition: transform 0.3s ease;
+        }
+        .trigger-icon.rotated {
+            transform: rotate(180deg);
+        }
+
+        /* Calculation cards */
+        .calculation-section { margin: 16px 0 24px; }
+        .calculation-section h2 { margin-bottom: 12px; font-size: 18px; color:#111827; }
+        
+        /* Collapsible functionality */
+        .collapsible-header {
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            transition: color 0.2s ease;
+        }
+        .collapsible-header:hover {
+            color: #4f46e5;
+        }
+        .collapse-icon {
+            font-size: 14px;
+            transition: transform 0.3s ease;
+            user-select: none;
+        }
+        .collapse-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+        .calculation-grid {
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+            overflow: hidden;
+        }
+        .calculation-grid.collapsed {
+            max-height: 0;
+            opacity: 0;
+            margin-bottom: 0;
+        }
+        .calculation-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .calculation-card { background:#ffffff; border:1px solid #eef2f7; border-radius:10px; padding:12px; box-shadow: 0 4px 12px rgba(17,24,39,0.04); }
+        .calculation-card h3 { margin:0 0 8px 0; font-size:13px; color:#111827; }
+        .calculation-formula { margin-bottom: 8px; }
+        .formula-title { font-weight:600; color:#4b5563; margin-bottom:4px; font-size:11px; }
+        .formula-text { background:#f3f4f6; padding:6px 8px; border-radius:6px; font-family: 'Menlo', 'Monaco', monospace; font-size:10px; color:#111827; line-height: 1.3; }
+        .process-title { font-weight:600; color:#4b5563; margin-bottom:4px; font-size:11px; }
+        .process-steps { background:#fcfcfd; border:1px solid #eef2f7; border-radius:6px; padding:8px; }
+        .process-step { margin-bottom:4px; font-size:10px; color:#6b7280; line-height: 1.3; }
+        .process-step:last-child { margin-bottom:0; }
+        .process-step .step-label { color:#374151; font-weight:500; }
+        .process-step .step-value { color:#2563eb; font-weight:700; }
+        .final-result { margin-top:8px; padding:6px 8px; background:#10b981; color:#fff; border-radius:6px; font-weight:700; font-size:11px; }
+
+        /* 响应式设计：在小屏幕上调整布局 */
+        @media (max-width: 1200px) {
+            .calculation-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        }
+        @media (max-width: 768px) {
+            .calculation-grid { grid-template-columns: 1fr; gap: 16px; }
+            .calculation-card { padding: 16px; }
+            .calculation-card h3 { font-size: 14px; margin-bottom: 10px; }
+            .formula-title, .process-title { font-size: 12px; margin-bottom: 6px; }
+            .formula-text { font-size: 11px; padding: 8px 10px; }
+            .process-step { font-size: 11px; margin-bottom: 6px; }
+            .final-result { font-size: 12px; padding: 8px 10px; margin-top: 10px; }
+        }
+
+        /* Details */
+        .details-section { margin: 8px 0 24px; }
+        .details-section h2 { margin-bottom: 12px; font-size:18px; color:#111827; }
+        .details-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; }
+        .detail-item { display:flex; justify-content:space-between; align-items:center; padding:12px 14px; background:#ffffff; border:1px solid #eef2f7; border-radius:10px; }
+        .detail-left { display:flex; align-items:center; gap:8px; }
+        .detail-icon { width:22px; text-align:center; font-size:14px; }
+        .detail-label { color:#6b7280; font-size:12px; }
+        .detail-value { color:#111827; font-weight:800; font-size:16px; }
+
+        /* Trends */
+        .trends-section { margin: 8px 0 24px; }
+        .trends-section h2 { margin-bottom: 12px; font-size:18px; color:#111827; }
+        .chart-container { background:#ffffff; border:1px solid #eef2f7; border-radius:12px; padding:16px; height:350px; position:relative; overflow:hidden; }
+        .chart-container canvas { max-height: 300px !important; width:100% !important; height:300px !important; }
+
+        /* Heatmap */
+        .heatmap-section { margin: 20px 0; }
+        .heatmap-section h2 { margin-bottom: 16px; font-size: 20px; color:#111827; }
+        .heatmap-container { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        .heatmap-legend { display: flex; justify-content: center; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 6px; }
+        .legend-color { width: 12px; height: 12px; border-radius: 2px; }
+        .legend-text { font-size: 12px; color: #6b7280; }
+        .pomodoro-with-break-color { background: #ff9fb3; }  /* 淡红色 - 带休息的番茄钟 */
+        .pomodoro-no-break-color { background: #d12a5b; }   /* 浓红色 - 无休息的番茄钟 */
+        .pomodoro-color { background: #ed347c; }            /* 保留原色作为备用 */
+        .break-color { background: #b2fd00; }
+        .interruption-color { background: #04f6d1; }
+        .cancelled-color { background: #cc66ff; }
+        
+        .heatmap-grid { 
+            display: grid; 
+            grid-template-rows: 30px repeat(24, 1fr); 
+            grid-template-columns: 40px repeat(7, 1fr);
+            gap: 1px; 
+            background: #f3f4f6;
+            border-radius: 8px;
+            padding: 1px;
+            min-height: 600px;
+        }
+        .heatmap-day-label { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            background: #f8f9fa; 
+            font-size: 11px; 
+            font-weight: 600; 
+            color: #374151;
+            padding: 4px;
+        }
+        .heatmap-hour-label { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            background: #f8f9fa; 
+            font-size: 10px; 
+            color: #6b7280;
+            padding: 2px;
+        }
+        .heatmap-cell { 
+            background: #ffffff; 
+            min-height: 20px; 
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+        .heatmap-cell:hover { 
+            transform: scale(1.1); 
+            z-index: 10;
+            border-radius: 2px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .heatmap-cell.has-activity { border-radius: 2px; }
+        
+        /* Tooltip */
+        .heatmap-tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 6px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            pointer-events: none;
+            z-index: 1000;
+            white-space: nowrap;
+        }
+
+        /* Recommendations */
+        .recommendations-section h2 { margin-bottom: 12px; font-size:18px; color:#111827; }
+        .recommendations-list { display:flex; flex-direction:column; gap:12px; }
+         .recommendation-item { padding:14px; border-radius:12px; color:#fff; font-weight:600; letter-spacing:.2px; box-shadow: 0 6px 16px rgba(17,24,39,0.06); }
+         .recommendation-item::before { content:'💡'; margin-right:8px; }
+         /* Match health ring colors */
+         .recommendation-item.rec-work { background: linear-gradient(90deg, #b2fd00 0%, #8fd400 100%); }
+         .recommendation-item.rec-rest { background: linear-gradient(90deg, #ed347c 0%, #d12a68 100%); }
+         .recommendation-item.rec-focus { background: linear-gradient(90deg, #04f6d1 0%, #03c9a8 100%); }
+         .recommendation-item.rec-health { background: linear-gradient(90deg, #cc66ff 0%, #b84dff 100%); }
+
+        /* Reflections */
+        .reflection-section { margin-top: 18px; }
+        .reflection-title { font-size: 18px; color:#111827; margin-bottom: 12px; }
+        .reflection-grid { display: grid; grid-template-columns: 1fr 280px; gap: 16px; }
+        .reflection-input { background:#ffffff; border:1px solid #eef2f7; border-radius:12px; padding:12px; min-height: 120px; resize: vertical; width:100%; font-size: 13px; color:#111827; }
+        .mood-row { display:flex; align-items:center; justify-content:space-between; background:#ffffff; border:1px solid #eef2f7; border-radius:12px; padding:12px 14px; height:120px; }
+        .mood-row .mood { font-size: 28px; cursor: default; filter: grayscale(0.05); transition: transform .12s ease; }
+        .mood-row .mood:hover { transform: translateY(-2px) scale(1.05); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="report-header">
+            <h1>今日工作报告</h1>
+            <p class="report-date" id="reportDate"></p>
+        </header>
+        
+        <div class="dashboard">
+            <!-- 核心指标卡片 -->
+            <div class="metrics-grid">
+                <div class="metric-card pomodoro-card">
+                    <div class="metric-icon">🍅</div>
+                    <div class="metric-content">
+                        <h3 id="pomodoroCount">0</h3>
+                        <p>完成番茄钟</p>
+                    </div>
+                </div>
+                
+                <div class="metric-card work-time-card">
+                    <div class="metric-icon">⏰</div>
+                    <div class="metric-content">
+                        <h3 id="workTime">0h 0m</h3>
+                        <p>工作时间</p>
+                    </div>
+                </div>
+                
+                <div class="metric-card break-time-card">
+                    <div class="metric-icon">☕</div>
+                    <div class="metric-content">
+                        <h3 id="breakTime">0m</h3>
+                        <p>休息时间</p>
+                    </div>
+                </div>
+                
+                <div class="metric-card health-card">
+                    <div class="metric-icon">💚</div>
+                    <div class="metric-content">
+                        <h3 id="healthScore">0</h3>
+                        <p>健康评分</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 评分仪表盘 -->
+            <div class="scores-section">
+                <h2>📈 综合评估</h2>
+                <div class="scores-grid">
+                    <div class="score-item">
+                        <canvas id="restAdequacyChart" width="120" height="120"></canvas>
+                        <p>休息充足度</p>
+                    </div>
+                    <div class="score-item">
+                        <canvas id="workIntensityChart" width="120" height="120"></canvas>
+                        <p>工作强度</p>
+                    </div>
+                    <div class="score-item">
+                        <canvas id="focusChart" width="120" height="120"></canvas>
+                        <p>专注度</p>
+                    </div>
+                    <div class="score-item">
+                        <canvas id="healthChart" width="120" height="120"></canvas>
+                        <p>健康度</p>
+                    </div>
+                </div>
+                
+                <!-- 评分计算详情触发链接 -->
+                <div class="calculation-trigger">
+                    <a href="#" onclick="toggleCalculationDetails(); return false;" id="calculationTriggerLink">
+                        📊 查看评分计算详情
+                        <span class="trigger-icon" id="calculationTriggerIcon">▼</span>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 计算过程详情 -->
+            <div class="calculation-section" id="calculationSection" style="display: none;">
+                <h2>📊 评分计算详情</h2>
+                <div class="calculation-grid" id="calculationGrid">
+                    <div class="calculation-card">
+                        <h3>🌙 休息充足度</h3>
+                        <div class="calculation-formula">
+                            <div class="formula-title">计算公式：</div>
+                            <div class="formula-text">休息充足度 = min(实际休息时间 / 期望休息时间, 1.0) × 100</div>
+                        </div>
+                        <div class="calculation-process" id="restCalculationProcess">
+                            <div class="process-title">计算过程：</div>
+                            <div class="process-steps"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="calculation-card">
+                        <h3>💪 工作强度</h3>
+                        <div class="calculation-formula">
+                            <div class="formula-title">计算公式：</div>
+                            <div class="formula-text">工作强度 = 番茄钟评分(50) + 休息平衡评分(30) + 一致性评分(20)</div>
+                        </div>
+                        <div class="calculation-process" id="workCalculationProcess">
+                            <div class="process-title">计算过程：</div>
+                            <div class="process-steps"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="calculation-card">
+                        <h3>🎯 专注度</h3>
+                        <div class="calculation-formula">
+                            <div class="formula-title">计算公式：</div>
+                            <div class="formula-text">专注度 = max(0, min(100, 基础得分 - 中断惩罚))</div>
+                        </div>
+                        <div class="calculation-process" id="focusCalculationProcess">
+                            <div class="process-title">计算过程：</div>
+                            <div class="process-steps"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="calculation-card">
+                        <h3>🩺 健康度</h3>
+                        <div class="calculation-formula">
+                            <div class="formula-title">计算公式：</div>
+                            <div class="formula-text">健康度 = max(0, 100 - 熬夜扣分 - 休息扣分 - 过劳扣分)</div>
+                        </div>
+                        <div class="calculation-process" id="healthCalculationProcess">
+                            <div class="process-title">计算过程：</div>
+                            <div class="process-steps"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 详细统计 -->
+            <div class="details-section">
+                <h2>📊 详细统计</h2>
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <div class="detail-left">
+                            <span class="detail-icon" aria-hidden="true">🟢</span>
+                            <span class="detail-label">短休息次数</span>
+                        </div>
+                        <span class="detail-value" id="shortBreakCount">0</span>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-left">
+                            <span class="detail-icon" aria-hidden="true">⏳</span>
+                            <span class="detail-label">长休息次数</span>
+                        </div>
+                        <span class="detail-value" id="longBreakCount">0</span>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-left">
+                            <span class="detail-icon" aria-hidden="true">❌</span>
+                            <span class="detail-label">取消休息次数</span>
+                        </div>
+                        <span class="detail-value" id="cancelledBreakCount">0</span>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-left">
+                            <span class="detail-icon" aria-hidden="true">🔒</span>
+                            <span class="detail-label">息屏次数</span>
+                        </div>
+                        <span class="detail-value" id="screenLockCount">0</span>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-left">
+                            <span class="detail-icon" aria-hidden="true">🖥️</span>
+                            <span class="detail-label">屏保次数</span>
+                        </div>
+                        <span class="detail-value" id="screensaverCount">0</span>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-left">
+                            <span class="detail-icon" aria-hidden="true">🔥</span>
+                            <span class="detail-label">熬夜次数</span>
+                        </div>
+                        <span class="detail-value" id="stayUpLateCount">0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 周趋势图表 -->
+            <div class="trends-section">
+                <h2>📈 一周趋势</h2>
+                <div class="chart-container">
+                    <canvas id="weeklyTrendChart" width="800" height="300"></canvas>
+                </div>
+            </div>
+            
+            <!-- 活动热力图 -->
+            <div class="heatmap-section">
+                <h2>🔥 本周活动热力图</h2>
+                <div class="heatmap-container">
+                    <div class="heatmap-legend">
+                        <div class="legend-item">
+                            <span class="legend-color pomodoro-with-break-color"></span>
+                            <span class="legend-text">番茄钟(带休息)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color pomodoro-no-break-color"></span>
+                            <span class="legend-text">番茄钟(无休息)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color break-color"></span>
+                            <span class="legend-text">休息</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color interruption-color"></span>
+                            <span class="legend-text">中断</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color cancelled-color"></span>
+                            <span class="legend-text">取消休息</span>
+                        </div>
+                    </div>
+                    <div class="heatmap-grid" id="heatmapGrid">
+                        <!-- 热力图内容将由JavaScript生成 -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 健康建议 -->
+            <div class="recommendations-section">
+                <h2>💡 健康建议</h2>
+                <div id="recommendationsList" class="recommendations-list">
+                </div>
+            </div>
+
+            <!-- 你的感受（移至底部） -->
+            <div class="reflection-section">
+                <h2 class="reflection-title">📝 你的感受</h2>
+                <div class="reflection-grid">
+                    <textarea class="reflection-input" placeholder="记录今天的想法与感受..."></textarea>
+                    <div class="mood-row" aria-hidden="true">
+                        <span class="mood">😞</span>
+                        <span class="mood">😐</span>
+                        <span class="mood">🙂</span>
+                        <span class="mood">😊</span>
+                        <span class="mood">😄</span>
+                        <span class="mood">🤩</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 防止重复初始化的标志
+        var reportInitialized = false;
+        
+        // 初始化报告
+        function initializeReport() {
+            if (reportInitialized) {
+                console.log('Report already initialized, skipping...');
+                return;
+            }
+            
+            // 检查Chart.js是否加载
+            if (typeof Chart === 'undefined') {
+                console.error('Chart.js not loaded, retrying in 500ms...');
+                setTimeout(initializeReport, 500);
+                return;
+            }
+            
+            try {
+                console.log('Starting report initialization...');
+                console.log('Chart.js version:', Chart.version);
+                console.log('Report data:', reportData);
+                
+                updateBasicMetrics();
+                createScoreCharts();
+                showCalculationDetails();
+                createWeeklyTrendChart();
+                createActivityHeatmap();
+                showRecommendations();
+                reportInitialized = true;
+                console.log('Report initialized successfully');
+            } catch (error) {
+                console.error('Error initializing report:', error);
+                console.error('Stack trace:', error.stack);
+            }
+        }
+        
+        // 更新基本指标
+        function updateBasicMetrics() {
+            const daily = reportData.daily;
+            
+            // 更新日期
+            document.getElementById('reportDate').textContent = 
+                new Date(daily.date).toLocaleDateString('zh-CN', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+            
+            // 更新核心指标
+            document.getElementById('pomodoroCount').textContent = daily.completedPomodoros;
+            
+            const workHours = Math.floor(daily.totalWorkTime / 3600);
+            const workMinutes = Math.floor((daily.totalWorkTime % 3600) / 60);
+            document.getElementById('workTime').textContent = workHours + 'h ' + workMinutes + 'm';
+            
+            const breakMinutes = Math.floor(daily.totalBreakTime / 60);
+            document.getElementById('breakTime').textContent = breakMinutes + 'm';
+            
+            document.getElementById('healthScore').textContent = Math.round(daily.healthScore);
+            
+            // 更新详细统计
+            document.getElementById('shortBreakCount').textContent = daily.shortBreakCount;
+            document.getElementById('longBreakCount').textContent = daily.longBreakCount;
+            document.getElementById('cancelledBreakCount').textContent = daily.cancelledBreakCount;
+            document.getElementById('screenLockCount').textContent = daily.screenLockCount;
+            document.getElementById('screensaverCount').textContent = daily.screensaverCount;
+            document.getElementById('stayUpLateCount').textContent = daily.stayUpLateCount;
+        }
+        
+        // 创建评分圆环图
+        function createScoreCharts() {
+            const daily = reportData.daily;
+            
+            if (typeof Chart === 'undefined') {
+                console.warn('Chart.js not available, using fallback display');
+                createFallbackScoreDisplay();
+                return;
+            }
+            
+            createDoughnutChart('workIntensityChart', daily.workIntensityScore, '工作强度', '#b2fd00');
+            createDoughnutChart('restAdequacyChart', daily.restAdequacyScore, '休息充足度', '#ed347c');
+            createDoughnutChart('focusChart', daily.focusScore, '专注度', '#04f6d1');
+            createDoughnutChart('healthChart', daily.healthScore, '健康度', '#cc66ff');
+        }
+        
+        // Chart.js不可用时的备用显示
+        function createFallbackScoreDisplay() {
+            const daily = reportData.daily;
+            const scores = [
+                { id: 'workIntensityChart', score: daily.workIntensityScore, label: '工作强度' },
+                { id: 'restAdequacyChart', score: daily.restAdequacyScore, label: '休息充足度' },
+                { id: 'focusChart', score: daily.focusScore, label: '专注度' },
+                { id: 'healthChart', score: daily.healthScore, label: '健康度' }
+            ];
+            
+            scores.forEach(item => {
+                const canvas = document.getElementById(item.id);
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    // 简单的文本显示
+                    ctx.font = '24px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = '#333';
+                    ctx.fillText(Math.round(item.score), canvas.width/2, canvas.height/2);
+                }
+            });
+        }
+        
+        function createDoughnutChart(canvasId, score, label, color) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            // 销毁已存在的图表
+            if (window[canvasId + '_chart'] && typeof window[canvasId + '_chart'].destroy === 'function') {
+                window[canvasId + '_chart'].destroy();
+            }
+            
+            window[canvasId + '_chart'] = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [score, 100 - score],
+                        backgroundColor: [color, '#e0e0e0'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: false,
+                    maintainAspectRatio: true,
+                    cutout: '70%',
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    },
+                    elements: {
+                        arc: {
+                            borderWidth: 0
+                        }
+                    },
+                    animation: {
+                        duration: 0
+                    }
+                },
+                plugins: [{
+                    afterDraw: function(chart) {
+                        const ctx = chart.ctx;
+                        ctx.save();
+                        const centerX = chart.chartArea.left + (chart.chartArea.right - chart.chartArea.left) / 2;
+                        const centerY = chart.chartArea.top + (chart.chartArea.bottom - chart.chartArea.top) / 2;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.font = 'bold 16px Arial';
+                        ctx.fillStyle = color;
+                        ctx.fillText(Math.round(score), centerX, centerY);
+                        ctx.restore();
+                    }
+                }]
+            });
+        }
+        
+        // 创建周趋势图
+        function createWeeklyTrendChart() {
+            console.log('Creating weekly trend chart...');
+            
+            if (typeof Chart === 'undefined') {
+                console.warn('Chart.js not available, showing fallback message');
+                const canvas = document.getElementById('weeklyTrendChart');
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.font = '16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = '#666';
+                    ctx.fillText('图表加载中...', canvas.width/2, canvas.height/2);
+                }
+                return;
+            }
+            
+            const weekly = reportData.weekly;
+            console.log('Weekly data:', weekly);
+            
+            if (!weekly || !weekly.dailyTrend || weekly.dailyTrend.length === 0) {
+                console.warn('No weekly trend data available, using mock data');
+                // 使用模拟数据
+                const mockWeekly = {
+                    dailyTrend: [
+                        { date: new Date().toISOString(), pomodoros: 0, workIntensity: 0, healthScore: 100 },
+                        { date: new Date().toISOString(), pomodoros: 0, workIntensity: 0, healthScore: 100 },
+                        { date: new Date().toISOString(), pomodoros: 0, workIntensity: 0, healthScore: 100 },
+                        { date: new Date().toISOString(), pomodoros: 0, workIntensity: 0, healthScore: 100 },
+                        { date: new Date().toISOString(), pomodoros: 0, workIntensity: 0, healthScore: 100 },
+                        { date: new Date().toISOString(), pomodoros: 0, workIntensity: 0, healthScore: 100 },
+                        { date: new Date().toISOString(), pomodoros: 0, workIntensity: 0, healthScore: 100 }
+                    ]
+                };
+                createWeeklyTrendChartWithData(mockWeekly);
+                return;
+            }
+            
+            createWeeklyTrendChartWithData(weekly);
+        }
+        
+        function createWeeklyTrendChartWithData(weekly) {
+            const canvas = document.getElementById('weeklyTrendChart');
+            // 让图表自身按容器宽度自适应
+            canvas.removeAttribute('width');
+            canvas.removeAttribute('height');
+            canvas.style.width = '100%';
+            canvas.style.height = 'auto';
+            const ctx = canvas.getContext('2d');
+            
+            // 销毁已存在的图表
+            if (window.weeklyTrendChart && typeof window.weeklyTrendChart.destroy === 'function') {
+                window.weeklyTrendChart.destroy();
+            }
+            
+            const labels = weekly.dailyTrend.map((day, index) => {
+                const date = new Date();
+                date.setDate(date.getDate() - (6 - index)); // 生成过去7天的日期
+                return date.toLocaleDateString('zh-CN', { weekday: 'short' });
+            });
+            console.log('Chart labels:', labels);
+            
+            window.weeklyTrendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '番茄钟数量',
+                            data: weekly.dailyTrend.map(day => day.pomodoros),
+                            borderColor: '#ed347c',
+                            backgroundColor: 'rgba(237, 52, 124, 0.1)',
+                            tension: 0.4,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: '工作强度',
+                            data: weekly.dailyTrend.map(day => day.workIntensity),
+                            borderColor: '#b2fd00',
+                            backgroundColor: 'rgba(178, 253, 0, 0.1)',
+                            tension: 0.4,
+                            yAxisID: 'y1'
+                        },
+                        {
+                            label: '健康度',
+                            data: weekly.dailyTrend.map(day => day.healthScore),
+                            borderColor: '#cc66ff',
+                            backgroundColor: 'rgba(204, 102, 255, 0.1)',
+                            tension: 0.4,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    // 关键设置：由图表自身控制尺寸，随容器宽度变化
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    aspectRatio: 2.6, // 宽高比，避免被拉伸（约等于 800/308）
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    animation: {
+                        duration: 0
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: '日期'
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: '番茄钟数量'
+                            },
+                            min: 0
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: '评分'
+                            },
+                            min: 0,
+                            max: 100,
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: '本周工作趋势'
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 创建活动热力图（纵向布局）
+        function createActivityHeatmap() {
+            console.log('Creating activity heatmap...');
+            
+            const heatmapGrid = document.getElementById('heatmapGrid');
+            if (!heatmapGrid) {
+                console.warn('Heatmap grid element not found');
+                return;
+            }
+            
+            // 获取热力图数据（从数据库或模拟数据）
+            const weekData = getHeatmapDataFromDB();
+            
+            // 清空现有内容
+            heatmapGrid.innerHTML = '';
+            
+            // 计算今天和本周开始日期，用于数据判断
+            const today = new Date();
+            const weekStart = getWeekStartDate(today);
+            
+            console.log('📅 Today:', today.toDateString());
+            console.log('📅 Week start:', weekStart.toDateString());
+            console.log('📅 Days to show: 7 (full week)');
+            
+            // 始终显示完整的一周
+            const allDayLabels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+            const dayLabels = allDayLabels; // 显示全部7天
+            const daysToShow = 7; // 固定显示7天
+            
+            // CSS Grid模板固定为7天
+            heatmapGrid.style.gridTemplateColumns = `40px repeat(7, 1fr)`;
+            
+            // 创建表头 - 左上角空格 + 日期标签
+            heatmapGrid.appendChild(createEmptyCell()); // 左上角空格
+            dayLabels.forEach((dayLabel, dayIndex) => {
+                const dayCell = document.createElement('div');
+                dayCell.className = 'heatmap-day-label';
+                
+                // 计算具体日期
+                const currentDate = new Date(weekStart);
+                currentDate.setDate(weekStart.getDate() + dayIndex);
+                const dateStr = `${currentDate.getMonth() + 1}/${currentDate.getDate()}`;
+                
+                dayCell.textContent = `${dayLabel}\n${dateStr}`;
+                dayCell.style.whiteSpace = 'pre-line';
+                dayCell.style.textAlign = 'center';
+                dayCell.style.fontSize = '12px';
+                dayCell.style.lineHeight = '1.2';
+                
+                // 如果是今天，添加特殊标识
+                if (isSameDay(currentDate, today)) {
+                    dayCell.style.fontWeight = 'bold';
+                    dayCell.style.color = '#007AFF';
+                    dayCell.title = '今天';
+                }
+                
+                heatmapGrid.appendChild(dayCell);
+            });
+            
+            // 创建24小时的数据行
+            for (let hour = 0; hour < 24; hour++) {
+                // 时间标签（左侧）
+                const hourCell = document.createElement('div');
+                hourCell.className = 'heatmap-hour-label';
+                hourCell.textContent = hour.toString().padStart(2, '0') + ':00';
+                heatmapGrid.appendChild(hourCell);
+                
+                // 每一天的数据（显示完整一周，包括未来日期）
+                for (let dayIndex = 0; dayIndex < daysToShow; dayIndex++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'heatmap-cell';
+                    
+                    // 计算当前日期
+                    const currentDate = new Date(weekStart);
+                    currentDate.setDate(weekStart.getDate() + dayIndex);
+                    
+                    // 判断是否为未来日期
+                    const isFutureDate = currentDate > today;
+                    
+                    // 获取数据（如果是未来日期或没有数据，则为空）
+                    const dayData = weekData[dayIndex];
+                    const hourData = dayData && dayData[hour] && !isFutureDate ? dayData[hour] : {
+                        hasActivity: false,
+                        primaryActivity: null,
+                        activities: [],
+                        totalActivities: 0
+                    };
+                    
+                    // 只有当不是未来日期且有活动时才显示数据
+                    if (!isFutureDate && hourData.hasActivity) {
+                        cell.classList.add('has-activity');
+                        const color = getActivityColor(hourData.primaryActivity, hourData);
+                        cell.style.backgroundColor = color;
+                        // 根据活动强度调整透明度
+                        const intensity = Math.min(hourData.totalActivities / 5, 1); // 最大5个活动为满强度
+                        const opacity = 0.3 + (intensity * 0.7); // 0.3-1.0的透明度范围
+                        cell.style.opacity = opacity;
+                        
+                        // 调试信息：记录设置了样式的单元格 (已注释以减少日志)
+                        // if (dayIndex === 0 && hour < 12) { // 只记录周一上午的前几个小时避免日志过多
+                        //     console.log(`🎨 Styling cell [${dayLabels[dayIndex]}, ${hour}:00]:`, {
+                        //         primaryActivity: hourData.primaryActivity,
+                        //         totalActivities: hourData.totalActivities,
+                        //         color: color,
+                        //         opacity: opacity,
+                        //         activities: hourData.activities
+                        //     });
+                        // }
+                    }
+                    
+                    // 为未来日期添加特殊样式（可选）
+                    if (isFutureDate) {
+                        cell.style.opacity = '0.3';
+                        cell.style.backgroundColor = '#f8f9fa';
+                    }
+                    
+                    // 添加鼠标悬停效果和工具提示
+                    const currentDayLabel = dayLabels[dayIndex];
+                    cell.addEventListener('mouseenter', (e) => showHeatmapTooltip(e, currentDayLabel, hour, hourData, isFutureDate));
+                    cell.addEventListener('mouseleave', hideHeatmapTooltip);
+                    
+                    heatmapGrid.appendChild(cell);
+                }
+            }
+            
+            console.log('Activity heatmap created successfully');
+        }
+        
+        // 创建空白单元格
+        function createEmptyCell() {
+            const cell = document.createElement('div');
+            cell.className = 'heatmap-day-label';
+            cell.style.background = 'transparent';
+            return cell;
+        }
+        
+        // 从数据库获取热力图数据
+        function getHeatmapDataFromDB() {
+            console.log('🔍 Fetching heatmap data from database...');
+            console.log('📊 reportData:', reportData);
+            
+            // 尝试从reportData中获取热力图数据
+            if (reportData && reportData.weekly && reportData.weekly.heatmapData) {
+                console.log('✅ Using real heatmap data from database');
+                console.log('📅 Raw heatmap data length:', reportData.weekly.heatmapData.length);
+                console.log('📄 Sample heatmap events:', reportData.weekly.heatmapData.slice(0, 5));
+                return processHeatmapData(reportData.weekly.heatmapData);
+            }
+            
+            // 如果没有真实数据，使用模拟数据
+            console.log('⚠️ No real heatmap data available, using simulated data');
+            console.log('🔧 reportData structure check:');
+            console.log('  - reportData exists:', !!reportData);
+            console.log('  - reportData.weekly exists:', !!(reportData && reportData.weekly));
+            console.log('  - reportData.weekly.heatmapData exists:', !!(reportData && reportData.weekly && reportData.weekly.heatmapData));
+            return generateSimulatedHeatmapData();
+        }
+        
+        // 处理从数据库获取的热力图数据（按天统计格式）
+        function processHeatmapData(rawData) {
+            console.log('🔄 Processing heatmap data, total daily records:', rawData.length);
+            console.log('📋 Sample daily record:', rawData[0]);
+            
+            const weekData = [];
+            let totalProcessedActivities = 0;
+            
+            // 初始化7天x24小时的数据结构
+            for (let day = 0; day < 7; day++) {
+                const dayData = [];
+                
+                // 查找对应天的数据记录
+                const dayRecord = rawData.find(record => record.dayOffset === day);
+                
+                for (let hour = 0; hour < 24; hour++) {
+                    const hourData = {
+                        hasActivity: false,
+                        primaryActivity: null,
+                        activities: [],
+                        totalActivities: 0
+                    };
+                    
+                    // 如果找到该天的记录，查找该小时的活动
+                    if (dayRecord && dayRecord.activities && dayRecord.activities[`hour_${hour}`]) {
+                        const hourActivity = dayRecord.activities[`hour_${hour}`];
+                        
+                        hourData.hasActivity = true;
+                        hourData.primaryActivity = hourActivity.primaryActivity;
+                        hourData.totalActivities = hourActivity.totalActivities;
+                        
+                        // 转换activities格式
+                        Object.entries(hourActivity.activities).forEach(([type, count]) => {
+                            hourData.activities.push({ type, count });
+                        });
+                        
+                        totalProcessedActivities += hourActivity.totalActivities;
+                        
+                        console.log(`📊 Found activities for day ${day}, hour ${hour}: ${hourActivity.totalActivities} total, primary: ${hourActivity.primaryActivity}`);
+                    }
+                    
+                    dayData.push(hourData);
+                }
+                weekData.push(dayData);
+            }
+            
+            console.log(`✅ Processed ${totalProcessedActivities} activities total from daily records`);
+            console.log('📈 Final week data structure:', weekData);
+            return weekData;
+        }
+        
+        // 生成模拟热力图数据（当数据库数据不可用时）
+        function generateSimulatedHeatmapData() {
+            console.log('🎭 Generating simulated heatmap data...');
+            const weekData = [];
+            let simulatedActivities = 0;
+            
+            for (let day = 0; day < 7; day++) {
+                const dayData = [];
+                for (let hour = 0; hour < 24; hour++) {
+                    const hourData = {
+                        hasActivity: false,
+                        primaryActivity: null,
+                        activities: [],
+                        totalActivities: 0
+                    };
+                    
+                    // 模拟工作时间的活动数据
+                    if (hour >= 9 && hour <= 18 && day < 5) { // 工作日9-18点
+                        const rand = Math.random();
+                        if (rand > 0.3) { // 70%概率有活动
+                            hourData.hasActivity = true;
+                            const activityCount = Math.floor(Math.random() * 3) + 1;
+                            hourData.totalActivities = activityCount;
+                            simulatedActivities += activityCount;
+                            
+                            if (rand > 0.8) {
+                                hourData.primaryActivity = 'interruption';
+                                hourData.activities.push({ type: 'interruption', count: activityCount });
+                            } else if (rand > 0.6) {
+                                hourData.primaryActivity = 'cancelled';
+                                hourData.activities.push({ type: 'cancelled', count: activityCount });
+                            } else if (rand > 0.4) {
+                                hourData.primaryActivity = 'break';
+                                hourData.activities.push({ type: 'break', count: activityCount });
+                            } else {
+                                hourData.primaryActivity = 'pomodoro';
+                                hourData.activities.push({ type: 'pomodoro', count: activityCount });
+                            }
+                            
+                            // console.log(`🎯 Simulated activity: ${hourData.primaryActivity} on day ${day}, hour ${hour}`);
+                        }
+                    }
+                    
+                    dayData.push(hourData);
+                }
+                weekData.push(dayData);
+            }
+            
+            console.log(`🎭 Generated ${simulatedActivities} simulated activities total`);
+            return weekData;
+        }
+        
+        // 根据活动类型获取颜色
+        function getActivityColor(activityType, hourData = null) {
+            // 如果是番茄钟，需要判断是否带休息
+            if (activityType === 'pomodoro' && hourData) {
+                // 检查同一小时内是否有休息活动
+                const hasBreak = hourData.activities.some(activity => 
+                    activity.type === 'break' && activity.count > 0
+                );
+                
+                if (hasBreak) {
+                    // 带休息的番茄钟：淡红色
+                    return '#ff9fb3'; // 淡红色
+                } else {
+                    // 不带休息的番茄钟：浓红色
+                    return '#d12a5b'; // 浓红色
+                }
+            }
+            
+            const colors = {
+                'pomodoro': '#ed347c', // 默认番茄钟颜色（备用）
+                'break': '#b2fd00',
+                'interruption': '#04f6d1',
+                'cancelled': '#cc66ff'
+            };
+            return colors[activityType] || '#ffffff';
+        }
+        
+        // 显示工具提示
+        function showHeatmapTooltip(event, dayLabel, hour, hourData, isFutureDate = false) {
+            const tooltip = document.createElement('div');
+            tooltip.className = 'heatmap-tooltip';
+            
+            let content = `${dayLabel} ${hour.toString().padStart(2, '0')}:00`;
+            
+            if (isFutureDate) {
+                content += `<br>未来时间`;
+            } else if (hourData.hasActivity) {
+                content += `<br>`;
+                hourData.activities.forEach(activity => {
+                    const activityNames = {
+                        'pomodoro': '番茄钟',
+                        'break': '休息',
+                        'interruption': '中断',
+                        'cancelled': '取消休息'
+                    };
+                    content += `${activityNames[activity.type]}: ${activity.count}次<br>`;
+                });
+                
+                // 如果主要活动是番茄钟，显示是否带休息
+                if (hourData.primaryActivity === 'pomodoro') {
+                    const hasBreak = hourData.activities.some(activity => 
+                        activity.type === 'break' && activity.count > 0
+                    );
+                    content += `<span style="font-size: 10px; color: #666;">${hasBreak ? '(带休息)' : '(无休息)'}</span>`;
+                }
+            } else {
+                content += `<br>无活动`;
+            }
+            
+            tooltip.innerHTML = content;
+            tooltip.style.left = event.pageX + 10 + 'px';
+            tooltip.style.top = event.pageY - 10 + 'px';
+            
+            document.body.appendChild(tooltip);
+        }
+        
+        // 隐藏工具提示
+        function hideHeatmapTooltip() {
+            const tooltips = document.querySelectorAll('.heatmap-tooltip');
+            tooltips.forEach(tooltip => tooltip.remove());
+        }
+        
+        // 显示计算详情
+        function showCalculationDetails() {
+            console.log('Showing calculation details...');
+            const daily = reportData.daily;
+            
+            if (!daily) {
+                console.warn('No daily data available for calculation details');
+                return;
+            }
+            
+            // 显示休息充足度计算过程
+            showRestCalculation(daily);
+            
+            // 显示工作强度计算过程
+            showWorkIntensityCalculation(daily);
+            
+            // 显示专注度计算过程
+            showFocusCalculation(daily);
+            
+            // 显示健康度计算过程
+            showHealthCalculation(daily);
+        }
+        
+        // 休息充足度计算过程
+        function showRestCalculation(daily) {
+            const container = document.querySelector('#restCalculationProcess .process-steps');
+            if (!container) return;
+            
+            const completedPomodoros = daily.completedPomodoros || 0;
+            const totalBreakTime = daily.totalBreakTime || 0;
+            const expectedBreakTime = completedPomodoros * 5 * 60; // 5分钟 * 60秒
+            const actualBreakRatio = expectedBreakTime > 0 ? totalBreakTime / expectedBreakTime : 0;
+            const finalScore = Math.min(actualBreakRatio, 1.0) * 100;
+            
+            container.innerHTML = `
+                <div class="process-step">
+                    <span class="step-label">完成番茄钟数：</span>
+                    <span class="step-value">${completedPomodoros} 个</span>
+                </div>
+                <div class="process-step">
+                    <span class="step-label">实际休息时间：</span>
+                    <span class="step-value">${Math.round(totalBreakTime / 60)} 分钟</span>
+                </div>
+                <div class="process-step">
+                    <span class="step-label">期望休息时间：</span>
+                    <span class="step-value">${Math.round(expectedBreakTime / 60)} 分钟 (${completedPomodoros} × 5分钟)</span>
+                </div>
+                <div class="process-step">
+                    <span class="step-label">休息时间比例：</span>
+                    <span class="step-value">${(actualBreakRatio * 100).toFixed(1)}%</span>
+                </div>
+                <div class="final-result">
+                    最终得分：${Math.round(finalScore)} 分
+                </div>
+            `;
+        }
+        
+        // 工作强度计算过程
+        function showWorkIntensityCalculation(daily) {
+            const container = document.querySelector('#workCalculationProcess .process-steps');
+            if (!container) return;
+            
+            const completedPomodoros = daily.completedPomodoros || 0;
+            const totalWorkTime = daily.totalWorkTime || 0;
+            const totalBreakTime = daily.totalBreakTime || 0;
+            const cancelledBreakCount = daily.cancelledBreakCount || 0;
+            
+            // 番茄钟评分 (50分)
+            const idealPomodoros = 8.0;
+            const pomodoroScore = Math.min(completedPomodoros / idealPomodoros, 1.0) * 50;
+            
+            // 休息平衡评分 (30分)
+            const workBreakRatio = totalWorkTime > 0 ? totalBreakTime / totalWorkTime : 0;
+            const idealBreakRatio = 0.25;
+            const breakScore = Math.min(workBreakRatio / idealBreakRatio, 1.0) * 30;
+            
+            // 一致性评分 (20分)
+            const consistencyScore = cancelledBreakCount === 0 ? 20.0 : Math.max(0, 20 - cancelledBreakCount * 5);
+            
+            const finalScore = pomodoroScore + breakScore + consistencyScore;
+            
+            container.innerHTML = `
+                <div class="process-step">
+                    <span class="step-label">番茄钟评分：</span>
+                    <span class="step-value">${pomodoroScore.toFixed(1)} 分 (${completedPomodoros}/8 × 50)</span>
+                </div>
+                <div class="process-step">
+                    <span class="step-label">工作休息比例：</span>
+                    <span class="step-value">${(workBreakRatio * 100).toFixed(1)}% (理想25%)</span>
+                </div>
+                <div class="process-step">
+                    <span class="step-label">休息平衡评分：</span>
+                    <span class="step-value">${breakScore.toFixed(1)} 分</span>
+                </div>
+                <div class="process-step">
+                    <span class="step-label">一致性评分：</span>
+                    <span class="step-value">${consistencyScore.toFixed(1)} 分 (取消休息${cancelledBreakCount}次)</span>
+                </div>
+                <div class="final-result">
+                    最终得分：${Math.round(finalScore)} 分
+                </div>
+            `;
+        }
+        
+        // 专注度计算过程
+        function showFocusCalculation(daily) {
+            const container = document.querySelector('#focusCalculationProcess .process-steps');
+            if (!container) return;
+            
+            const completedPomodoros = daily.completedPomodoros || 0;
+            const cancelledBreakCount = daily.cancelledBreakCount || 0;
+            const screenLockCount = daily.screenLockCount || 0;
+            
+            const baseScore = completedPomodoros * 10;
+            const interruptionPenalty = (cancelledBreakCount + screenLockCount) * 5;
+            const finalScore = Math.max(0, Math.min(100, baseScore - interruptionPenalty));
+            
+            container.innerHTML = `
+                <div class="process-step">
+                    <span class="step-label">基础得分：</span>
+                    <span class="step-value">${baseScore} 分 (${completedPomodoros} × 10)</span>
+                </div>
+                <div class="process-step">
+                    <span class="step-label">取消休息次数：</span>
+                    <span class="step-value">${cancelledBreakCount} 次</span>
+                </div>
+                <div class="process-step">
+                    <span class="step-label">息屏次数：</span>
+                    <span class="step-value">${screenLockCount} 次</span>
+                </div>
+                <div class="process-step">
+                    <span class="step-label">中断惩罚：</span>
+                    <span class="step-value">-${interruptionPenalty} 分 ((${cancelledBreakCount} + ${screenLockCount}) × 5)</span>
+                </div>
+                <div class="final-result">
+                    最终得分：${Math.round(finalScore)} 分
+                </div>
+            `;
+        }
+        
+        // 健康度计算过程
+        function showHealthCalculation(daily) {
+            const container = document.querySelector('#healthCalculationProcess .process-steps');
+            if (!container) return;
+            
+            const completedPomodoros = daily.completedPomodoros || 0;
+            const totalWorkTime = daily.totalWorkTime || 0;
+            const stayUpLateCount = daily.stayUpLateCount || 0;
+            const cancelledBreakCount = daily.cancelledBreakCount || 0;
+            
+            // 如果没有任何活动，返回较低的基础分数
+            if (completedPomodoros === 0 && totalWorkTime === 0) {
+                container.innerHTML = `
+                    <div class="process-step">
+                        <span class="step-label">活动状态：</span>
+                        <span class="step-value">无工作记录</span>
+                    </div>
+                    <div class="final-result">
+                        基础得分：20 分
+                    </div>
+                `;
+                return;
+            }
+            
+            let score = 100.0;
+            const stayUpPenalty = stayUpLateCount * 20;
+            const breakPenalty = cancelledBreakCount * 5;
+            const overtimePenalty = totalWorkTime > 8 * 60 * 60 ? 20 : 0;
+            
+            score -= stayUpPenalty;
+            score -= breakPenalty;
+            score -= overtimePenalty;
+            
+            const finalScore = Math.max(0, score);
+            
+            container.innerHTML = `
+                <div class="process-step">
+                    <span class="step-label">基础分数：</span>
+                    <span class="step-value">100 分</span>
+                </div>
+                <div class="process-step">
+                    <span class="step-label">熬夜扣分：</span>
+                    <span class="step-value">-${stayUpPenalty} 分 (${stayUpLateCount} × 20)</span>
+                </div>
+                <div class="process-step">
+                    <span class="step-label">取消休息扣分：</span>
+                    <span class="step-value">-${breakPenalty} 分 (${cancelledBreakCount} × 5)</span>
+                </div>
+                <div class="process-step">
+                    <span class="step-label">过劳扣分：</span>
+                    <span class="step-value">-${overtimePenalty} 分 ${totalWorkTime > 8 * 60 * 60 ? '(工作超过8小时)' : '(工作未超时)'}</span>
+                </div>
+                <div class="final-result">
+                    最终得分：${Math.round(finalScore)} 分
+                </div>
+            `;
+        }
+        
+        // 显示建议
+        function showRecommendations() {
+            console.log('Showing recommendations...');
+            const recommendations = generateRecommendations();
+            console.log('Generated recommendations:', recommendations);
+            
+            const container = document.getElementById('recommendationsList');
+            if (!container) {
+                console.error('Recommendations container not found');
+                return;
+            }
+            
+            // 清空现有内容，防止重复添加
+            container.innerHTML = '';
+            
+            if (recommendations.length === 0) {
+                console.warn('No recommendations generated');
+                return;
+            }
+            
+            recommendations.forEach(recommendation => {
+                const item = document.createElement('div');
+                // 根据建议类型直接分配对应的颜色类
+                const typeClassMap = {
+                    'work': 'rec-work',
+                    'rest': 'rec-rest', 
+                    'focus': 'rec-focus',
+                    'health': 'rec-health'
+                };
+                const typeClass = typeClassMap[recommendation.type] || 'rec-health';
+                item.className = 'recommendation-item ' + typeClass;
+                item.textContent = recommendation.text;
+                container.appendChild(item);
+            });
+            
+            console.log('Recommendations displayed successfully');
+        }
+        
+        // 生成建议（带类型信息）
+        function generateRecommendations() {
+            const daily = reportData.daily;
+            const recommendations = [];
+            
+            console.log('Generating recommendations for daily data:', daily);
+            
+            if (!daily) {
+                console.warn('No daily data available for recommendations');
+                return [
+                    { text: '📊 欢迎使用番茄钟工作报告！', type: 'health' },
+                    { text: '🍅 开始使用番茄钟来记录您的工作数据', type: 'work' }
+                ];
+            }
+            
+            if (daily.workIntensityScore < 50) {
+                recommendations.push({ text: '💪 建议增加番茄钟数量，提高工作效率', type: 'work' });
+            }
+            
+            if (daily.restAdequacyScore < 60) {
+                recommendations.push({ text: '☕ 休息时间不足，建议严格执行休息计划', type: 'rest' });
+            }
+            
+            if (daily.cancelledBreakCount > 2) {
+                recommendations.push({ text: '🎯 频繁取消休息会影响专注度，建议坚持休息', type: 'focus' });
+            }
+            
+            if (daily.stayUpLateCount > 0) {
+                recommendations.push({ text: '🌙 检测到熬夜行为，建议调整作息时间', type: 'health' });
+            }
+            
+            if (daily.healthScore >= 80) {
+                recommendations.push({ text: '🎉 今日工作状态良好，继续保持！', type: 'health' });
+            }
+            
+            if (daily.focusScore >= 80) {
+                recommendations.push({ text: '🏆 专注度很高，工作效率优秀！', type: 'focus' });
+            }
+            
+            if (recommendations.length === 0) {
+                if (daily.completedPomodoros === 0) {
+                    recommendations.push({ text: '🚀 开始您的第一个番茄钟，建立高效工作习惯！', type: 'work' });
+                    recommendations.push({ text: '⏰ 建议设置25分钟专注工作，5分钟休息的节奏', type: 'rest' });
+                } else {
+                    recommendations.push({ text: '👍 工作状态正常，继续保持良好的工作节奏', type: 'health' });
+                }
+            }
+            
+            console.log('Generated recommendations:', recommendations);
+            return recommendations;
+        }
+        
+        // 折叠/展开评分计算详情
+        function toggleCalculationDetails() {
+            const section = document.getElementById('calculationSection');
+            const triggerLink = document.getElementById('calculationTriggerLink');
+            const triggerIcon = document.getElementById('calculationTriggerIcon');
+            
+            if (section.style.display === 'none') {
+                // 显示详情
+                section.style.display = 'block';
+                triggerLink.innerHTML = '📊 隐藏评分计算详情 <span class="trigger-icon rotated" id="calculationTriggerIcon">▼</span>';
+                
+                // 平滑滚动到详情区域
+                setTimeout(() => {
+                    section.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start' 
+                    });
+                }, 100);
+            } else {
+                // 隐藏详情
+                section.style.display = 'none';
+                triggerLink.innerHTML = '📊 查看评分计算详情 <span class="trigger-icon" id="calculationTriggerIcon">▼</span>';
+            }
+        }
+        
+        // 数据检查函数
+        function checkReportDataStructure() {
+            console.log('🔍 === REPORT DATA STRUCTURE CHECK ===');
+            console.log('📊 Full reportData:', reportData);
+            
+            if (reportData) {
+                console.log('✅ reportData exists');
+                console.log('📅 Daily data keys:', Object.keys(reportData.daily || {}));
+                console.log('📈 Weekly data keys:', Object.keys(reportData.weekly || {}));
+                
+                if (reportData.weekly && reportData.weekly.heatmapData) {
+                    console.log('🔥 Heatmap data exists!');
+                    console.log('📊 Heatmap data length:', reportData.weekly.heatmapData.length);
+                    console.log('📄 Sample heatmap data:', reportData.weekly.heatmapData.slice(0, 3));
+                } else {
+                    console.log('❌ No heatmap data found');
+                    console.log('🔧 Weekly structure:', reportData.weekly);
+                }
+            } else {
+                console.log('❌ No reportData available');
+            }
+            console.log('🔍 === END DATA STRUCTURE CHECK ===');
+        }
+        
+        // 计算本周开始日期（周一为一周的开始）
+        function getWeekStartDate(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1); // 调整为周一开始
+            return new Date(d.setDate(diff));
+        }
+        
+        // 计算应该显示多少天（从本周开始到今天）
+        function getDaysToShow(weekStart, today) {
+            const diffTime = today.getTime() - weekStart.getTime();
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 包含今天
+            return Math.min(Math.max(diffDays, 1), 7); // 至少显示1天，最多7天
+        }
+        
+        // 检查两个日期是否为同一天
+        function isSameDay(date1, date2) {
+            return date1.getFullYear() === date2.getFullYear() &&
+                   date1.getMonth() === date2.getMonth() &&
+                   date1.getDate() === date2.getDate();
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, starting initialization...');
+            
+            // 先检查数据结构
+            checkReportDataStructure();
+            
+            // 然后初始化报告
+            initializeReport();
+        });
+        
+        // 如果Chart.js加载失败，提供备用初始化
+        window.addEventListener('load', function() {
+            console.log('Window loaded');
+            if (!reportInitialized) {
+                console.log('Report not initialized yet, retrying...');
+                setTimeout(initializeReport, 1000);
+            }
+        });
+    </script>
+</body>
+</html>
+
+

@@ -33,6 +33,15 @@ struct StatisticsEvent {
         self.duration = duration
         self.metadata = metadata
     }
+    
+    // 用于从数据库恢复事件的初始化方法
+    init(id: String, eventType: StatisticsEventType, timestamp: Date, duration: TimeInterval? = nil, metadata: [String: Any]? = nil) {
+        self.id = id
+        self.eventType = eventType
+        self.timestamp = timestamp
+        self.duration = duration
+        self.metadata = metadata
+    }
 }
 
 // MARK: - 日统计数据
@@ -217,7 +226,8 @@ struct ReportData {
                         "workIntensity": stat.workIntensityScore,
                         "healthScore": stat.healthScore
                     ]
-                }
+                },
+                "heatmapData": generateHeatmapData(from: recentEvents, weekStart: weeklyStats.weekStartDate)
             ],
             "configuration": [
                 "includeCharts": configuration.includeCharts,
@@ -234,5 +244,91 @@ struct ReportData {
             print("❌ 报告数据序列化失败: \(error)")
             return nil
         }
+    }
+    
+    /// 生成热力图数据（按天统计）
+    private func generateHeatmapData(from events: [StatisticsEvent], weekStart: Date) -> [[String: Any]] {
+        let calendar = Calendar.current
+        let weekEnd = calendar.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
+        
+        // 筛选本周的事件
+        let weekEvents = events.filter { event in
+            return event.timestamp >= weekStart && event.timestamp < weekEnd
+        }
+        
+        // 按天和小时分组统计事件
+        var dailyHourlyStats: [String: [String: [String: Int]]] = [:]
+        
+        for event in weekEvents {
+            let dayKey = DateFormatter.dateKey.string(from: event.timestamp)
+            let hour = calendar.component(.hour, from: event.timestamp)
+            let hourKey = String(hour)
+            
+            var activityType: String
+            switch event.eventType {
+            case .pomodoroCompleted:
+                activityType = "pomodoro"
+            case .shortBreakStarted, .longBreakStarted:
+                activityType = "break"
+            case .breakCancelled:
+                activityType = "cancelled"
+            case .screenLocked, .screensaverActivated:
+                activityType = "interruption"
+            case .stayUpLateTriggered:
+                activityType = "interruption"
+            }
+            
+            // 初始化嵌套字典结构
+            if dailyHourlyStats[dayKey] == nil {
+                dailyHourlyStats[dayKey] = [:]
+            }
+            if dailyHourlyStats[dayKey]![hourKey] == nil {
+                dailyHourlyStats[dayKey]![hourKey] = [:]
+            }
+            
+            // 统计每种活动类型的数量
+            dailyHourlyStats[dayKey]![hourKey]![activityType] = (dailyHourlyStats[dayKey]![hourKey]![activityType] ?? 0) + 1
+        }
+        
+        // 生成本周每天的热力图数据
+        var heatmapData: [[String: Any]] = []
+        
+        for dayOffset in 0..<7 {
+            guard let currentDate = calendar.date(byAdding: .day, value: dayOffset, to: weekStart) else { continue }
+            let dayKey = DateFormatter.dateKey.string(from: currentDate)
+            
+            // 为每一天生成24小时的数据
+            var dailyActivities: [String: Any] = [:]
+            
+            for hour in 0..<24 {
+                let hourKey = String(hour)
+                let hourTimestamp = calendar.date(bySettingHour: hour, minute: 0, second: 0, of: currentDate) ?? currentDate
+                
+                if let hourStats = dailyHourlyStats[dayKey]?[hourKey] {
+                    // 找到主要活动类型（数量最多的）
+                    let primaryActivity = hourStats.max { $0.value < $1.value }?.key ?? "pomodoro"
+                    let totalActivities = hourStats.values.reduce(0, +)
+                    
+                    dailyActivities["hour_\(hour)"] = [
+                        "timestamp": ISO8601DateFormatter().string(from: hourTimestamp),
+                        "hour": hour,
+                        "primaryActivity": primaryActivity,
+                        "totalActivities": totalActivities,
+                        "activities": hourStats
+                    ]
+                }
+            }
+            
+            // 只有当天有活动时才添加到热力图数据中
+            if !dailyActivities.isEmpty {
+                heatmapData.append([
+                    "date": dayKey,
+                    "dayOffset": dayOffset,
+                    "activities": dailyActivities
+                ])
+            }
+        }
+        
+        return heatmapData
     }
 }

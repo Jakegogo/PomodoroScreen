@@ -24,7 +24,6 @@
 		23F4A38E2E842FE100B71AA7 /* ScreenDetectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23F4A38D2E842FE100B71AA7 /* ScreenDetectionManager.swift */; };
 		23MS5DPE2E864ABA00691DCC /* MultiScreenOverlayManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23MS5DPD2E864ABA00691DCC /* MultiScreenOverlayManager.swift */; };
 		23SC5DPE2E864ABA00691DCC /* ShutdownConfirmationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23SC5DPD2E864ABA00691DCC /* ShutdownConfirmationWindow.swift */; };
-		23SI5DPE2E864ABA00691DCC /* ShutdownIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23SI5DPD2E864ABA00691DCC /* ShutdownIntegrationTests.swift */; };
 		A1234567890ABCDEF001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF002 /* AppDelegate.swift */; };
 		A1234567890ABCDEF003 /* PomodoroTimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF004 /* PomodoroTimer.swift */; };
 		A1234567890ABCDEF005 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF006 /* StatusBarController.swift */; };
@@ -34,6 +33,7 @@
 		A1234567890ABCDEF015 /* SettingsWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF016 /* SettingsWindow.swift */; };
 		FDF3445FA03D44929CE879D5 /* LaunchAtLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F523799673D4942B090EFE3 /* LaunchAtLogin.swift */; };
 		HR1234567890ABCDEF001 /* HealthRingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1234567890ABCDEF002 /* HealthRingsView.swift */; };
+		HTML1234567890ABCDEF01 /* report.html in Resources */ = {isa = PBXBuildFile; fileRef = HTML1234567890ABCDEF02 /* report.html */; };
 		JS1234567890ABCDEF001 /* chart.js in Resources */ = {isa = PBXBuildFile; fileRef = JS1234567890ABCDEF002 /* chart.js */; };
 		PW1234567890ABCDEF001 /* StatusBarPopupWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = PW1234567890ABCDEF002 /* StatusBarPopupWindow.swift */; };
 		ST1234567890ABCDEF001 /* StatisticsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST1234567890ABCDEF002 /* StatisticsModels.swift */; };
@@ -71,7 +71,6 @@
 		23F4A38D2E842FE100B71AA7 /* ScreenDetectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenDetectionManager.swift; sourceTree = "<group>"; };
 		23MS5DPD2E864ABA00691DCC /* MultiScreenOverlayManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiScreenOverlayManager.swift; sourceTree = "<group>"; };
 		23SC5DPD2E864ABA00691DCC /* ShutdownConfirmationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShutdownConfirmationWindow.swift; sourceTree = "<group>"; };
-		23SI5DPD2E864ABA00691DCC /* ShutdownIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShutdownIntegrationTests.swift; sourceTree = "<group>"; };
 		5F523799673D4942B090EFE3 /* LaunchAtLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLogin.swift; sourceTree = "<group>"; };
 		A1234567890ABCDEF000 /* PomodoroScreen.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PomodoroScreen.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1234567890ABCDEF002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -84,6 +83,7 @@
 		A1234567890ABCDEF010 /* PomodoroScreen.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PomodoroScreen.entitlements; sourceTree = "<group>"; };
 		A1234567890ABCDEF016 /* SettingsWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindow.swift; sourceTree = "<group>"; };
 		HR1234567890ABCDEF002 /* HealthRingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthRingsView.swift; sourceTree = "<group>"; };
+		HTML1234567890ABCDEF02 /* report.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = report.html; sourceTree = "<group>"; };
 		JS1234567890ABCDEF002 /* chart.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = chart.js; sourceTree = "<group>"; };
 		PW1234567890ABCDEF002 /* StatusBarPopupWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarPopupWindow.swift; sourceTree = "<group>"; };
 		ST1234567890ABCDEF002 /* StatisticsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsModels.swift; sourceTree = "<group>"; };
@@ -225,6 +225,7 @@
 			isa = PBXGroup;
 			children = (
 				JS1234567890ABCDEF002 /* chart.js */,
+				HTML1234567890ABCDEF02 /* report.html */,
 			);
 			path = js;
 			sourceTree = "<group>";
@@ -327,6 +328,7 @@
 				23249BA62E82662F00F45D58 /* icon_video.mp4 in Resources */,
 				A1234567890ABCDEF00B /* MainMenu.xib in Resources */,
 				JS1234567890ABCDEF001 /* chart.js in Resources */,
+				HTML1234567890ABCDEF01 /* report.html in Resources */,
 				23D3CD282E879D1000E45C03 /* rest_video_dark.mp4 in Resources */,
 				23D3CD292E879D1000E45C03 /* rest_video_light.mp4 in Resources */,
 				23D3CD2D2E879D1800E45C03 /* rest_image_light.png in Resources */,

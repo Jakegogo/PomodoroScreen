@@ -148,18 +148,25 @@ class StatisticsManager {
         return database.getRecentEvents(limit: limit)
     }
     
+    /// 获取指定周的所有事件
+    func getWeekEvents(for weekStartDate: Date) -> [StatisticsEvent] {
+        let calendar = Calendar.current
+        let weekEndDate = calendar.date(byAdding: .day, value: 7, to: weekStartDate) ?? weekStartDate
+        return database.getEvents(from: weekStartDate, to: weekEndDate)
+    }
+    
     // MARK: - 报告生成
     
     /// 生成今日报告数据
     func generateTodayReport(configuration: ReportConfiguration = ReportConfiguration()) -> ReportData {
         let dailyStats = getTodayStatistics()
         let weeklyStats = getThisWeekStatistics()
-        let recentEvents = getRecentEvents(limit: 20)
+        let weekEvents = getWeekEvents(for: weeklyStats.weekStartDate)
         
         return ReportData(
             dailyStats: dailyStats,
             weeklyStats: weeklyStats,
-            recentEvents: recentEvents,
+            recentEvents: weekEvents,
             configuration: configuration
         )
     }

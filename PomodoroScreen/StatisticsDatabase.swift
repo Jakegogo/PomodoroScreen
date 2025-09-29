@@ -132,8 +132,8 @@ class StatisticsDatabase {
         var statement: OpaquePointer?
         
         if sqlite3_prepare_v2(db, insertSQL, -1, &statement, nil) == SQLITE_OK {
-            sqlite3_bind_text(statement, 1, event.id, -1, nil)
-            sqlite3_bind_text(statement, 2, event.eventType.rawValue, -1, nil)
+            sqlite3_bind_text(statement, 1, event.id, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self))
+            sqlite3_bind_text(statement, 2, event.eventType.rawValue, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self))
             sqlite3_bind_int64(statement, 3, Int64(event.timestamp.timeIntervalSince1970))
             
             if let duration = event.duration {
@@ -146,7 +146,7 @@ class StatisticsDatabase {
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: metadata)
                     let jsonString = String(data: jsonData, encoding: .utf8)
-                    sqlite3_bind_text(statement, 5, jsonString, -1, nil)
+                    sqlite3_bind_text(statement, 5, jsonString, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self))
                 } catch {
                     sqlite3_bind_null(statement, 5)
                 }
@@ -235,7 +235,8 @@ class StatisticsDatabase {
         var statement: OpaquePointer?
         
         if sqlite3_prepare_v2(db, upsertSQL, -1, &statement, nil) == SQLITE_OK {
-            sqlite3_bind_text(statement, 1, dateString, -1, nil)
+            // 使用SQLITE_TRANSIENT确保字符串被正确复制
+            sqlite3_bind_text(statement, 1, dateString, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self))
             sqlite3_bind_int(statement, 2, Int32(stats.completedPomodoros))
             sqlite3_bind_double(statement, 3, stats.totalWorkTime)
             sqlite3_bind_int(statement, 4, Int32(stats.shortBreakCount))
@@ -281,7 +282,7 @@ class StatisticsDatabase {
         var result: DailyStatistics?
         
         if sqlite3_prepare_v2(db, selectSQL, -1, &statement, nil) == SQLITE_OK {
-            sqlite3_bind_text(statement, 1, dateString, -1, nil)
+            sqlite3_bind_text(statement, 1, dateString, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self))
             
             if sqlite3_step(statement) == SQLITE_ROW {
                 result = parseDailyStatistics(from: statement!)
@@ -335,6 +336,35 @@ class StatisticsDatabase {
         return events
     }
     
+    func getEvents(from startDate: Date, to endDate: Date) -> [StatisticsEvent] {
+        let selectSQL = """
+            SELECT * FROM statistics_events 
+            WHERE timestamp >= ? AND timestamp < ?
+            ORDER BY timestamp DESC;
+        """
+        
+        var statement: OpaquePointer?
+        var events: [StatisticsEvent] = []
+        
+        if sqlite3_prepare_v2(db, selectSQL, -1, &statement, nil) == SQLITE_OK {
+            sqlite3_bind_int64(statement, 1, Int64(startDate.timeIntervalSince1970))
+            sqlite3_bind_int64(statement, 2, Int64(endDate.timeIntervalSince1970))
+            
+            while sqlite3_step(statement) == SQLITE_ROW {
+                if let event = parseStatisticsEvent(from: statement!) {
+                    events.append(event)
+                }
+            }
+        } else {
+            let errmsg = String(cString: sqlite3_errmsg(db)!)
+            print("❌ 查询周事件失败: \(errmsg)")
+        }
+        
+        sqlite3_finalize(statement)
+        print("📅 获取到本周事件数量: \(events.count)")
+        return events
+    }
+    
     // MARK: - 数据解析
     
     private func parseDailyStatistics(from statement: OpaquePointer) -> DailyStatistics {
@@ -385,10 +415,9 @@ class StatisticsDatabase {
             }
         }
         
-        // 创建事件对象（需要手动设置属性，因为init会生成新的ID和时间戳）
-        var event = StatisticsEvent(eventType: eventType, duration: duration, metadata: metadata)
-        // 这里我们需要修改StatisticsEvent结构来支持从数据库恢复
-        // 暂时返回新创建的事件
+        // 从数据库恢复事件对象，使用正确的ID和时间戳
+        let id = String(cString: sqlite3_column_text(statement, 0))
+        let event = StatisticsEvent(id: id, eventType: eventType, timestamp: timestamp, duration: duration, metadata: metadata)
         return event
     }
 }
@@ -399,6 +428,8 @@ extension DateFormatter {
     static let dateKey: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone.current
+        formatter.locale = Locale(identifier: "zh_CN")
         return formatter
     }()
 }
