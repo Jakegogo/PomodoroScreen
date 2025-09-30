@@ -27,6 +27,7 @@ class OnboardingWindow: NSWindow {
     
     // UI Components
     private var titleLabel: NSTextField!
+    private var appNameLabel: NSTextField!
     private var contentLabel: NSTextField!
     private var stepIndicator: NSStackView!
     private var imageView: NSImageView!
@@ -36,6 +37,7 @@ class OnboardingWindow: NSWindow {
     
     // Video Components
     private var videoContainerView: NSView!
+    private var cardView: NSView!
     private var player: AVPlayer?
     private var playerLayer: AVPlayerLayer?
     
@@ -46,7 +48,7 @@ class OnboardingWindow: NSWindow {
     }
     
     init() {
-        let windowSize = NSSize(width: 480, height: 360)
+        let windowSize = NSSize(width: 560, height: 680)
         let windowFrame = NSRect(
             x: (NSScreen.main?.frame.width ?? 1200 - windowSize.width) / 2,
             y: (NSScreen.main?.frame.height ?? 800 - windowSize.height) / 2,
@@ -84,55 +86,82 @@ class OnboardingWindow: NSWindow {
     private func setupUI() {
         guard let contentView = self.contentView else { return }
         
-        // 设置背景色
         contentView.wantsLayer = true
         contentView.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
         
-        setupTitleLabel(in: contentView)
-        setupImageView(in: contentView)
-        setupVideoContainer(in: contentView)
-        setupContentLabel(in: contentView)
-        setupProgressView(in: contentView)
-        setupStepIndicator(in: contentView)
-        setupButtons(in: contentView)
+        // 卡片容器（全屏充满，无外边距）
+        cardView = NSView(frame: NSRect(x: 0, y: 0, width: contentView.bounds.width, height: contentView.bounds.height))
+        cardView.autoresizingMask = [.width, .height]
+        cardView.wantsLayer = true
+        cardView.layer?.backgroundColor = NSColor.white.cgColor
+        cardView.layer?.cornerRadius = 0
+        // 去除阴影，贴边显示
+        cardView.layer?.shadowOpacity = 0
+        cardView.layer?.shadowRadius = 0
+        cardView.layer?.shadowOffset = .zero
+        contentView.addSubview(cardView)
+        
+        setupTitleLabels(in: cardView)
+        setupImageView(in: cardView)
+        setupVideoContainer(in: cardView)
+        setupContentLabel(in: cardView)
+        setupProgressView(in: cardView)
+        setupStepIndicator(in: cardView)
+        setupButtons(in: cardView)
     }
     
-    private func setupTitleLabel(in contentView: NSView) {
-        titleLabel = NSTextField(frame: NSRect(x: 40, y: 280, width: 400, height: 40))
+    private func setupTitleLabels(in container: NSView) {
+        // 欢迎标题
+        titleLabel = NSTextField(frame: NSRect(x: 24, y: container.bounds.height - 130, width: container.bounds.width - 48, height: 36))
+        titleLabel.autoresizingMask = [.minYMargin, .width]
         titleLabel.isEditable = false
         titleLabel.isSelectable = false
         titleLabel.isBordered = false
         titleLabel.backgroundColor = NSColor.clear
-        titleLabel.font = NSFont.systemFont(ofSize: 24, weight: .bold)
+        titleLabel.font = NSFont.systemFont(ofSize: 28, weight: .bold)
         titleLabel.textColor = NSColor.labelColor
         titleLabel.alignment = .center
-        contentView.addSubview(titleLabel)
+        container.addSubview(titleLabel)
+        
+        // 应用名标题
+        appNameLabel = NSTextField(frame: NSRect(x: 24, y: container.bounds.height - 170, width: container.bounds.width - 48, height: 44))
+        appNameLabel.autoresizingMask = [.minYMargin, .width]
+        appNameLabel.isEditable = false
+        appNameLabel.isSelectable = false
+        appNameLabel.isBordered = false
+        appNameLabel.backgroundColor = NSColor.clear
+        appNameLabel.font = NSFont.systemFont(ofSize: 34, weight: .heavy)
+        appNameLabel.textColor = NSColor.labelColor
+        appNameLabel.alignment = .center
+        container.addSubview(appNameLabel)
     }
     
     private func setupImageView(in contentView: NSView) {
-        imageView = NSImageView(frame: NSRect(x: 190, y: 180, width: 100, height: 80))
+        imageView = NSImageView(frame: NSRect(x: (contentView.bounds.width - 120)/2, y: contentView.bounds.height - 300, width: 120, height: 96))
+        imageView.autoresizingMask = [.minYMargin, .minXMargin, .maxXMargin]
         imageView.imageScaling = .scaleProportionallyUpOrDown
         contentView.addSubview(imageView)
     }
     
     private func setupVideoContainer(in contentView: NSView) {
-        videoContainerView = NSView(frame: NSRect(x: 190, y: 180, width: 100, height: 80))
+        videoContainerView = NSView(frame: NSRect(x: (contentView.bounds.width - 160)/2, y: contentView.bounds.height - 340, width: 160, height: 120))
         videoContainerView.wantsLayer = true
         videoContainerView.layer?.masksToBounds = true
         videoContainerView.layer?.cornerRadius = 8
-        videoContainerView.layer?.backgroundColor = NSColor.red.withAlphaComponent(0.3).cgColor // 添加红色背景用于调试
+        videoContainerView.layer?.backgroundColor = NSColor.clear.cgColor
         videoContainerView.isHidden = true // 默认隐藏，只在第一步显示
         contentView.addSubview(videoContainerView)
         print("视频容器已创建: \(videoContainerView.frame)")
     }
     
     private func setupContentLabel(in contentView: NSView) {
-        contentLabel = NSTextField(frame: NSRect(x: 40, y: 100, width: 400, height: 60))
+        contentLabel = NSTextField(frame: NSRect(x: 24, y: 240, width: contentView.bounds.width - 48, height: 66))
+        contentLabel.autoresizingMask = [.width]
         contentLabel.isEditable = false
         contentLabel.isSelectable = false
         contentLabel.isBordered = false
         contentLabel.backgroundColor = NSColor.clear
-        contentLabel.font = NSFont.systemFont(ofSize: 14)
+        contentLabel.font = NSFont.systemFont(ofSize: 15)
         contentLabel.textColor = NSColor.secondaryLabelColor
         contentLabel.alignment = .center
         contentLabel.maximumNumberOfLines = 3
@@ -140,7 +169,8 @@ class OnboardingWindow: NSWindow {
     }
     
     private func setupProgressView(in contentView: NSView) {
-        progressView = NSProgressIndicator(frame: NSRect(x: 40, y: 75, width: 400, height: 6))
+        progressView = NSProgressIndicator(frame: NSRect(x: 24, y: 200, width: contentView.bounds.width - 48, height: 8))
+        progressView.autoresizingMask = [.width]
         progressView.style = .bar
         progressView.isIndeterminate = false
         progressView.minValue = 0
@@ -149,32 +179,46 @@ class OnboardingWindow: NSWindow {
     }
     
     private func setupStepIndicator(in contentView: NSView) {
-        stepIndicator = NSStackView(frame: NSRect(x: 190, y: 45, width: 100, height: 20))
+        stepIndicator = NSStackView(frame: NSRect(x: (contentView.bounds.width - 120)/2, y: 175, width: 120, height: 20))
+        stepIndicator.autoresizingMask = [.minXMargin, .maxXMargin]
         stepIndicator.orientation = .horizontal
         stepIndicator.distribution = .fillEqually
         stepIndicator.spacing = 8
         
-        for _ in 0..<totalSteps {
-            let dot = NSView(frame: NSRect(x: 0, y: 0, width: 8, height: 8))
+        for i in 0..<totalSteps {
+            let dot = NSView(frame: NSRect(x: 0, y: 0, width: 12, height: 12))
             dot.wantsLayer = true
-            dot.layer?.cornerRadius = 4
-            dot.layer?.backgroundColor = NSColor.tertiaryLabelColor.cgColor
+            dot.layer?.cornerRadius = 6
+            dot.layer?.backgroundColor = NSColor.tertiaryLabelColor.withAlphaComponent(0.28).cgColor
+            dot.identifier = NSUserInterfaceItemIdentifier("step_\(i)")
+            let tap = NSClickGestureRecognizer(target: self, action: #selector(stepDotTapped(_:)))
+            dot.addGestureRecognizer(tap)
             stepIndicator.addArrangedSubview(dot)
         }
         
         contentView.addSubview(stepIndicator)
     }
+
+    @objc private func stepDotTapped(_ sender: NSClickGestureRecognizer) {
+        guard let id = sender.view?.identifier?.rawValue else { return }
+        guard let idxStr = id.split(separator: "_").last, let index = Int(idxStr) else { return }
+        guard index >= 0 && index < totalSteps else { return }
+        if index == currentStep { return }
+        currentStep = index
+        updateContent()
+    }
     
     private func setupButtons(in contentView: NSView) {
-        // 下一步/完成按钮 - 右下角位置，距离底部和右边缘各20px
-        nextButton = HoverButton(frame: NSRect(x: 380, y: 20, width: 80, height: 32))
+        // 下一步/完成按钮 - 右下角位置
+        nextButton = HoverButton(frame: NSRect(x: contentView.bounds.width - 160 - 24, y: 16, width: 160, height: 44))
+        nextButton.autoresizingMask = [.minXMargin]
         nextButton.configurePrimaryStyle(title: "下一步")
         nextButton.target = self
         nextButton.action = #selector(nextButtonClicked)
         contentView.addSubview(nextButton)
         
-        // 跳过按钮 - 左下角位置，距离底部和左边缘各20px
-        skipButton = NSButton(frame: NSRect(x: 20, y: 20, width: 80, height: 32))
+        // 跳过按钮 - 左下角位置
+        skipButton = NSButton(frame: NSRect(x: 24, y: 16, width: 80, height: 44))
         skipButton.title = "跳过"
         skipButton.bezelStyle = .rounded
         skipButton.font = NSFont.systemFont(ofSize: 13)
@@ -260,8 +304,9 @@ class OnboardingWindow: NSWindow {
     private func updateContent() {
         switch currentStep {
         case 0:
-            titleLabel.stringValue = "欢迎使用 PomodoroScreen! "
-            contentLabel.stringValue = "PomodoroScreen 是一款专业的番茄钟应用\n帮助您提高专注力，保持工作与休息的平衡\n让我们开始简单的引导吧"
+            titleLabel.stringValue = "欢迎使用"
+            appNameLabel.stringValue = "PomodoroScreen!"
+            contentLabel.stringValue = "PomodoroScreen 是一款专业的番茄钟应用\n帮助您提高专注力，保持工作与休息的平衡"
             // 显示视频而不是静态图标
             print("第一步：隐藏图像视图，显示视频容器")
             imageView.isHidden = true
@@ -273,6 +318,7 @@ class OnboardingWindow: NSWindow {
             
         case 1:
             titleLabel.stringValue = "状态栏图标"
+            appNameLabel.stringValue = ""
             contentLabel.stringValue = "应用启动后，您会在屏幕右上角的状态栏中\n看到一个动态时钟图标，显示当前倒计时进度\n点击它可以查看详细进度和控制计时器"
             // 隐藏视频，显示图像
             cleanupVideoPlayer()
@@ -285,6 +331,7 @@ class OnboardingWindow: NSWindow {
             
         case 2:
             titleLabel.stringValue = "设置和个性化 ⚙️"
+            appNameLabel.stringValue = ""
             contentLabel.stringValue = "右键点击状态栏图标可以打开设置菜单\n您可以自定义工作时长、休息时长\n以及其他个性化选项来适应您的工作习惯"
             // 确保视频已停止，显示图像
             cleanupVideoPlayer()
@@ -302,9 +349,11 @@ class OnboardingWindow: NSWindow {
         
         // 更新步骤指示器
         for (index, view) in stepIndicator.arrangedSubviews.enumerated() {
-            view.layer?.backgroundColor = index <= currentStep ? 
-                NSColor.controlAccentColor.cgColor : 
-                NSColor.tertiaryLabelColor.cgColor
+            if let layer = view.layer {
+                layer.backgroundColor = (index == currentStep) ? NSColor.controlAccentColor.cgColor : NSColor.tertiaryLabelColor.withAlphaComponent(0.28).cgColor
+            }
+            view.isHidden = false
+            view.isHidden = false
         }
         
         // 更新跳过按钮可见性

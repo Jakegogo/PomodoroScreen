@@ -95,6 +95,12 @@ class ReportWindow: NSWindow {
         self.makeKeyAndOrderFront(nil)
     }
     
+    override func close() {
+        super.close()
+        // 不释放，保持单例窗口的可复用性（外部持有引用）
+        self.orderOut(nil)
+    }
+    
     private func loadReportHTML(_ data: ReportData) {
         do {
             let htmlContent = try generateReportHTMLFromFile(data)
@@ -192,7 +198,9 @@ extension ReportWindow: WKScriptMessageHandler {
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         switch message.name {
         case "consoleLog":
+            #if DEBUG
             print("📊 Report JS Log: \(message.body)")
+            #endif
         case "consoleWarn":
             print("⚠️ Report JS Warn: \(message.body)")
         case "consoleError":

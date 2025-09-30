@@ -81,9 +81,10 @@ struct DailyStatistics {
     
     /// 休息充足度评分 (0-100)
     var restAdequacyScore: Double {
-        guard completedPomodoros > 0 else { return 0 }  // 没有完成番茄钟时返回0，而不是100
+        guard completedPomodoros > 0 else { return 0 }  // 没有完成番茄钟时返回0
         
-        let expectedBreakTime = Double(completedPomodoros) * 5 * 60  // 每个番茄钟期望5分钟休息
+        let unitBreakSeconds = Double(SettingsStore.breakTimeMinutes) * 60
+        let expectedBreakTime = Double(completedPomodoros) * unitBreakSeconds
         let actualBreakRatio = totalBreakTime / expectedBreakTime
         
         return min(actualBreakRatio, 1.0) * 100
@@ -232,7 +233,8 @@ struct ReportData {
                         "pomodoros": stat.completedPomodoros,
                         "breakCount": stat.shortBreakCount + stat.longBreakCount,
                         "workIntensity": stat.workIntensityScore,
-                        "healthScore": stat.healthScore
+                        "healthScore": stat.healthScore,
+                        "moodIndex": stat.moodLevel != nil ? (Double(stat.moodLevel!) / 6.0 * 100.0) : NSNull()
                     ]
                 },
                 "heatmapData": generateHeatmapData(from: recentEvents, weekStart: weeklyStats.weekStartDate)

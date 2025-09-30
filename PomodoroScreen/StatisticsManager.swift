@@ -6,6 +6,9 @@
 //
 
 import Foundation
+// 使用集中封装的设置
+// 访问用户设置集中封装
+// SettingsStore 在同一模块内，无需额外依赖
 
 class StatisticsManager {
     
@@ -36,12 +39,14 @@ class StatisticsManager {
     
     /// 记录短休息开始事件
     func recordShortBreakStarted(duration: TimeInterval? = nil) {
+        // 如果未传入时长，使用用户设置
+        let plannedSeconds = duration ?? TimeInterval(SettingsStore.breakTimeMinutes * 60)
         let event = StatisticsEvent(
             eventType: .shortBreakStarted,
             duration: duration,
             metadata: [
                 "break_type": "short",
-                "planned_duration": 5 * 60  // 5分钟
+                "planned_duration": plannedSeconds
             ]
         )
         database.recordEvent(event)
@@ -50,12 +55,13 @@ class StatisticsManager {
     
     /// 记录长休息开始事件
     func recordLongBreakStarted(duration: TimeInterval? = nil) {
+        let plannedSeconds = duration ?? TimeInterval(SettingsStore.longBreakTimeMinutes * 60)
         let event = StatisticsEvent(
             eventType: .longBreakStarted,
             duration: duration,
             metadata: [
                 "break_type": "long",
-                "planned_duration": 15 * 60  // 15分钟
+                "planned_duration": plannedSeconds
             ]
         )
         database.recordEvent(event)

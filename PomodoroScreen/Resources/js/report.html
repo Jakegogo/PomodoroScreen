@@ -869,6 +869,18 @@
                             backgroundColor: 'rgba(204, 102, 255, 0.1)',
                             tension: 0.4,
                             yAxisID: 'y1'
+                        },
+                        {
+                            label: '心情指数',
+                            data: weekly.dailyTrend.length > 0 
+                                ? weekly.dailyTrend.map(day => (day.moodIndex !== undefined && day.moodIndex !== null) ? day.moodIndex : null)
+                                : Array(7).fill(null),
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            borderDash: [6, 4],
+                            tension: 0.4,
+                            spanGaps: true,
+                            yAxisID: 'y1'
                         }
                     ]
                 },
@@ -1082,7 +1094,6 @@
             if (reportData && reportData.weekly && reportData.weekly.heatmapData) {
                 console.log('✅ Using real heatmap data from database');
                 console.log('📅 Raw heatmap data length:', reportData.weekly.heatmapData.length);
-                console.log('📄 Sample heatmap events:', reportData.weekly.heatmapData.slice(0, 5));
                 return processHeatmapData(reportData.weekly.heatmapData);
             }
             
@@ -1132,8 +1143,6 @@
                         });
                         
                         totalProcessedActivities += hourActivity.totalActivities;
-                        
-                        console.log(`📊 Found activities for day ${day}, hour ${hour}: ${hourActivity.totalActivities} total, primary: ${hourActivity.primaryActivity}`);
                     }
                     
                     dayData.push(hourData);
@@ -1142,7 +1151,6 @@
             }
             
             console.log(`✅ Processed ${totalProcessedActivities} activities total from daily records`);
-            console.log('📈 Final week data structure:', weekData);
             return weekData;
         }
         
@@ -1264,6 +1272,7 @@
                 // 计算番茄钟和休息的数量用于显示比例
                 let pomodoroCount = 0;
                 let breakCount = 0;
+                let cancelledCount = 0;
                 
                 hourData.activities.forEach(activity => {
                     const activityNames = {
@@ -1279,6 +1288,8 @@
                         pomodoroCount += activity.count;
                     } else if (activity.type === 'break') {
                         breakCount += activity.count;
+                    } else if (activity.type === 'cancelled') {
+                        cancelledCount += activity.count;
                     }
                 });
                 
@@ -1289,8 +1300,11 @@
                         const totalCount = pomodoroCount + breakCount;
                         const pomodoroRatio = (pomodoroCount / totalCount * 100).toFixed(0);
                         content += `<br>番茄钟比例: ${pomodoroRatio}%`;
+                    } else if (cancelledCount > 0) {
+                        // 有番茄钟，但休息全部被取消
+                        content += `<br>⚠️ 未实际休息（取消休息 ${cancelledCount} 次）`;
                     } else {
-                        // 只有番茄钟，无休息
+                        // 只有番茄钟，无任何休息记录
                         content += `<br>⚠️ 高强度工作，无休息`;
                     }
                 }

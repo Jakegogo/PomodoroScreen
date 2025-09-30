@@ -194,12 +194,17 @@ class StatisticsDatabase {
             dailyStats.shortBreakCount += 1
             if let duration = event.duration {
                 dailyStats.totalBreakTime += duration
+            } else if let md = event.metadata, let planned = md["planned_duration"] as? Double {
+                // 若无实际时长，使用计划时长作为近似
+                dailyStats.totalBreakTime += planned
             }
             
         case .longBreakStarted:
             dailyStats.longBreakCount += 1
             if let duration = event.duration {
                 dailyStats.totalBreakTime += duration
+            } else if let md = event.metadata, let planned = md["planned_duration"] as? Double {
+                dailyStats.totalBreakTime += planned
             }
             
         case .breakCancelled:

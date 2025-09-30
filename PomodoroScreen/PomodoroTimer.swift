@@ -413,11 +413,16 @@ class PomodoroTimer: ObservableObject {
     
     // MARK: - 报告功能
     
+    // 单例报告窗口引用
+    private var reportWindowInstance: ReportWindow?
+    
     /// 显示今日工作报告
     func showTodayReport() {
         let reportData = statisticsManager.generateTodayReport()
-        let reportWindow = ReportWindow()
-        reportWindow.showReport(with: reportData)
+        if reportWindowInstance == nil {
+            reportWindowInstance = ReportWindow()
+        }
+        reportWindowInstance?.showReport(with: reportData)
     }
     
     // MARK: - Private Methods

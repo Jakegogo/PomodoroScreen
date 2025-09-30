@@ -43,10 +43,6 @@ class ClockIconGenerator {
             cachedIcon = createClockIcon(progress: progress)
             lastUpdateTime = currentTime
             lastProgress = progress
-            
-            #if DEBUG
-            print("🕐 Clock icon cache updated - Progress: \(String(format: "%.1f", progress * 100))%")
-            #endif
         }
         
         return cachedIcon ?? createClockIcon(progress: progress)

@@ -22,6 +22,7 @@
 		23D3CD2D2E879D1800E45C03 /* rest_image_light.png in Resources */ = {isa = PBXBuildFile; fileRef = 23D3CD2B2E879D1800E45C03 /* rest_image_light.png */; };
 		23D3CD2E2E879D1800E45C03 /* rest_image_dark.jpeg in Resources */ = {isa = PBXBuildFile; fileRef = 23D3CD2A2E879D1800E45C03 /* rest_image_dark.jpeg */; };
 		23DAFA642E8B6E8C00DD6B6C /* DatabaseMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23DAFA622E8B6E8C00DD6B6C /* DatabaseMigration.swift */; };
+		23DAFA672E8B7C5C00DD6B6C /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23DAFA652E8B7C5C00DD6B6C /* SettingsStore.swift */; };
 		23F4A38E2E842FE100B71AA7 /* ScreenDetectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23F4A38D2E842FE100B71AA7 /* ScreenDetectionManager.swift */; };
 		23MS5DPE2E864ABA00691DCC /* MultiScreenOverlayManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23MS5DPD2E864ABA00691DCC /* MultiScreenOverlayManager.swift */; };
 		23SC5DPE2E864ABA00691DCC /* ShutdownConfirmationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23SC5DPD2E864ABA00691DCC /* ShutdownConfirmationWindow.swift */; };
@@ -70,6 +71,7 @@
 		23D3CD2A2E879D1800E45C03 /* rest_image_dark.jpeg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = rest_image_dark.jpeg; sourceTree = "<group>"; };
 		23D3CD2B2E879D1800E45C03 /* rest_image_light.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = rest_image_light.png; sourceTree = "<group>"; };
 		23DAFA622E8B6E8C00DD6B6C /* DatabaseMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseMigration.swift; sourceTree = "<group>"; };
+		23DAFA652E8B7C5C00DD6B6C /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
 		23F4A38D2E842FE100B71AA7 /* ScreenDetectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenDetectionManager.swift; sourceTree = "<group>"; };
 		23MS5DPD2E864ABA00691DCC /* MultiScreenOverlayManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiScreenOverlayManager.swift; sourceTree = "<group>"; };
 		23SC5DPD2E864ABA00691DCC /* ShutdownConfirmationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShutdownConfirmationWindow.swift; sourceTree = "<group>"; };
@@ -174,6 +176,14 @@
 			path = Migration;
 			sourceTree = "<group>";
 		};
+		23DAFA662E8B7C5C00DD6B6C /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				23DAFA652E8B7C5C00DD6B6C /* SettingsStore.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
 		A1234567890ABCDEF012 = {
 			isa = PBXGroup;
 			children = (
@@ -186,6 +196,7 @@
 		A1234567890ABCDEF013 /* PomodoroScreen */ = {
 			isa = PBXGroup;
 			children = (
+				23DAFA662E8B7C5C00DD6B6C /* Settings */,
 				23DAFA632E8B6E8C00DD6B6C /* Migration */,
 				JS1234567890ABCDEF003 /* Resources */,
 				23BD5B2E2E818E48008AEE45 /* UI */,
@@ -377,6 +388,7 @@
 				A1234567890ABCDEF005 /* StatusBarController.swift in Sources */,
 				A1234567890ABCDEF007 /* OverlayWindow.swift in Sources */,
 				23BD5C352E824FE6008AEE45 /* RoundIndicatorView.swift in Sources */,
+				23DAFA672E8B7C5C00DD6B6C /* SettingsStore.swift in Sources */,
 				234823262E7EAAC500DC507E /* AutoRestartStateMachine.swift in Sources */,
 				PW1234567890ABCDEF001 /* StatusBarPopupWindow.swift in Sources */,
 				HR1234567890ABCDEF001 /* HealthRingsView.swift in Sources */,
