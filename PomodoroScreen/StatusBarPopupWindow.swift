@@ -149,7 +149,7 @@ class StatusBarPopupWindow: NSWindow {
         var legendTopY: CGFloat { contentBaseY + legendTotalHeight - legendItemHeight }
         var buttonY: CGFloat { contentBaseY + legendTotalHeight + spacingButtonsToLegend } // 按钮底部Y
         var roundIndicatorY: CGFloat { buttonY + buttonHeight + spacingIndicatorToButtons } // 指示器底部Y
-        var healthRingY: CGFloat { roundIndicatorY + roundIndicatorHeight + spacingRingToButtons + buttonHeight } // 健康环底部Y
+        var healthRingY: CGFloat { roundIndicatorY + roundIndicatorHeight + spacingRingToButtons + buttonHeight + 10 } // 健康环底部Y
 
         // 按钮水平位置
         var controlButtonX: CGFloat { horizontalPadding }

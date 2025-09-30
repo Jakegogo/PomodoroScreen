@@ -12,6 +12,9 @@ class ReportWindow: NSWindow {
     
     private var webView: WKWebView!
     private var reportData: ReportData?
+    private var reportBaseURL: URL?
+    // 自定义居中标题视图容器
+    private var centeredTitleContainer: NSStackView?
     
     convenience init() {
         let windowFrame = NSRect(x: 100, y: 100, width: 1200, height: 800)
@@ -28,7 +31,7 @@ class ReportWindow: NSWindow {
     }
     
     private func setupWindow() {
-        self.title = "📊 今日工作报告"
+        self.title = "今日工作报告"
         self.center()
         self.isReleasedWhenClosed = false
         self.minSize = NSSize(width: 800, height: 600)
@@ -36,6 +39,15 @@ class ReportWindow: NSWindow {
         // 设置窗口样式
         self.titlebarAppearsTransparent = false
         self.backgroundColor = NSColor.windowBackgroundColor
+
+        // 在标题中间添加图标+标题
+        centeredTitleContainer = TitlebarIconManager.setCenteredTitle(
+            window: self,
+            text: "今日工作报告",
+            iconResource: "statistics",
+            ext: "svg",
+            iconSize: NSSize(width: 20, height: 20)
+        )
     }
     
     private func setupWebView() {
@@ -104,7 +116,7 @@ class ReportWindow: NSWindow {
     private func loadReportHTML(_ data: ReportData) {
         do {
             let htmlContent = try generateReportHTMLFromFile(data)
-            webView.loadHTMLString(htmlContent, baseURL: nil)
+            webView.loadHTMLString(htmlContent, baseURL: reportBaseURL)
         } catch {
             print("❌ 无法加载报告HTML文件: \(error)")
             // HTML文件加载失败，报告窗口无法显示
@@ -119,6 +131,8 @@ class ReportWindow: NSWindow {
         }
         
         var htmlTemplate = try String(contentsOfFile: htmlPath, encoding: .utf8)
+        // 记录用于解析相对资源路径的基准URL（与report.html同级目录）
+        reportBaseURL = URL(fileURLWithPath: htmlPath).deletingLastPathComponent()
         
         // 准备Chart.js脚本
         let chartJSScript = getChartJSScript()
@@ -178,6 +192,8 @@ class ReportWindow: NSWindow {
         print("📡 使用CDN Chart.js作为后备方案")
         return "<script src=\"https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js\"></script>"
     }
+
+    // 中心标题构建已封装到 TitlebarIconManager
 }
 
 // MARK: - WKNavigationDelegate

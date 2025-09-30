@@ -69,7 +69,7 @@ class StatisticsManager {
     }
     
     /// 记录取消休息事件
-    func recordBreakCancelled(breakType: String, plannedDuration: TimeInterval, actualDuration: TimeInterval) {
+    func recordBreakCancelled(breakType: String, plannedDuration: TimeInterval, actualDuration: TimeInterval, source: String = "user") {
         let event = StatisticsEvent(
             eventType: .breakCancelled,
             duration: actualDuration,
@@ -77,7 +77,8 @@ class StatisticsManager {
                 "break_type": breakType,
                 "planned_duration": plannedDuration,
                 "actual_duration": actualDuration,
-                "completion_rate": actualDuration / plannedDuration
+                "completion_rate": actualDuration / plannedDuration,
+                "source": source
             ]
         )
         database.recordEvent(event)
@@ -178,6 +179,12 @@ class StatisticsManager {
         let weekEndDate = calendar.date(byAdding: .day, value: 7, to: weekStartDate) ?? weekStartDate
         return database.getEvents(from: weekStartDate, to: weekEndDate)
     }
+
+    // 调试：打印指定小时事件分布
+    func debugPrintHourEventCounts(date: Date, hour: Int) {
+        let counts = database.debugEventTypeCounts(for: date, hour: hour)
+        print("[Debug] \(DateFormatter.dateKey.string(from: date)) @\(hour):00 -> \(counts)")
+    }
     
     // MARK: - 报告生成
     
@@ -186,6 +193,10 @@ class StatisticsManager {
         let dailyStats = getTodayStatistics()
         let weeklyStats = getThisWeekStatistics()
         let weekEvents = getWeekEvents(for: weeklyStats.weekStartDate)
+        #if DEBUG
+        // 调试：打印今天11:00的事件分布，便于排查“取消休息”误判
+        debugPrintHourEventCounts(date: dailyStats.date, hour: 11)
+        #endif
         
         return ReportData(
             dailyStats: dailyStats,

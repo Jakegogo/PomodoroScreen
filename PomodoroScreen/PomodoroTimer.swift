@@ -578,8 +578,9 @@ class PomodoroTimer: ObservableObject {
         start()
     }
     
-    /// 取消休息（用户主动取消）
-    func cancelBreak() {
+    /// 取消休息
+    /// - Parameter source: 取消来源（"user" | "auto_overlay" | 其他），默认 "user"
+    func cancelBreak(source: String = "user") {
         // 如果是强制睡眠状态，禁止用户取消
         if autoRestartStateMachine.isInForcedSleep() {
             print("🚫 强制睡眠期间，用户无法取消休息")
@@ -599,13 +600,18 @@ class PomodoroTimer: ObservableObject {
         statisticsManager.recordBreakCancelled(
             breakType: breakType,
             plannedDuration: plannedDuration,
-            actualDuration: actualDuration
+            actualDuration: actualDuration,
+            source: source
         )
         
         stop()
         isLongBreak = false
         
-        print("🚫 Rest period cancelled by user")
+        if source == "user" {
+            print("🚫 Rest period cancelled by user")
+        } else {
+            print("🚫 Rest period cancelled by system: \(source)")
+        }
         
         // 通过状态机处理休息取消事件
         processAutoRestartEvent(.restCancelled)

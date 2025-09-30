@@ -281,7 +281,11 @@ struct ReportData {
             case .shortBreakStarted, .longBreakStarted:
                 activityType = "break"
             case .breakCancelled:
-                activityType = "cancelled"
+                if let src = event.metadata?["source"] as? String, src == "user" {
+                    activityType = "cancelled"
+                } else {
+                    activityType = "interruption"
+                }
             case .screenLocked, .screensaverActivated:
                 activityType = "interruption"
             case .stayUpLateTriggered:

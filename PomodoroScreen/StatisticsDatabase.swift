@@ -208,7 +208,10 @@ class StatisticsDatabase {
             }
             
         case .breakCancelled:
-            dailyStats.cancelledBreakCount += 1
+            // 仅计入用户主动取消的次数，系统自动关闭不记为“取消休息”
+            if let src = event.metadata?["source"] as? String, src == "user" {
+                dailyStats.cancelledBreakCount += 1
+            }
             
         case .screenLocked:
             dailyStats.screenLockCount += 1
@@ -487,6 +490,26 @@ class StatisticsDatabase {
         let id = String(cString: sqlite3_column_text(statement, 0))
         let event = StatisticsEvent(id: id, eventType: eventType, timestamp: timestamp, duration: duration, metadata: metadata)
         return event
+    }
+}
+
+// MARK: - 调试扩展
+extension StatisticsDatabase {
+    /// 统计指定日期某小时的事件类型计数（仅用于调试日志）
+    func debugEventTypeCounts(for date: Date, hour: Int) -> [String: Int] {
+        let calendar = Calendar.current
+        let dayStart = calendar.startOfDay(for: date)
+        guard let hourStart = calendar.date(bySettingHour: hour, minute: 0, second: 0, of: dayStart),
+              let hourEnd = calendar.date(byAdding: .hour, value: 1, to: hourStart) else {
+            return [:]
+        }
+        let events = getEvents(from: hourStart, to: hourEnd)
+        var counts: [String: Int] = [:]
+        for e in events {
+            let key = e.eventType.rawValue
+            counts[key] = (counts[key] ?? 0) + 1
+        }
+        return counts
     }
 }
 

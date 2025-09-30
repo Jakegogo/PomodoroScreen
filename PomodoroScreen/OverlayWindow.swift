@@ -9,7 +9,7 @@ class OverlayWindow: NSWindow {
     private var overlayView: OverlayView!
     private var dismissTimer: Timer?
     private var timer: PomodoroTimer? // 添加timer引用
-    private var isPreviewMode: Bool = false // 预览模式标志
+    fileprivate var isPreviewMode: Bool = false // 预览模式标志
     
     // 背景文件相关属性
     private var backgroundFiles: [BackgroundFile] = []
@@ -28,6 +28,9 @@ class OverlayWindow: NSWindow {
     // 设备性能检测器
     private let performanceDetector = DevicePerformanceDetector.shared
     private var deviceInfo: DevicePerformanceDetector.DeviceInfo?
+
+    // 统一关闭原因
+    fileprivate enum DismissReason { case user, autoOverlay, preview }
     
     // MARK: - Initialization
     
@@ -160,7 +163,11 @@ class OverlayWindow: NSWindow {
         
         // 设置取消按钮的点击事件处理
         overlayView.onDismiss = { [weak self] in
-            self?.dismissOverlay()
+            if self?.isPreviewMode == true {
+                self?.dismissOverlay(reason: .preview)
+            } else {
+                self?.dismissOverlay(reason: .user)
+            }
         }
     }
     
@@ -516,11 +523,11 @@ class OverlayWindow: NSWindow {
         
         // 设置3分钟（180秒）后自动隐藏
         dismissTimer = Timer.scheduledTimer(withTimeInterval: 180.0, repeats: false) { [weak self] _ in
-            self?.dismissOverlay()
+            self?.dismissOverlay(reason: .autoOverlay)
         }
     }
     
-    private func dismissOverlay() {
+    fileprivate func dismissOverlay(reason: DismissReason) {
         // 如果是强制睡眠状态，阻止关闭遮罩层
         if !isPreviewMode, let timer = self.timer, timer.isStayUpTime {
             print("🚫 强制睡眠期间，无法关闭遮罩层")
@@ -537,11 +544,14 @@ class OverlayWindow: NSWindow {
         cleanupBackground()
         
         // 只有在非预览模式下才通知计时器
-        if !isPreviewMode, let timer = self.timer {
-            // 如果是用户主动取消休息，调用cancelBreak
-            // 如果是自动结束，则开始下一个番茄钟
-            if timer.isInRestPeriod {
-                timer.cancelBreak()
+        if !isPreviewMode, let timer = self.timer, timer.isInRestPeriod {
+            switch reason {
+            case .user:
+                timer.cancelBreak(source: "user")
+            case .autoOverlay:
+                timer.cancelBreak(source: "auto_overlay")
+            case .preview:
+                break
             }
         }
         
@@ -997,11 +1007,15 @@ class OverlayView: NSView {
     }
     
     @objc private func cancelButtonClicked() {
-        onDismiss?()
+        if let window = self.window as? OverlayWindow {
+            window.dismissOverlay(reason: window.isPreviewMode ? .preview : .user)
+        }
     }
     
     @objc private func previewButtonClicked() {
-        onDismiss?()
+        if let window = self.window as? OverlayWindow {
+            window.dismissOverlay(reason: .preview)
+        }
     }
     
     @objc private func shutdownButtonClicked() {
@@ -1113,7 +1127,9 @@ class OverlayView: NSView {
                 print("🚫 强制睡眠期间，ESC键被禁用")
                 return
             }
-            onDismiss?()
+            if let window = self.window as? OverlayWindow {
+                window.dismissOverlay(reason: isPreviewMode ? .preview : .user)
+            }
         } else {
             super.keyDown(with: event)
         }
