@@ -16,6 +16,7 @@ enum StatisticsEventType: String, CaseIterable {
     case screenLocked = "screen_locked"               // 息屏
     case screensaverActivated = "screensaver_activated" // 屏保激活
     case stayUpLateTriggered = "stay_up_late_triggered" // 熬夜模式触发
+    case moodUpdated = "mood_updated"                 // 心情/感受更新
 }
 
 // MARK: - 统计事件数据结构
@@ -58,6 +59,9 @@ struct DailyStatistics {
     var stayUpLateCount: Int = 0             // 熬夜次数
     var firstActivityTime: Date?             // 首次活动时间
     var lastActivityTime: Date?              // 最后活动时间
+    var moodLevel: Int?                      // 心情级别（1-6，可选）
+    var moodNote: String?                    // 感受文本（可选）
+    var moodUpdatedAt: Date?                 // 心情更新时间（可选）
     
     // MARK: - 计算属性
     
@@ -207,6 +211,9 @@ struct ReportData {
                 "screenLockCount": dailyStats.screenLockCount,
                 "screensaverCount": dailyStats.screensaverCount,
                 "stayUpLateCount": dailyStats.stayUpLateCount,
+                "moodLevel": dailyStats.moodLevel as Any,
+                "moodNote": dailyStats.moodNote as Any,
+                "moodUpdatedAt": dailyStats.moodUpdatedAt != nil ? ISO8601DateFormatter().string(from: dailyStats.moodUpdatedAt!) : NSNull(),
                 "workIntensityScore": dailyStats.workIntensityScore,
                 "restAdequacyScore": dailyStats.restAdequacyScore,
                 "focusScore": dailyStats.focusScore,
@@ -277,6 +284,9 @@ struct ReportData {
                 activityType = "interruption"
             case .stayUpLateTriggered:
                 activityType = "interruption"
+            case .moodUpdated:
+                // 心情更新事件不计入热力图活动
+                continue
             }
             
             // 初始化嵌套字典结构

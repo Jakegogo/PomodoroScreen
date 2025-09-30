@@ -77,6 +77,23 @@ class StatisticsManager {
         database.recordEvent(event)
         print("❌ 记录取消休息: \(breakType)")
     }
+
+    /// 更新/记录今日心情（级别与文本）
+    /// - Parameters:
+    ///   - moodLevel: 1-6 之间的整数，表示心情强度或级别（可选）
+    ///   - moodNote: 文本感受（可选）
+    func updateTodayMood(moodLevel: Int?, moodNote: String?) {
+        var metadata: [String: Any] = [:]
+        if let moodLevel {
+            metadata["mood_level"] = moodLevel
+        }
+        if let moodNote {
+            metadata["mood_note"] = moodNote
+        }
+        let event = StatisticsEvent(eventType: .moodUpdated, duration: nil, metadata: metadata)
+        database.recordEvent(event)
+        print("📝 记录今日心情: level=\(moodLevel ?? -1), note=\(moodNote ?? "")")
+    }
     
     /// 记录息屏事件
     func recordScreenLocked() {

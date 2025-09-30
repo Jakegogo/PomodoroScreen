@@ -250,6 +250,13 @@
         .mood-row { display:flex; align-items:center; justify-content:space-between; background:#ffffff; border:1px solid #eef2f7; border-radius:12px; padding:12px 14px; height:120px; }
         .mood-row .mood { font-size: 28px; cursor: default; filter: grayscale(0.05); transition: transform .12s ease; }
         .mood-row .mood:hover { transform: translateY(-2px) scale(1.05); }
+        .mood-row .mood.selected { transform: scale(1.1); filter: none; opacity: 1; }
+        .mood-row .mood.disabled { filter: grayscale(1); opacity: 0.35; }
+        .mood-row .mood.disabled:hover { filter: none; opacity: 1; }
+        .mood-info { grid-column: 1 / -1; margin-top: 8px; font-size: 12px; color:#6b7280; }
+        .mood-info .label { color:#374151; font-weight:600; margin-right: 6px; }
+        .mood-info .value { color:#111827; font-weight:700; margin-right: 10px; }
+        .mood-info .time { color:#9ca3af; margin-left: 6px; }
     </style>
 </head>
 <body>
@@ -488,15 +495,16 @@
             <div class="reflection-section">
                 <h2 class="reflection-title">📝 你的感受</h2>
                 <div class="reflection-grid">
-                    <textarea class="reflection-input" placeholder="记录今天的想法与感受..."></textarea>
-                    <div class="mood-row" aria-hidden="true">
-                        <span class="mood">😞</span>
-                        <span class="mood">😐</span>
-                        <span class="mood">🙂</span>
-                        <span class="mood">😊</span>
-                        <span class="mood">😄</span>
-                        <span class="mood">🤩</span>
+                    <textarea id="moodNoteInput" class="reflection-input" placeholder="记录今天的想法与感受..."></textarea>
+                    <div class="mood-row" id="moodRow">
+                        <span class="mood" data-level="1">😞</span>
+                        <span class="mood" data-level="2">😐</span>
+                        <span class="mood" data-level="3">🙂</span>
+                        <span class="mood" data-level="4">😊</span>
+                        <span class="mood" data-level="5">😄</span>
+                        <span class="mood" data-level="6">🤩</span>
                     </div>
+                    <div class="mood-info" id="moodInfo" aria-live="polite"></div>
                 </div>
             </div>
         </div>
@@ -531,12 +539,107 @@
                 createWeeklyTrendChart();
                 createActivityHeatmap();
                 showRecommendations();
+                setupMoodInteractions();
+                renderMoodInfoFromDaily();
                 reportInitialized = true;
                 console.log('Report initialized successfully');
             } catch (error) {
                 console.error('Error initializing report:', error);
                 console.error('Stack trace:', error.stack);
             }
+        }
+
+        // 你的感受交互
+        function setupMoodInteractions() {
+            const moodRow = document.getElementById('moodRow');
+            const noteInput = document.getElementById('moodNoteInput');
+            const moodInfo = document.getElementById('moodInfo');
+
+            // 预填今日已有的心情数据
+            try {
+                const daily = reportData.daily || {};
+                if (daily.moodLevel) {
+                    const selectedEl = moodRow.querySelector(`[data-level="${daily.moodLevel}"]`);
+                    if (selectedEl) {
+                        moodRow.querySelectorAll('.mood').forEach(el => el.classList.remove('selected', 'disabled'));
+                        selectedEl.classList.add('selected');
+                        moodRow.querySelectorAll('.mood').forEach(el => { if (el !== selectedEl) el.classList.add('disabled'); });
+                    }
+                } else {
+                    // 无预设选择时，确保都非灰
+                    moodRow.querySelectorAll('.mood').forEach(el => el.classList.remove('selected', 'disabled'));
+                }
+                if (daily.moodNote) {
+                    noteInput.value = daily.moodNote;
+                }
+                updateMoodInfo(daily.moodLevel || null, daily.moodNote || '', daily.moodUpdatedAt || null);
+            } catch (e) { console.warn('Prefill mood failed', e); }
+
+            // 点击心情等级
+            moodRow.addEventListener('click', (e) => {
+                const target = e.target.closest('.mood');
+                if (!target) return;
+                const level = parseInt(target.getAttribute('data-level'));
+                // 视觉反馈
+                moodRow.querySelectorAll('.mood').forEach(el => el.classList.remove('selected', 'disabled'));
+                target.classList.add('selected');
+                moodRow.querySelectorAll('.mood').forEach(el => { if (el !== target) el.classList.add('disabled'); });
+                // 保存
+                const note = noteInput.value || '';
+                if (typeof saveMoodToNative === 'function') {
+                    saveMoodToNative(level, note);
+                }
+                console.log('Saved mood level:', level, 'note:', note);
+                updateMoodInfo(level, note, new Date().toISOString());
+            });
+
+            // 文本输入失焦时保存
+            noteInput.addEventListener('change', () => {
+                const selected = moodRow.querySelector('.mood.selected');
+                const level = selected ? parseInt(selected.getAttribute('data-level')) : null;
+                const note = noteInput.value || '';
+                if (level !== null || note.length > 0) {
+                    if (typeof saveMoodToNative === 'function') {
+                        saveMoodToNative(level, note);
+                    }
+                    console.log('Saved mood note:', note, 'level:', level);
+                    updateMoodInfo(level, note, new Date().toISOString());
+                }
+            });
+        }
+
+        function renderMoodInfoFromDaily() {
+            const daily = reportData.daily || {};
+            updateMoodInfo(daily.moodLevel || null, daily.moodNote || '', daily.moodUpdatedAt || null);
+        }
+
+        function updateMoodInfo(level, note, updatedAtISO) {
+            const moodInfo = document.getElementById('moodInfo');
+            if (!moodInfo) return;
+            const emojiMap = {
+                1: '😞', 2: '😐', 3: '🙂', 4: '😊', 5: '😄', 6: '🤩'
+            };
+            const levelText = level ? `${emojiMap[level] || ''} 级别 ${level}` : '未选择';
+            const noteText = note && note.trim().length > 0 ? note.trim() : '（无记录）';
+            let timeText = '';
+            try {
+                if (updatedAtISO && updatedAtISO !== null) {
+                    const d = new Date(updatedAtISO);
+                    if (!isNaN(d.getTime())) {
+                        timeText = `· 更新于 ${d.toLocaleString('zh-CN')}`;
+                    }
+                }
+            } catch {}
+            moodInfo.innerHTML = `<span class="label">今天的感受：</span><span class="value">${levelText}</span><span class="label">备注：</span><span class="value">${escapeHTML(noteText)}</span><span class="time">${timeText}</span>`;
+        }
+
+        function escapeHTML(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
         
         // 更新基本指标

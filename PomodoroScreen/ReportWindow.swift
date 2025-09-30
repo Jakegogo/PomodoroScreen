@@ -65,6 +65,7 @@ class ReportWindow: NSWindow {
         userContentController.add(self, name: "consoleLog")
         userContentController.add(self, name: "consoleWarn")
         userContentController.add(self, name: "consoleError")
+        userContentController.add(self, name: "saveMood")
         
         // 配置WebView
         let webConfiguration = WKWebViewConfiguration()
@@ -131,6 +132,18 @@ class ReportWindow: NSWindow {
         <script>
             // 报告数据
             const reportData = \(jsonData);
+            // 保存心情接口（通过WebKit桥发送到原生）
+            function saveMoodToNative(moodLevel, moodNote) {
+                try {
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.saveMood) {
+                        window.webkit.messageHandlers.saveMood.postMessage({ level: moodLevel, note: moodNote ?? '' });
+                    } else {
+                        console.warn('saveMood bridge not available');
+                    }
+                } catch (e) {
+                    console.error('saveMood bridge error:', e);
+                }
+            }
         </script>
         """
         
@@ -184,6 +197,14 @@ extension ReportWindow: WKScriptMessageHandler {
             print("⚠️ Report JS Warn: \(message.body)")
         case "consoleError":
             print("❌ Report JS Error: \(message.body)")
+        case "saveMood":
+            if let dict = message.body as? [String: Any] {
+                let level = dict["level"] as? Int
+                let note = dict["note"] as? String
+                StatisticsManager.shared.updateTodayMood(moodLevel: level, moodNote: note)
+            } else {
+                print("⚠️ saveMood payload 格式不正确: \(message.body)")
+            }
         default:
             break
         }

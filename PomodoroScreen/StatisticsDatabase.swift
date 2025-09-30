@@ -47,6 +47,8 @@ class StatisticsDatabase {
             return
         }
         print("✅ 数据库连接成功")
+        // 连接成功后执行数据库迁移
+        DatabaseMigration.shared.runMigrationsIfNeeded(db: db)
     }
     
     private func closeDatabase() {
@@ -107,6 +109,9 @@ class StatisticsDatabase {
                 screen_lock_count INTEGER DEFAULT 0,
                 screensaver_count INTEGER DEFAULT 0,
                 stay_up_late_count INTEGER DEFAULT 0,
+                mood_level INTEGER,
+                mood_note TEXT,
+                mood_updated_at INTEGER,
                 first_activity_time INTEGER,
                 last_activity_time INTEGER,
                 updated_at INTEGER DEFAULT (strftime('%s', 'now'))
@@ -173,7 +178,6 @@ class StatisticsDatabase {
     private func updateDailyStatistics(for event: StatisticsEvent) {
         let calendar = Calendar.current
         let dateKey = calendar.dateInterval(of: .day, for: event.timestamp)?.start ?? event.timestamp
-        let dateString = DateFormatter.dateKey.string(from: dateKey)
         
         // 首先获取或创建当日记录
         var dailyStats = getDailyStatistics(for: dateKey) ?? DailyStatistics(date: dateKey)
@@ -209,6 +213,16 @@ class StatisticsDatabase {
             
         case .stayUpLateTriggered:
             dailyStats.stayUpLateCount += 1
+        case .moodUpdated:
+            if let metadata = event.metadata {
+                if let level = metadata["mood_level"] as? Int {
+                    dailyStats.moodLevel = level
+                }
+                if let note = metadata["mood_note"] as? String {
+                    dailyStats.moodNote = note
+                }
+            }
+            dailyStats.moodUpdatedAt = event.timestamp
         }
         
         // 更新活动时间
@@ -220,6 +234,8 @@ class StatisticsDatabase {
         // 保存到数据库
         saveDailyStatistics(dailyStats)
     }
+
+    
     
     private func saveDailyStatistics(_ stats: DailyStatistics) {
         let dateString = DateFormatter.dateKey.string(from: stats.date)
@@ -228,8 +244,8 @@ class StatisticsDatabase {
             INSERT OR REPLACE INTO daily_statistics 
             (date, completed_pomodoros, total_work_time, short_break_count, long_break_count, 
              total_break_time, cancelled_break_count, screen_lock_count, screensaver_count, 
-             stay_up_late_count, first_activity_time, last_activity_time)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+             stay_up_late_count, mood_level, mood_note, mood_updated_at, first_activity_time, last_activity_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """
         
         var statement: OpaquePointer?
@@ -246,21 +262,39 @@ class StatisticsDatabase {
             sqlite3_bind_int(statement, 8, Int32(stats.screenLockCount))
             sqlite3_bind_int(statement, 9, Int32(stats.screensaverCount))
             sqlite3_bind_int(statement, 10, Int32(stats.stayUpLateCount))
-            
-            if let firstActivity = stats.firstActivityTime {
-                sqlite3_bind_int64(statement, 11, Int64(firstActivity.timeIntervalSince1970))
+            // mood_level
+            if let moodLevel = stats.moodLevel {
+                sqlite3_bind_int(statement, 11, Int32(moodLevel))
             } else {
                 sqlite3_bind_null(statement, 11)
             }
-            
-            if let lastActivity = stats.lastActivityTime {
-                sqlite3_bind_int64(statement, 12, Int64(lastActivity.timeIntervalSince1970))
+            // mood_note
+            if let moodNote = stats.moodNote {
+                sqlite3_bind_text(statement, 12, moodNote, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self))
             } else {
                 sqlite3_bind_null(statement, 12)
             }
+            // mood_updated_at
+            if let moodUpdatedAt = stats.moodUpdatedAt {
+                sqlite3_bind_int64(statement, 13, Int64(moodUpdatedAt.timeIntervalSince1970))
+            } else {
+                sqlite3_bind_null(statement, 13)
+            }
+            // first_activity_time
+            if let firstActivity = stats.firstActivityTime {
+                sqlite3_bind_int64(statement, 14, Int64(firstActivity.timeIntervalSince1970))
+            } else {
+                sqlite3_bind_null(statement, 14)
+            }
+            // last_activity_time
+            if let lastActivity = stats.lastActivityTime {
+                sqlite3_bind_int64(statement, 15, Int64(lastActivity.timeIntervalSince1970))
+            } else {
+                sqlite3_bind_null(statement, 15)
+            }
             
             if sqlite3_step(statement) == SQLITE_DONE {
-                print("✅ 日统计更新成功: \(dateString)")
+                print("✅ 日统计更新成功: \(dateString) mood_level=\(stats.moodLevel != nil ? String(stats.moodLevel!) : "nil") mood_note=\(stats.moodNote ?? "") mood_updated_at=\(stats.moodUpdatedAt != nil ? String(Int64(stats.moodUpdatedAt!.timeIntervalSince1970)) : "nil")")
             } else {
                 let errmsg = String(cString: sqlite3_errmsg(db)!)
                 print("❌ 日统计更新失败: \(errmsg)")
@@ -275,7 +309,24 @@ class StatisticsDatabase {
     func getDailyStatistics(for date: Date) -> DailyStatistics? {
         let dateString = DateFormatter.dateKey.string(from: date)
         let selectSQL = """
-            SELECT * FROM daily_statistics WHERE date = ?;
+            SELECT 
+                date,
+                completed_pomodoros,
+                total_work_time,
+                short_break_count,
+                long_break_count,
+                total_break_time,
+                cancelled_break_count,
+                screen_lock_count,
+                screensaver_count,
+                stay_up_late_count,
+                mood_level,
+                mood_note,
+                mood_updated_at,
+                first_activity_time,
+                last_activity_time
+            FROM daily_statistics 
+            WHERE date = ?;
         """
         
         var statement: OpaquePointer?
@@ -381,13 +432,25 @@ class StatisticsDatabase {
         stats.screenLockCount = Int(sqlite3_column_int(statement, 7))
         stats.screensaverCount = Int(sqlite3_column_int(statement, 8))
         stats.stayUpLateCount = Int(sqlite3_column_int(statement, 9))
-        
+        // mood_level (index 10)
         if sqlite3_column_type(statement, 10) != SQLITE_NULL {
-            stats.firstActivityTime = Date(timeIntervalSince1970: sqlite3_column_double(statement, 10))
+            stats.moodLevel = Int(sqlite3_column_int(statement, 10))
         }
-        
-        if sqlite3_column_type(statement, 11) != SQLITE_NULL {
-            stats.lastActivityTime = Date(timeIntervalSince1970: sqlite3_column_double(statement, 11))
+        // mood_note (index 11)
+        if sqlite3_column_type(statement, 11) != SQLITE_NULL, let cStr = sqlite3_column_text(statement, 11) {
+            stats.moodNote = String(cString: cStr)
+        }
+        // mood_updated_at (index 12)
+        if sqlite3_column_type(statement, 12) != SQLITE_NULL {
+            stats.moodUpdatedAt = Date(timeIntervalSince1970: sqlite3_column_double(statement, 12))
+        }
+        // first_activity_time (index 13)
+        if sqlite3_column_type(statement, 13) != SQLITE_NULL {
+            stats.firstActivityTime = Date(timeIntervalSince1970: sqlite3_column_double(statement, 13))
+        }
+        // last_activity_time (index 14)
+        if sqlite3_column_type(statement, 14) != SQLITE_NULL {
+            stats.lastActivityTime = Date(timeIntervalSince1970: sqlite3_column_double(statement, 14))
         }
         
         return stats
