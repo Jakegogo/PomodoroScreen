@@ -13,11 +13,13 @@ enum StatisticsEventType: String, CaseIterable {
     case shortBreakStarted = "short_break_started"    // 短休息开始
     case longBreakStarted = "long_break_started"      // 长休息开始
     case breakCancelled = "break_cancelled"           // 取消休息
+    case breakFinished = "break_finished"             // 休息完成
     case screenLocked = "screen_locked"               // 息屏
     case screensaverActivated = "screensaver_activated" // 屏保激活
     case stayUpLateTriggered = "stay_up_late_triggered" // 熬夜模式触发
     case moodUpdated = "mood_updated"                 // 心情/感受更新
 }
+
 
 // MARK: - 统计事件数据结构
 struct StatisticsEvent {
@@ -286,6 +288,8 @@ struct ReportData {
                 } else {
                     activityType = "interruption"
                 }
+            case .breakFinished:
+                activityType = "break"
             case .screenLocked, .screensaverActivated:
                 activityType = "interruption"
             case .stayUpLateTriggered:

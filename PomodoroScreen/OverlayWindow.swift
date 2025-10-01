@@ -549,7 +549,7 @@ class OverlayWindow: NSWindow {
             case .user:
                 timer.cancelBreak(source: "user")
             case .autoOverlay:
-                timer.cancelBreak(source: "auto_overlay")
+                timer.finishBreak()
             case .preview:
                 break
             }

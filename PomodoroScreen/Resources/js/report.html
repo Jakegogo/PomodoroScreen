@@ -25,7 +25,8 @@
             column-gap: 12px;
             row-gap: 0; /* 更紧凑 */
             align-items: center;
-            min-height: 300px;
+            min-height: 340px;
+            padding: 16px 0;
             margin-bottom: 28px; 
             color: #111827; 
             overflow: hidden; /* 防止伪元素溢出压住下方内容 */
@@ -35,7 +36,7 @@
             content: "";
             position: absolute;
             left: 24px;
-            top: 0;
+            top: 20px;
             width: 280px;
             height: 280px;
             border-radius: 50%;
@@ -44,7 +45,10 @@
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
-            box-shadow: inset 0 0 40px rgba(255,255,255,0.06), 0 10px 30px rgba(0,0,0,0.08);
+            box-shadow: 
+                inset 0 0 40px rgba(255,255,255,0.06),
+                0 0 14px rgba(0,0,0,0.16),
+                0 0 24px rgba(0,0,0,0.10);
             z-index: 0;
             pointer-events: none;
         }
@@ -61,8 +65,30 @@
             text-align: left;
             justify-self: start;
             line-height: 1.1;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.12);
         }
-        .report-header .report-date { grid-column: 2; grid-row: 3; text-align: left; justify-self: start; margin-top: 6px; align-self: start; white-space: nowrap; }
+        .report-header .report-date { grid-column: 2; grid-row: 3; text-align: left; justify-self: start; margin-top: 6px; align-self: start; white-space: nowrap; font-family: Avenir, -apple-system-font, "PingFangSC-Thin", "Microsoft YaHei", 微软雅黑, sans-serif; text-shadow: 0 1px 2px rgba(0,0,0,0.12);} 
+        /* 今日感受：单独定位到第4行，避免与日期重叠 */
+        .report-header #reportMoodLine {
+            grid-column: 2;
+            grid-row: 4;
+            font-size: 14px; 
+            text-align: left;
+            justify-self: start;
+            margin-top: 8px;
+            align-self: start;
+            color: #6b7280;
+            white-space: nowrap;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.08);
+        }
+        .report-header #reportMoodLine .mood-quote {
+            font-size: 20px;
+            font-weight: 700;
+            color: #374151;
+            margin: 0 4px;
+            line-height: 1;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.12);
+        }
         @media (max-width: 768px) {
             .report-header { grid-template-columns: 1fr; min-height: auto; }
             .report-header::before { width: 220px; height: 220px; left: calc(50% - 110px); top: -20px; opacity: .25; }
@@ -332,6 +358,7 @@
                 今日工作报告
             </h1>
             <p class="report-date" id="reportDate"></p>
+            <p class="report-date" id="reportMoodLine"></p>
         </header>
         
         <div class="dashboard">
@@ -570,7 +597,7 @@
             <!-- 健康建议 -->
             <div class="recommendations-section">
                 <h2>
-                    <img src="smile.svg" alt="健康建议" class="section-icon" />
+                    <img src="idea.svg" alt="健康建议" class="section-icon" />
                     健康建议
                 </h2>
                 <div id="recommendationsList" class="recommendations-list">
@@ -742,6 +769,26 @@
                     month: 'long',
                     day: 'numeric'
                 });
+            // 在日期下方显示“今日感受”
+            const moodLineEl = document.getElementById('reportMoodLine');
+            if (moodLineEl) {
+                const emojiMap = { 1:'😞',2:'😐',3:'🙂',4:'😊',5:'😄',6:'🤩' };
+                const level = daily.moodLevel || null;
+                const emoji = level ? (emojiMap[level] || '') : '';
+                const rawNote = (daily.moodNote && String(daily.moodNote).trim().length > 0) ? String(daily.moodNote).trim() : '';
+                const note = rawNote ? escapeHTML(rawNote) : '';
+                let inner = '';
+                if (level) {
+                    inner += `${emoji} `;
+                }
+                if (note) {
+                    inner += (inner ? ' ' : '') + note;
+                }
+                if (!level && !note) {
+                    inner += '未记录';
+                }
+                moodLineEl.innerHTML = `<span class="mood-quote">“</span>${inner}<span class="mood-quote">”</span>`;
+            }
             
             // 更新核心指标
             document.getElementById('pomodoroCount').textContent = daily.completedPomodoros;
@@ -1710,7 +1757,7 @@
             } else {
                 // 隐藏详情
                 section.style.display = 'none';
-                triggerLink.innerHTML = '📊 查看评分计算详情 <span class="trigger-icon" id="calculationTriggerIcon">▼</span>';
+                triggerLink.innerHTML = '查看评分计算详情 <span class="trigger-icon" id="calculationTriggerIcon">▼</span>';
             }
         }
         

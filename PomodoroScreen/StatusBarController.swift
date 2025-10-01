@@ -10,6 +10,8 @@ class StatusBarController {
     private var popupWindow: StatusBarPopupWindow?
     private var isPopupVisible = false
     private var globalEventMonitor: Any?
+    private var appDeactivationObserver: Any?
+    private var workspaceActivationObserver: Any?
     private var clockIconGenerator: ClockIconGenerator
     
     // 状态栏显示设置
@@ -205,6 +207,26 @@ class StatusBarController {
         globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
             self?.handleGlobalClick(event)
         }
+        // 取消全局点击自动隐藏，避免弹窗自动消失。保留通过切换按钮或菜单显式隐藏。
+        // 但当应用失去激活（切换到其他APP）时，自动隐藏弹窗。
+        appDeactivationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.hidePopup()
+        }
+
+        // 兜底：前台应用切换时也隐藏（例如某些场景下 didResignActive 未触发）
+        workspaceActivationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            if NSApplication.shared.isActive == false {
+                self?.hidePopup()
+            }
+        }
     }
     
     private func hidePopup() {
@@ -214,6 +236,14 @@ class StatusBarController {
         if let monitor = globalEventMonitor {
             NSEvent.removeMonitor(monitor)
             globalEventMonitor = nil
+        }
+        if let observer = appDeactivationObserver {
+            NotificationCenter.default.removeObserver(observer)
+            appDeactivationObserver = nil
+        }
+        if let wsObserver = workspaceActivationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(wsObserver)
+            workspaceActivationObserver = nil
         }
     }
     
@@ -341,9 +371,6 @@ class StatusBarController {
         
         // 在鼠标位置显示菜单
         menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
-        
-        // 菜单显示后隐藏弹出窗口
-        hidePopup()
     }
     
     @objc private func startTimer() {

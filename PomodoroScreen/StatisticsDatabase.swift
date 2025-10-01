@@ -76,6 +76,7 @@ class StatisticsDatabase {
                 created_at INTEGER DEFAULT (strftime('%s', 'now'))
             );
         """
+        AppLogger.shared.logSQL(createTableSQL, tag: "DDL")
         
         if sqlite3_exec(db, createTableSQL, nil, nil, nil) != SQLITE_OK {
             let errmsg = String(cString: sqlite3_errmsg(db)!)
@@ -89,6 +90,7 @@ class StatisticsDatabase {
             CREATE INDEX IF NOT EXISTS idx_events_timestamp ON statistics_events(timestamp);
             CREATE INDEX IF NOT EXISTS idx_events_type ON statistics_events(event_type);
         """
+        AppLogger.shared.logSQL(createIndexSQL, tag: "DDL")
         
         if sqlite3_exec(db, createIndexSQL, nil, nil, nil) != SQLITE_OK {
             let errmsg = String(cString: sqlite3_errmsg(db)!)
@@ -117,6 +119,7 @@ class StatisticsDatabase {
                 updated_at INTEGER DEFAULT (strftime('%s', 'now'))
             );
         """
+        AppLogger.shared.logSQL(createTableSQL, tag: "DDL")
         
         if sqlite3_exec(db, createTableSQL, nil, nil, nil) != SQLITE_OK {
             let errmsg = String(cString: sqlite3_errmsg(db)!)
@@ -133,6 +136,11 @@ class StatisticsDatabase {
             INSERT INTO statistics_events (id, event_type, timestamp, duration, metadata)
             VALUES (?, ?, ?, ?, ?);
         """
+        // 预记录SQL与参数（便于定位绑定位置和数据）
+        var logParams: [Any?] = [event.id, event.eventType.rawValue, Int64(event.timestamp.timeIntervalSince1970)]
+        logParams.append(event.duration)
+        logParams.append(event.metadata)
+        AppLogger.shared.logSQL(insertSQL, params: logParams, tag: "INSERT events")
         
         var statement: OpaquePointer?
         
@@ -192,25 +200,22 @@ class StatisticsDatabase {
             
         case .shortBreakStarted:
             dailyStats.shortBreakCount += 1
-            if let duration = event.duration {
-                dailyStats.totalBreakTime += duration
-            } else if let md = event.metadata, let planned = md["planned_duration"] as? Double {
-                // 若无实际时长，使用计划时长作为近似
-                dailyStats.totalBreakTime += planned
-            }
-            
+
         case .longBreakStarted:
             dailyStats.longBreakCount += 1
-            if let duration = event.duration {
-                dailyStats.totalBreakTime += duration
-            } else if let md = event.metadata, let planned = md["planned_duration"] as? Double {
-                dailyStats.totalBreakTime += planned
-            }
             
         case .breakCancelled:
             // 仅计入用户主动取消的次数，系统自动关闭不记为“取消休息”
             if let src = event.metadata?["source"] as? String, src == "user" {
                 dailyStats.cancelledBreakCount += 1
+            }
+            
+        case .breakFinished:
+            // 休息完成：只累计实际休息时长，不增加取消次数
+            if let duration = event.duration {
+                dailyStats.totalBreakTime += duration
+            } else if let md = event.metadata, let actual = md["actual_duration"] as? Double {
+                dailyStats.totalBreakTime += actual
             }
             
         case .screenLocked:
@@ -255,6 +260,25 @@ class StatisticsDatabase {
              stay_up_late_count, mood_level, mood_note, mood_updated_at, first_activity_time, last_activity_time)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """
+        // 预记录SQL与参数（把 Optional 直观输出）
+        var params: [Any?] = [
+            dateString,
+            stats.completedPomodoros,
+            stats.totalWorkTime,
+            stats.shortBreakCount,
+            stats.longBreakCount,
+            stats.totalBreakTime,
+            stats.cancelledBreakCount,
+            stats.screenLockCount,
+            stats.screensaverCount,
+            stats.stayUpLateCount,
+            stats.moodLevel,
+            stats.moodNote ?? NSNull(),
+            stats.moodUpdatedAt != nil ? Int64(stats.moodUpdatedAt!.timeIntervalSince1970) : NSNull(),
+            stats.firstActivityTime != nil ? Int64(stats.firstActivityTime!.timeIntervalSince1970) : NSNull(),
+            stats.lastActivityTime != nil ? Int64(stats.lastActivityTime!.timeIntervalSince1970) : NSNull()
+        ]
+        AppLogger.shared.logSQL(upsertSQL, params: params, tag: "UPSERT daily_statistics")
         
         var statement: OpaquePointer?
         
@@ -336,6 +360,7 @@ class StatisticsDatabase {
             FROM daily_statistics 
             WHERE date = ?;
         """
+        AppLogger.shared.logSQL(selectSQL, params: [dateString], tag: "SELECT daily_statistics")
         
         var statement: OpaquePointer?
         var result: DailyStatistics?
@@ -377,6 +402,7 @@ class StatisticsDatabase {
             ORDER BY timestamp DESC 
             LIMIT ?;
         """
+        AppLogger.shared.logSQL(selectSQL, params: [limit], tag: "SELECT recent_events")
         
         var statement: OpaquePointer?
         var events: [StatisticsEvent] = []
@@ -401,6 +427,7 @@ class StatisticsDatabase {
             WHERE timestamp >= ? AND timestamp < ?
             ORDER BY timestamp DESC;
         """
+        AppLogger.shared.logSQL(selectSQL, params: [Int64(startDate.timeIntervalSince1970), Int64(endDate.timeIntervalSince1970)], tag: "SELECT events_range")
         
         var statement: OpaquePointer?
         var events: [StatisticsEvent] = []

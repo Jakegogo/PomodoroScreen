@@ -21,8 +21,10 @@
 		231168D02E8BF3AA004386D2 /* banner_health.png in Resources */ = {isa = PBXBuildFile; fileRef = 231168CA2E8BF3AA004386D2 /* banner_health.png */; };
 		231168D12E8BF3AA004386D2 /* banner_pomodoro.png in Resources */ = {isa = PBXBuildFile; fileRef = 231168CB2E8BF3AA004386D2 /* banner_pomodoro.png */; };
 		231DE49B2E8C07540007D7B5 /* avatar.png in Resources */ = {isa = PBXBuildFile; fileRef = 231DE49A2E8C07540007D7B5 /* avatar.png */; };
+		231DE49D2E8C28440007D7B5 /* idea.svg in Resources */ = {isa = PBXBuildFile; fileRef = 231DE49C2E8C28440007D7B5 /* idea.svg */; };
 		23249BA62E82662F00F45D58 /* icon_video.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 23249BA52E82662F00F45D58 /* icon_video.mp4 */; };
 		23249BA82E826FCF00F45D58 /* IOSSwitchButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23249BA72E826FCF00F45D58 /* IOSSwitchButton.swift */; };
+		2338559B2E8CA7A600809053 /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2338559A2E8CA7A600809053 /* AppLogger.swift */; };
 		234823262E7EAAC500DC507E /* AutoRestartStateMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 234823252E7EAAC500DC507E /* AutoRestartStateMachine.swift */; };
 		23BD5A8B2E80F742008AEE45 /* BeautifulPoliceOfficer-rvv8x.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 23BD5A892E80F742008AEE45 /* BeautifulPoliceOfficer-rvv8x.ttf */; };
 		23BD5AA92E80F9CD008AEE45 /* ClockIconGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BD5AA82E80F9CD008AEE45 /* ClockIconGenerator.swift */; };
@@ -83,8 +85,10 @@
 		231168CC2E8BF3AA004386D2 /* banner_relax.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = banner_relax.png; sourceTree = "<group>"; };
 		231168CD2E8BF3AA004386D2 /* banner_time.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = banner_time.png; sourceTree = "<group>"; };
 		231DE49A2E8C07540007D7B5 /* avatar.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = avatar.png; sourceTree = "<group>"; };
+		231DE49C2E8C28440007D7B5 /* idea.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = idea.svg; sourceTree = "<group>"; };
 		23249BA52E82662F00F45D58 /* icon_video.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = icon_video.mp4; sourceTree = "<group>"; };
 		23249BA72E826FCF00F45D58 /* IOSSwitchButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSSwitchButton.swift; sourceTree = "<group>"; };
+		2338559A2E8CA7A600809053 /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLogger.swift; sourceTree = "<group>"; };
 		234823252E7EAAC500DC507E /* AutoRestartStateMachine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoRestartStateMachine.swift; sourceTree = "<group>"; };
 		2348232B2E7EAAF800DC507E /* PomodoroScreenTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PomodoroScreenTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		23BD5A892E80F742008AEE45 /* BeautifulPoliceOfficer-rvv8x.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "BeautifulPoliceOfficer-rvv8x.ttf"; sourceTree = "<group>"; };
@@ -156,6 +160,14 @@
 			path = video;
 			sourceTree = "<group>";
 		};
+		233855982E8CA10C00809053 /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+				2338559A2E8CA7A600809053 /* AppLogger.swift */,
+			);
+			path = Utils;
+			sourceTree = "<group>";
+		};
 		23BD5A8A2E80F742008AEE45 /* font */ = {
 			isa = PBXGroup;
 			children = (
@@ -191,6 +203,7 @@
 		23D3CD2C2E879D1800E45C03 /* image */ = {
 			isa = PBXGroup;
 			children = (
+				231DE49C2E8C28440007D7B5 /* idea.svg */,
 				231DE49A2E8C07540007D7B5 /* avatar.png */,
 				23D95B742E8BF8870049726C /* smile.svg */,
 				231168CA2E8BF3AA004386D2 /* banner_health.png */,
@@ -241,6 +254,7 @@
 				23DAFA662E8B7C5C00DD6B6C /* Settings */,
 				23DAFA632E8B6E8C00DD6B6C /* Migration */,
 				JS1234567890ABCDEF003 /* Resources */,
+				233855982E8CA10C00809053 /* Utils */,
 				23BD5B2E2E818E48008AEE45 /* UI */,
 				23F4A38D2E842FE100B71AA7 /* ScreenDetectionManager.swift */,
 				23BD5AA82E80F9CD008AEE45 /* ClockIconGenerator.swift */,
@@ -388,6 +402,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				23BD5A8B2E80F742008AEE45 /* BeautifulPoliceOfficer-rvv8x.ttf in Resources */,
+				231DE49D2E8C28440007D7B5 /* idea.svg in Resources */,
 				A1234567890ABCDEF009 /* Assets.xcassets in Resources */,
 				23249BA62E82662F00F45D58 /* icon_video.mp4 in Resources */,
 				A1234567890ABCDEF00B /* MainMenu.xib in Resources */,
@@ -444,6 +459,7 @@
 				A1234567890ABCDEF007 /* OverlayWindow.swift in Sources */,
 				23BD5C352E824FE6008AEE45 /* RoundIndicatorView.swift in Sources */,
 				23DAFA672E8B7C5C00DD6B6C /* SettingsStore.swift in Sources */,
+				2338559B2E8CA7A600809053 /* AppLogger.swift in Sources */,
 				234823262E7EAAC500DC507E /* AutoRestartStateMachine.swift in Sources */,
 				PW1234567890ABCDEF001 /* StatusBarPopupWindow.swift in Sources */,
 				HR1234567890ABCDEF001 /* HealthRingsView.swift in Sources */,

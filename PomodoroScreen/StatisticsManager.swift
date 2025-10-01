@@ -67,6 +67,26 @@ class StatisticsManager {
         database.recordEvent(event)
         print("🛋️ 记录长休息开始")
     }
+     
+    /// 记录休息完成事件（短或长）
+    /// - Parameters:
+    ///   - breakType: "short" | "long"
+    ///   - plannedDuration: 计划时长（秒）
+    ///   - actualDuration: 实际时长（秒）
+    func recordBreakFinished(breakType: String, plannedDuration: TimeInterval, actualDuration: TimeInterval) {
+        let event = StatisticsEvent(
+            eventType: .breakFinished,
+            duration: actualDuration,
+            metadata: [
+                "break_type": breakType,
+                "planned_duration": plannedDuration,
+                "actual_duration": actualDuration,
+                "completion_rate": plannedDuration > 0 ? (actualDuration / plannedDuration) : 1.0
+            ]
+        )
+        database.recordEvent(event)
+        print("✅ 记录休息完成: \(breakType)")
+    }
     
     /// 记录取消休息事件
     func recordBreakCancelled(breakType: String, plannedDuration: TimeInterval, actualDuration: TimeInterval, source: String = "user") {

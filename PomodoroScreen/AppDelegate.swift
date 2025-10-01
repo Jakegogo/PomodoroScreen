@@ -121,7 +121,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
-            // 检查是否为会议模式
+            // 确保休息计时开始（用于统计与正确计数）。
+            // 注意：必须在会议模式判断之前调用，以保证会议模式下也会进入休息状态（静默）。
+            if !self.pomodoroTimer.isInRestPeriod {
+                self.pomodoroTimer.startBreak()
+            }
+
+            // 检查是否为会议模式（静默休息，不弹出遮罩层）
             if self.pomodoroTimer.isMeetingMode() {
                 print("🔇 会议模式：跳过遮罩层显示，进行静默休息")
                 // 在状态栏显示"休息时间"提示
@@ -168,6 +174,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
     }
+
+#if DEBUG
+    // 测试钩子：在测试中调用以触发 overlay 显示逻辑
+    @objc func showOverlayForTesting() {
+        showOverlay()
+    }
+
+    // 测试钩子：直接触发当前计时器的完成逻辑（走与真实一样的回调路径）
+    @objc func triggerPomodoroFinishForTesting() {
+        pomodoroTimer.triggerFinish()
+    }
+
+    // 测试钩子：从 UserDefaults 重新加载并应用设置（用于切换会议模式等）
+    @objc func reloadSettingsForTesting() {
+        loadAndApplySettings()
+    }
+#endif
     
     private func showOnboardingIfNeeded() {
         // 检查是否需要显示新手引导

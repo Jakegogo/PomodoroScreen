@@ -156,6 +156,7 @@ class PomodoroTimer: ObservableObject {
         
         // 设置熬夜时间变化回调
         autoRestartStateMachine.onStayUpTimeChanged = { [weak self] isEnteringStayUpTime in
+            AppLogger.shared.logStateMachine("StayUpTimeChanged -> entering=\(isEnteringStayUpTime)", tag: "SLEEP")
             if isEnteringStayUpTime {
                 self?.triggerStayUpOverlay()
             } else {
@@ -508,11 +509,10 @@ class PomodoroTimer: ObservableObject {
             processAutoRestartEvent(.pomodoroFinished)
             
         case .shortBreak, .longBreak:
-            // 休息结束
+            // 休息自然结束，走 finish 分支，记录 break_finished 并切换下一个番茄钟
             print("✅ Rest period ended")
-            
-            // 通过状态机处理休息完成事件
-            processAutoRestartEvent(.restFinished)
+            finishBreak()
+            return
         }
         
         onTimerFinished?()
@@ -620,6 +620,41 @@ class PomodoroTimer: ObservableObject {
         remainingTime = pomodoroTime
         start()
     }
+
+    /// 完成休息（与取消休息不同）：记录 break_finished，并进入下一阶段番茄钟
+    func finishBreak() {
+        // 如果是强制睡眠状态，禁止用户取消
+        if autoRestartStateMachine.isInForcedSleep() {
+            print("🚫 强制睡眠期间，用户无法取消休息")
+            return
+        }
+        
+        if accumulateRestTime && !isLongBreak {
+            // 如果启用了累积功能且当前是短休息，记录剩余时间
+            accumulatedRestTime += remainingTime
+            print("💾 累积短休息剩余时间 \(Int(remainingTime/60)) 分钟")
+        }
+        
+        // 计算类型与计划/实际时长
+        let breakType = isLongBreak ? "long" : "short"
+        let plannedDuration = isLongBreak ? longBreakTime : breakTime
+        let actualDuration = plannedDuration - remainingTime
+        statisticsManager.recordBreakFinished(
+            breakType: breakType,
+            plannedDuration: plannedDuration,
+            actualDuration: max(0, actualDuration)
+        )
+        
+        stop()
+        isLongBreak = false
+        
+        // 通知状态机休息完成（与 timerFinished 中 .restFinished 一致）
+        processAutoRestartEvent(.restFinished)
+        
+        // 进入下一次番茄钟
+        remainingTime = pomodoroTime
+        start()
+    }
     
     private func formatTime(_ time: TimeInterval) -> String {
         // 防止显示负数时间，最小显示为 00:00
@@ -633,7 +668,9 @@ class PomodoroTimer: ObservableObject {
     
     /// 处理自动重新计时事件
     private func processAutoRestartEvent(_ event: AutoRestartEvent) {
+        AppLogger.shared.logStateMachine("Event -> \(event)", tag: "STATE")
         let action = autoRestartStateMachine.processEvent(event)
+        AppLogger.shared.logStateMachine("Action <- \(action)", tag: "STATE")
         executeAutoRestartAction(action)
     }
     
@@ -643,23 +680,30 @@ class PomodoroTimer: ObservableObject {
         case .none:
             break
         case .pauseTimer:
+            AppLogger.shared.logStateMachine("Execute: pauseTimer", tag: "ACTION")
             performPause()
         case .resumeTimer:
+            AppLogger.shared.logStateMachine("Execute: resumeTimer", tag: "ACTION")
             performResume()
         case .restartTimer:
+            AppLogger.shared.logStateMachine("Execute: restartTimer", tag: "ACTION")
             performRestart()
         case .showRestOverlay:
             // 显示休息遮罩，这个动作会触发onTimerFinished回调
             // 不需要额外操作，因为timerFinished已经处理了
+            AppLogger.shared.logStateMachine("Execute: showRestOverlay (via onTimerFinished)", tag: "ACTION")
             break
         case .startNextPomodoro:
             // 开始下一个番茄钟
+            AppLogger.shared.logStateMachine("Execute: startNextPomodoro", tag: "ACTION")
             performStartNextPomodoro()
         case .enterForcedSleep:
             // 进入强制睡眠状态
+            AppLogger.shared.logStateMachine("Execute: enterForcedSleep", tag: "ACTION")
             performEnterForcedSleep()
         case .exitForcedSleep:
             // 退出强制睡眠状态
+            AppLogger.shared.logStateMachine("Execute: exitForcedSleep", tag: "ACTION")
             performExitForcedSleep()
         }
     }
@@ -675,6 +719,7 @@ class PomodoroTimer: ObservableObject {
         timer?.invalidate()
         timer = nil
         print("⏸️ Timer paused by state machine")
+        AppLogger.shared.logStateMachine("Timer -> paused", tag: "TIMER")
     }
     
     /// 执行恢复操作
@@ -704,6 +749,7 @@ class PomodoroTimer: ObservableObject {
         
         print("▶️ Timer resumed by state machine, remaining time: \(Int(remainingTime/60)):\(String(format: "%02d", Int(remainingTime) % 60))")
         updateTimeDisplay()
+        AppLogger.shared.logStateMachine("Timer -> resumed", tag: "TIMER")
     }
     
     /// 执行重新开始操作
@@ -731,6 +777,7 @@ class PomodoroTimer: ObservableObject {
         
         print("🔄 Timer restarted by state machine for \(currentTimerType)")
         updateTimeDisplay()
+        AppLogger.shared.logStateMachine("Timer -> restarted for \(currentTimerType)", tag: "TIMER")
     }
     
     /// 执行开始下一个番茄钟操作
@@ -751,6 +798,7 @@ class PomodoroTimer: ObservableObject {
         
         print("🍅 Starting next pomodoro")
         updateTimeDisplay()
+        AppLogger.shared.logStateMachine("Timer -> next pomodoro", tag: "TIMER")
     }
     
     /// 执行进入强制睡眠状态操作
@@ -759,6 +807,7 @@ class PomodoroTimer: ObservableObject {
         // 停止无操作监控，避免在强制睡眠期间被无操作检测中断
         stopIdleMonitoring()
         print("🌙 强制睡眠：停止无操作监控，避免被中断")
+        AppLogger.shared.logStateMachine("Enter forced sleep", tag: "SLEEP")
     }
     
     /// 执行退出强制睡眠状态操作
@@ -770,6 +819,7 @@ class PomodoroTimer: ObservableObject {
             print("▶️ 强制睡眠结束：重新启动无操作监控")
         }
         // 熬夜状态现在由状态机管理，无需手动重置
+        AppLogger.shared.logStateMachine("Exit forced sleep", tag: "SLEEP")
     }
     
     // MARK: - 自动重新计时功能
@@ -915,6 +965,7 @@ class PomodoroTimer: ObservableObject {
     private func triggerStayUpOverlay() {
         // 获取熬夜限制设置信息
         let stayUpInfo = autoRestartStateMachine.getStayUpLimitInfo()
+        AppLogger.shared.logStateMachine("Trigger stay-up overlay; limit: \(String(format: "%02d:%02d", stayUpInfo.hour, stayUpInfo.minute))", tag: "SLEEP")
         
         // 记录熬夜模式触发统计
         let limitTimeString = String(format: "%02d:%02d", stayUpInfo.hour, stayUpInfo.minute)
@@ -944,6 +995,7 @@ class PomodoroTimer: ObservableObject {
         if countdownNotificationWindow == nil {
             countdownNotificationWindow = CountdownNotificationWindow()
         }
+        AppLogger.shared.logStateMachine("Forced sleep countdown: \(minutesRemaining)m", tag: "SLEEP")
         
         // 根据剩余分钟数显示不同的消息
         switch minutesRemaining {
