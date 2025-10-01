@@ -110,6 +110,11 @@ class AutoRestartStateMachine {
         }
     }
     
+    /// 检查休息计时器是否正在运行
+    func isRestTimerRunning() -> Bool {
+        return currentState == .restTimerRunning
+    }
+    
     /// 检查是否处于强制睡眠状态
     func isInForcedSleep() -> Bool {
         return currentState == .forcedSleep

@@ -123,7 +123,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             
             // 确保休息计时开始（用于统计与正确计数）。
             // 注意：必须在会议模式判断之前调用，以保证会议模式下也会进入休息状态（静默）。
-            if !self.pomodoroTimer.isInRestPeriod {
+            // 仅当休息计时器未在运行时才触发 startBreak，避免在 .restPeriod 阶段重复计数
+            if !self.pomodoroTimer.isRestTimerRunning {
                 self.pomodoroTimer.startBreak()
             }
 

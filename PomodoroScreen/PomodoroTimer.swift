@@ -98,6 +98,10 @@ class PomodoroTimer: ObservableObject {
         return autoRestartStateMachine.isInRestPeriod()
     }
     
+    var isRestTimerRunning: Bool {
+        return autoRestartStateMachine.isRestTimerRunning()
+    }
+    
     // 测试专用：提供对状态机的访问
     internal var stateMachineForTesting: AutoRestartStateMachine {
         return autoRestartStateMachine
