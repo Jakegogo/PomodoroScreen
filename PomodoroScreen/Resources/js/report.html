@@ -383,16 +383,16 @@
         }
 
         /* Recommendations */
-        .recommendations-section { background:#ffffff; border:1px solid #eef2f7; border-radius:16px; padding:16px; box-shadow: 0 8px 24px rgba(17,24,39,0.06); }
+        .recommendations-section { margin: 8px 0 24px; background:#ffffff; border:1px solid #eef2f7; border-radius:16px; padding:16px; box-shadow: 0 8px 24px rgba(17,24,39,0.06); position: relative; overflow: visible; }
         .recommendations-section h2 { margin-bottom: 12px; font-size:18px; color:#111827; }
         .recommendations-list { display:flex; flex-direction:column; gap:12px; }
          .recommendation-item { padding:14px; border-radius:12px; color:#fff; font-weight:600; letter-spacing:.2px; box-shadow: 0 6px 16px rgba(17,24,39,0.06); }
-         .recommendation-item::before { content:'💡'; margin-right:8px; }
+         /* .recommendation-item::before { content:'💡'; margin-right:8px; } */
          /* Match health ring colors */
-         .recommendation-item.rec-work { background: linear-gradient(90deg, #ed347c 0%, #d12a68 100%); }
-         .recommendation-item.rec-rest { background: linear-gradient(90deg, #b2fd00 0%, #8fd400 100%); }
-         .recommendation-item.rec-focus { background: linear-gradient(90deg, #04f6d1 0%, #03c9a8 100%); }
-         .recommendation-item.rec-health { background: linear-gradient(90deg, #cc66ff 0%, #b84dff 100%); }
+         .recommendation-item.rec-work { background: linear-gradient(90deg, rgba(237, 52, 124, 0.85) 0%, rgba(209, 42, 104, 0.85) 100%); }
+         .recommendation-item.rec-rest { background: linear-gradient(90deg, rgba(178, 253, 0, 0.85) 0%, rgba(143, 212, 0, 0.85) 100%); }
+         .recommendation-item.rec-focus { background: linear-gradient(90deg, rgba(4, 246, 209, 0.85) 0%, rgba(3, 201, 168, 0.85) 100%); }
+         .recommendation-item.rec-health { background: linear-gradient(90deg, rgba(204, 102, 255, 0.85) 0%, rgba(184, 77, 255, 0.85) 100%); }
 
         /* Reflections */
         .reflection-section { margin-top: 18px; background:#ffffff; border:1px solid #eef2f7; border-radius:16px; padding:16px; box-shadow: 0 8px 24px rgba(17,24,39,0.06); }
@@ -424,7 +424,18 @@
             <p class="report-date" id="reportMoodLine"></p>
         </header>
         
+        
+        
         <div class="dashboard">
+            <!-- 健康建议 -->
+            <div class="recommendations-section">
+                <h2>
+                    <img src="idea.svg" alt="健康建议" class="section-icon" />
+                    健康建议
+                </h2>
+                <div id="recommendationsList" class="recommendations-list">
+                </div>
+            </div>
             <!-- 核心指标卡片 -->
             <div class="metrics-grid">
                 <div class="metric-card pomodoro-card">
@@ -657,15 +668,7 @@
                 </div>
             </div>
             
-            <!-- 健康建议 -->
-            <div class="recommendations-section">
-                <h2>
-                    <img src="idea.svg" alt="健康建议" class="section-icon" />
-                    健康建议
-                </h2>
-                <div id="recommendationsList" class="recommendations-list">
-                </div>
-            </div>
+            
 
             <!-- 你的感受（移至底部） -->
             <div class="reflection-section">
@@ -720,6 +723,7 @@
                 showRecommendations();
                 setupMoodInteractions();
                 renderMoodInfoFromDaily();
+                try { triggerConfettiIfHealthy(); } catch(e) { console.warn('confetti init failed', e); }
                 reportInitialized = true;
                 console.log('Report initialized successfully');
             } catch (error) {
@@ -1762,6 +1766,8 @@
                 ];
             }
             
+            const totalWorkTime = daily.totalWorkTime || 0;
+
             if (daily.workIntensityScore < 50) {
                 recommendations.push({ text: '💪 建议增加番茄钟数量，提高工作效率', type: 'work' });
             }
@@ -1770,6 +1776,11 @@
                 recommendations.push({ text: '☕ 休息时间不足，建议严格执行休息计划', type: 'rest' });
             }
             
+            // 超过 8 小时工作提醒（与健康度计算中的过劳扣分一致）
+            if (totalWorkTime > 8 * 60 * 60) {
+                recommendations.push({ text: '⌛ 今日工作超过 8 小时，注意劳逸结合，建议适当休息', type: 'health' });
+            }
+
             if (daily.cancelledBreakCount > 2) {
                 recommendations.push({ text: '🎯 频繁取消休息会影响专注度，建议坚持休息', type: 'focus' });
             }
@@ -1944,6 +1955,68 @@
                 showShareButton();
             }
         };
+
+        // 健康度达标时播放撒花特效（一次性、轻量实现）
+        function triggerConfettiIfHealthy() {
+            const daily = reportData && reportData.daily ? reportData.daily : null;
+            if (!daily) return;
+            const health = Math.round(daily.healthScore || 0);
+            if (health < 80) return;
+            const host = document.querySelector('.recommendations-section');
+            if (!host) return;
+            playConfetti(host, { duration: 1200, particles: 80 });
+        }
+
+        function playConfetti(container, opts) {
+            const duration = (opts && opts.duration) || 1200;
+            const particles = (opts && opts.particles) || 80;
+            const canvas = document.createElement('canvas');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            canvas.style.position = 'absolute';
+            canvas.style.left = '0';
+            canvas.style.top = '0';
+            canvas.style.pointerEvents = 'none';
+            canvas.style.zIndex = '10';
+            container.appendChild(canvas);
+            const ctx = canvas.getContext('2d');
+            const colors = ['#ed347c', '#b2fd00', '#04f6d1', '#cc66ff', '#f59e0b'];
+            const pieces = [];
+            for (let i = 0; i < particles; i++) {
+                pieces.push({
+                    x: Math.random() * canvas.width,
+                    y: -10 - Math.random() * 30,
+                    size: 4 + Math.random() * 6,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    speedY: 1 + Math.random() * 2.5,
+                    speedX: -1 + Math.random() * 2,
+                    rotation: Math.random() * Math.PI,
+                    rotationSpeed: -0.2 + Math.random() * 0.4
+                });
+            }
+            let start = performance.now();
+            function frame(now) {
+                const elapsed = now - start;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                pieces.forEach(p => {
+                    p.x += p.speedX;
+                    p.y += p.speedY;
+                    p.rotation += p.rotationSpeed;
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rotation);
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+                    ctx.restore();
+                });
+                if (elapsed < duration) {
+                    requestAnimationFrame(frame);
+                } else {
+                    container.removeChild(canvas);
+                }
+            }
+            requestAnimationFrame(frame);
+        }
     </script>
 </body>
 </html>
