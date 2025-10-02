@@ -23,7 +23,7 @@ class LaunchAtLogin {
     var isEnabled: Bool {
         get {
             // 使用UserDefaults作为主要存储，因为SMLoginItemSetEnabled在某些情况下可能不可靠
-            return UserDefaults.standard.bool(forKey: "LaunchAtLoginEnabled")
+            return SettingsStore.launchAtLoginEnabled
         }
         set {
             setLaunchAtLogin(enabled: newValue)
@@ -33,8 +33,8 @@ class LaunchAtLogin {
     /// 设置开机自启动状态
     /// - Parameter enabled: 是否启用开机自启动
     private func setLaunchAtLogin(enabled: Bool) {
-        // 保存到UserDefaults
-        UserDefaults.standard.set(enabled, forKey: "LaunchAtLoginEnabled")
+        // 保存到集中设置存储
+        SettingsStore.launchAtLoginEnabled = enabled
         
         // 使用现代API设置开机自启动
         if #available(macOS 13.0, *) {
@@ -104,7 +104,7 @@ class LaunchAtLogin {
     /// 验证当前设置状态
     /// - Returns: 返回当前的启用状态和验证信息
     func validateStatus() -> (enabled: Bool, systemEnabled: Bool?, message: String) {
-        let userDefaultsEnabled = UserDefaults.standard.bool(forKey: "LaunchAtLoginEnabled")
+        let userDefaultsEnabled = SettingsStore.launchAtLoginEnabled
         
         // 尝试验证系统级别的设置
         var systemEnabled: Bool? = nil

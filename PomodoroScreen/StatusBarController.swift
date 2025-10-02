@@ -24,7 +24,7 @@ class StatusBarController {
         self.clockIconGenerator = ClockIconGenerator()
         
         // 加载状态栏文字显示设置
-        self.showStatusBarText = UserDefaults.standard.bool(forKey: "ShowStatusBarText") != false // 默认为 true
+        self.showStatusBarText = SettingsStore.showStatusBarText
         
         // 创建状态栏项目
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -469,8 +469,8 @@ class StatusBarController {
             )
             
             settingsWindow?.onSettingsChanged = { [weak self] autoStart, pomodoroTime, breakTime, idleRestart, idleTime, idleActionIsRestart, screenLockRestart, screenLockActionIsRestart, screensaverRestart, screensaverActionIsRestart, showCancelRestButton, longBreakCycle, longBreakTimeMinutes, showLongBreakCancelButton, accumulateRestTime, backgroundFiles, stayUpLimitEnabled, stayUpLimitHour, stayUpLimitMinute, showStatusBarText in
-                // 从 UserDefaults 获取会议模式设置
-                let meetingModeEnabled = UserDefaults.standard.bool(forKey: "MeetingModeEnabled")
+                // 从 SettingsStore 获取会议模式设置
+                let meetingModeEnabled = SettingsStore.meetingModeEnabled
                 self?.applySettings(autoStart: autoStart, pomodoroTime: pomodoroTime, breakTime: breakTime, idleRestart: idleRestart, idleTime: idleTime, idleActionIsRestart: idleActionIsRestart, screenLockRestart: screenLockRestart, screenLockActionIsRestart: screenLockActionIsRestart, screensaverRestart: screensaverRestart, screensaverActionIsRestart: screensaverActionIsRestart, showCancelRestButton: showCancelRestButton, longBreakCycle: longBreakCycle, longBreakTimeMinutes: longBreakTimeMinutes, showLongBreakCancelButton: showLongBreakCancelButton, accumulateRestTime: accumulateRestTime, backgroundFiles: backgroundFiles, stayUpLimitEnabled: stayUpLimitEnabled, stayUpLimitHour: stayUpLimitHour, stayUpLimitMinute: stayUpLimitMinute, showStatusBarText: showStatusBarText, meetingMode: meetingModeEnabled)
             }
         }

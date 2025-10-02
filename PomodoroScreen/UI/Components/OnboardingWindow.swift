@@ -380,7 +380,7 @@ class OnboardingWindow: NSWindow {
         cleanupVideoPlayer()
         
         // 保存已完成引导的标记
-        UserDefaults.standard.set(true, forKey: "OnboardingCompleted")
+        SettingsStore.onboardingCompleted = true
         
         // 执行完成回调
         onboardingCompleted?()
@@ -396,10 +396,10 @@ class OnboardingWindow: NSWindow {
     }
     
     static func shouldShowOnboarding() -> Bool {
-        return !UserDefaults.standard.bool(forKey: "OnboardingCompleted")
+        return !SettingsStore.onboardingCompleted
     }
     
     static func resetOnboarding() {
-        UserDefaults.standard.removeObject(forKey: "OnboardingCompleted")
+        SettingsStore.remove("OnboardingCompleted")
     }
 }

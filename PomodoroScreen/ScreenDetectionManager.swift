@@ -23,12 +23,8 @@ class ScreenDetectionManager {
     
     /// 是否启用自动检测投屏进入会议模式
     var isAutoDetectionEnabled: Bool {
-        get {
-            return UserDefaults.standard.bool(forKey: "AutoDetectScreencastEnabled") != false // 默认开启
-        }
-        set {
-            UserDefaults.standard.set(newValue, forKey: "AutoDetectScreencastEnabled")
-        }
+        get { SettingsStore.autoDetectScreencastEnabled }
+        set { SettingsStore.autoDetectScreencastEnabled = newValue }
     }
     
     // MARK: - Initialization

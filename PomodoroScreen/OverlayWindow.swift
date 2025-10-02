@@ -705,6 +705,11 @@ class OverlayView: NSView {
     private var timer: PomodoroTimer?
     private var isPreviewMode: Bool = false
     private var shutdownConfirmationWindow: ShutdownConfirmationWindow?  // 关机确认对话框
+    // MARK: - Test Detection
+    private func isRunningUnitTests() -> Bool {
+        return ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+
     
     // MARK: - Button Configurations
     
@@ -1048,6 +1053,11 @@ class OverlayView: NSView {
     }
     
     private func triggerSystemShutdown() {
+        // 测试环境下不执行任何真实关机动作
+        if isRunningUnitTests() {
+            print("🧪 [TEST] 跳过真实关机执行")
+            return
+        }
         print("🔴 执行系统关机")
         
         // 使用AppleScript触发系统关机
@@ -1072,6 +1082,11 @@ class OverlayView: NSView {
     }
     
     private func fallbackShutdown() {
+        // 测试环境下不执行任何真实关机动作
+        if isRunningUnitTests() {
+            print("🧪 [TEST] 跳过备用关机方法")
+            return
+        }
         print("🔴 使用备用关机方法")
         
         let task = Process()
@@ -1090,6 +1105,11 @@ class OverlayView: NSView {
     }
     
     private func showSystemShutdownDialog() {
+        // 测试环境下不弹出系统关机对话框
+        if isRunningUnitTests() {
+            print("🧪 [TEST] 跳过系统关机对话框")
+            return
+        }
         // 使用系统的关机对话框
         let script = """
         tell application "loginwindow"

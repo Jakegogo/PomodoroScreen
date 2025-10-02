@@ -69,13 +69,13 @@ class SettingsWindow: NSWindow {
     var autoStartEnabled: Bool = true
     var pomodoroTimeMinutes: Int = 25
     var breakTimeMinutes: Int = 3
-    var idleRestartEnabled: Bool = false
+    var idleRestartEnabled: Bool = true
     var idleTimeMinutes: Int = 10
-    var idleActionIsRestart: Bool = true // true: 重新计时, false: 暂停计时
-    var screenLockRestartEnabled: Bool = false
-    var screenLockActionIsRestart: Bool = true // true: 重新计时, false: 暂停计时
-    var screensaverRestartEnabled: Bool = false
-    var screensaverActionIsRestart: Bool = true // true: 重新计时, false: 暂停计时
+    var idleActionIsRestart: Bool = false // true: 重新计时, false: 暂停计时
+    var screenLockRestartEnabled: Bool = true
+    var screenLockActionIsRestart: Bool = false // true: 重新计时, false: 暂停计时
+    var screensaverRestartEnabled: Bool = true
+    var screensaverActionIsRestart: Bool = false // true: 重新计时, false: 暂停计时
     var showCancelRestButton: Bool = true // 是否显示取消休息按钮
     
     // 计划设置值
@@ -96,10 +96,10 @@ class SettingsWindow: NSWindow {
     var launchAtLoginEnabled: Bool = false // 是否启用开机自启动
     
     // 状态栏显示设置值
-    var showStatusBarText: Bool = true // 是否在状态栏显示倒计时文字
+    var showStatusBarText: Bool = false // 是否在状态栏显示倒计时文字
     
     // 自动检测投屏设置值
-    var autoDetectScreencastEnabled: Bool = true // 是否启用自动检测投屏进入会议模式
+    var autoDetectScreencastEnabled: Bool = false // 是否启用自动检测投屏进入会议模式
     
     // 回调
     var onSettingsChanged: ((Bool, Int, Int, Bool, Int, Bool, Bool, Bool, Bool, Bool, Bool, Int, Int, Bool, Bool, [BackgroundFile], Bool, Int, Int, Bool) -> Void)?
@@ -838,41 +838,43 @@ class SettingsWindow: NSWindow {
     }
     
     @objc private func saveSettings() {
-        // 保存到 UserDefaults
-        UserDefaults.standard.set(autoStartEnabled, forKey: "AutoStartEnabled")
-        UserDefaults.standard.set(pomodoroTimeMinutes, forKey: "PomodoroTimeMinutes")
-        UserDefaults.standard.set(breakTimeMinutes, forKey: "BreakTimeMinutes")
-        UserDefaults.standard.set(idleRestartEnabled, forKey: "IdleRestartEnabled")
-        UserDefaults.standard.set(idleTimeMinutes, forKey: "IdleTimeMinutes")
-        UserDefaults.standard.set(idleActionIsRestart, forKey: "IdleActionIsRestart")
-        UserDefaults.standard.set(screenLockRestartEnabled, forKey: "ScreenLockRestartEnabled")
-        UserDefaults.standard.set(screenLockActionIsRestart, forKey: "ScreenLockActionIsRestart")
-        UserDefaults.standard.set(screensaverRestartEnabled, forKey: "ScreensaverRestartEnabled")
-        UserDefaults.standard.set(screensaverActionIsRestart, forKey: "ScreensaverActionIsRestart")
-        UserDefaults.standard.set(showCancelRestButton, forKey: "ShowCancelRestButton")
+        // 保存到 SettingsStore
+        SettingsStore.autoStartEnabled = autoStartEnabled
+        SettingsStore.pomodoroTimeMinutes = pomodoroTimeMinutes
+        SettingsStore.breakTimeMinutes = breakTimeMinutes
+        SettingsStore.idleRestartEnabled = idleRestartEnabled
+        SettingsStore.idleTimeMinutes = idleTimeMinutes
+        SettingsStore.idleActionIsRestart = idleActionIsRestart
+        SettingsStore.screenLockRestartEnabled = screenLockRestartEnabled
+        SettingsStore.screenLockActionIsRestart = screenLockActionIsRestart
+        SettingsStore.screensaverRestartEnabled = screensaverRestartEnabled
+        SettingsStore.screensaverActionIsRestart = screensaverActionIsRestart
+        SettingsStore.showCancelRestButton = showCancelRestButton
         
         // 保存计划设置
-        UserDefaults.standard.set(longBreakCycle, forKey: "LongBreakCycle")
-        UserDefaults.standard.set(longBreakTimeMinutes, forKey: "LongBreakTimeMinutes")
-        UserDefaults.standard.set(showLongBreakCancelButton, forKey: "ShowLongBreakCancelButton")
-        UserDefaults.standard.set(accumulateRestTime, forKey: "AccumulateRestTime")
+        SettingsStore.longBreakCycle = longBreakCycle
+        SettingsStore.longBreakTimeMinutes = longBreakTimeMinutes
+        SettingsStore.showLongBreakCancelButton = showLongBreakCancelButton
+        SettingsStore.accumulateRestTime = accumulateRestTime
         
         // 保存背景设置
         if let backgroundData = try? JSONEncoder().encode(backgroundFiles) {
-            UserDefaults.standard.set(backgroundData, forKey: "BackgroundFiles")
+            SettingsStore.backgroundFilesData = backgroundData
+        } else {
+            SettingsStore.backgroundFilesData = nil
         }
         
         // 保存熬夜限制设置
-        UserDefaults.standard.set(stayUpLimitEnabled, forKey: "StayUpLimitEnabled")
-        UserDefaults.standard.set(stayUpLimitHour, forKey: "StayUpLimitHour")
-        UserDefaults.standard.set(stayUpLimitMinute, forKey: "StayUpLimitMinute")
+        SettingsStore.stayUpLimitEnabled = stayUpLimitEnabled
+        SettingsStore.stayUpLimitHour = stayUpLimitHour
+        SettingsStore.stayUpLimitMinute = stayUpLimitMinute
         
         // 保存开机自启动设置（LaunchAtLogin类会自动处理系统级设置）
-        UserDefaults.standard.set(launchAtLoginEnabled, forKey: "LaunchAtLoginEnabled")
+        SettingsStore.launchAtLoginEnabled = launchAtLoginEnabled
         
         // 保存状态栏文字显示设置
-        UserDefaults.standard.set(showStatusBarText, forKey: "ShowStatusBarText")
-        UserDefaults.standard.set(autoDetectScreencastEnabled, forKey: "AutoDetectScreencastEnabled")
+        SettingsStore.showStatusBarText = showStatusBarText
+        SettingsStore.autoDetectScreencastEnabled = autoDetectScreencastEnabled
         LaunchAtLogin.shared.isEnabled = launchAtLoginEnabled
         
         // 通知回调
@@ -888,38 +890,31 @@ class SettingsWindow: NSWindow {
     }
     
     private func loadSettings() {
-        autoStartEnabled = UserDefaults.standard.bool(forKey: "AutoStartEnabled") != false // 默认为 true
-        pomodoroTimeMinutes = UserDefaults.standard.integer(forKey: "PomodoroTimeMinutes")
-        if pomodoroTimeMinutes == 0 { pomodoroTimeMinutes = 25 } // 默认25分钟
+        autoStartEnabled = SettingsStore.autoStartEnabled
+        pomodoroTimeMinutes = SettingsStore.pomodoroTimeMinutes
+        breakTimeMinutes = SettingsStore.breakTimeMinutes
         
-        breakTimeMinutes = UserDefaults.standard.integer(forKey: "BreakTimeMinutes")
-        if breakTimeMinutes == 0 { breakTimeMinutes = 3 } // 默认3分钟
+        idleRestartEnabled = SettingsStore.idleRestartEnabled
+        idleTimeMinutes = SettingsStore.idleTimeMinutes
+        idleActionIsRestart = SettingsStore.idleActionIsRestart
         
-        idleRestartEnabled = UserDefaults.standard.bool(forKey: "IdleRestartEnabled") // 默认为 false
-        idleTimeMinutes = UserDefaults.standard.integer(forKey: "IdleTimeMinutes")
-        if idleTimeMinutes == 0 { idleTimeMinutes = 10 } // 默认10分钟
-        idleActionIsRestart = UserDefaults.standard.bool(forKey: "IdleActionIsRestart") != false // 默认为 true
+        screenLockRestartEnabled = SettingsStore.screenLockRestartEnabled
+        screenLockActionIsRestart = SettingsStore.screenLockActionIsRestart
         
-        screenLockRestartEnabled = UserDefaults.standard.bool(forKey: "ScreenLockRestartEnabled") // 默认为 false
-        screenLockActionIsRestart = UserDefaults.standard.bool(forKey: "ScreenLockActionIsRestart") != false // 默认为 true
+        screensaverRestartEnabled = SettingsStore.screensaverRestartEnabled
+        screensaverActionIsRestart = SettingsStore.screensaverActionIsRestart
         
-        screensaverRestartEnabled = UserDefaults.standard.bool(forKey: "ScreensaverRestartEnabled") // 默认为 false
-        screensaverActionIsRestart = UserDefaults.standard.bool(forKey: "ScreensaverActionIsRestart") != false // 默认为 true
-        
-        showCancelRestButton = UserDefaults.standard.bool(forKey: "ShowCancelRestButton") != false // 默认为 true
+        showCancelRestButton = SettingsStore.showCancelRestButton
         
         // 加载计划设置
-        longBreakCycle = UserDefaults.standard.integer(forKey: "LongBreakCycle")
-        if longBreakCycle == 0 { longBreakCycle = 2 } // 默认2次
+        longBreakCycle = SettingsStore.longBreakCycle
+        longBreakTimeMinutes = SettingsStore.longBreakTimeMinutes
         
-        longBreakTimeMinutes = UserDefaults.standard.integer(forKey: "LongBreakTimeMinutes")
-        if longBreakTimeMinutes == 0 { longBreakTimeMinutes = 5 } // 默认5分钟
-        
-        showLongBreakCancelButton = UserDefaults.standard.bool(forKey: "ShowLongBreakCancelButton") != false // 默认为 true
-        accumulateRestTime = UserDefaults.standard.bool(forKey: "AccumulateRestTime") // 默认为 false
+        showLongBreakCancelButton = SettingsStore.showLongBreakCancelButton
+        accumulateRestTime = SettingsStore.accumulateRestTime
         
         // 加载背景设置
-        if let backgroundData = UserDefaults.standard.data(forKey: "BackgroundFiles"),
+        if let backgroundData = SettingsStore.backgroundFilesData,
            let loadedBackgroundFiles = try? JSONDecoder().decode([BackgroundFile].self, from: backgroundData) {
             backgroundFiles = loadedBackgroundFiles
         } else {
@@ -927,19 +922,18 @@ class SettingsWindow: NSWindow {
         }
         
         // 加载熬夜限制设置
-        stayUpLimitEnabled = UserDefaults.standard.bool(forKey: "StayUpLimitEnabled") // 默认为 false
-        stayUpLimitHour = UserDefaults.standard.integer(forKey: "StayUpLimitHour")
-        if stayUpLimitHour == 0 { stayUpLimitHour = 23 } // 默认23:00
-        stayUpLimitMinute = UserDefaults.standard.integer(forKey: "StayUpLimitMinute") // 默认为0分钟
+        stayUpLimitEnabled = SettingsStore.stayUpLimitEnabled
+        stayUpLimitHour = SettingsStore.stayUpLimitHour
+        stayUpLimitMinute = SettingsStore.stayUpLimitMinute
         
         // 加载开机自启动设置
         launchAtLoginEnabled = LaunchAtLogin.shared.isEnabled // 从LaunchAtLogin类获取当前状态
         
         // 加载状态栏文字显示设置
-        showStatusBarText = UserDefaults.standard.bool(forKey: "ShowStatusBarText") != false // 默认为 true
+        showStatusBarText = SettingsStore.showStatusBarText
         
         // 加载自动检测投屏设置
-        autoDetectScreencastEnabled = UserDefaults.standard.bool(forKey: "AutoDetectScreencastEnabled") != false // 默认为 true
+        autoDetectScreencastEnabled = SettingsStore.autoDetectScreencastEnabled
         
         // 更新UI
         if autoStartCheckbox != nil {

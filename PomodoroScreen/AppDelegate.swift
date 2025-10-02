@@ -12,7 +12,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         // 初始化开机自启动管理
         // 确保LaunchAtLogin的状态与UserDefaults同步
-        let savedLaunchAtLoginEnabled = UserDefaults.standard.bool(forKey: "LaunchAtLoginEnabled")
+        let savedLaunchAtLoginEnabled = SettingsStore.launchAtLoginEnabled
         if LaunchAtLogin.shared.isEnabled != savedLaunchAtLoginEnabled {
             LaunchAtLogin.shared.isEnabled = savedLaunchAtLoginEnabled
         }
@@ -69,44 +69,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     private func loadAndApplySettings() {
         // 加载设置
-        let autoStartEnabled = UserDefaults.standard.bool(forKey: "AutoStartEnabled") != false // 默认为 true
-        let pomodoroTimeMinutes = UserDefaults.standard.integer(forKey: "PomodoroTimeMinutes")
-        let pomodoroTime = pomodoroTimeMinutes == 0 ? 25 : pomodoroTimeMinutes // 默认25分钟
-        let breakTimeMinutes = UserDefaults.standard.integer(forKey: "BreakTimeMinutes")
-        let breakTime = breakTimeMinutes == 0 ? 3 : breakTimeMinutes // 默认3分钟
-        let idleRestartEnabled = UserDefaults.standard.bool(forKey: "IdleRestartEnabled") // 默认为 false
-        let idleTimeMinutes = UserDefaults.standard.integer(forKey: "IdleTimeMinutes")
-        let idleTime = idleTimeMinutes == 0 ? 10 : idleTimeMinutes // 默认10分钟
-        let screenLockRestartEnabled = UserDefaults.standard.bool(forKey: "ScreenLockRestartEnabled") // 默认为 false
-        let screenLockActionIsRestart = UserDefaults.standard.bool(forKey: "ScreenLockActionIsRestart") != false // 默认为 true
-        let screensaverRestartEnabled = UserDefaults.standard.bool(forKey: "ScreensaverRestartEnabled") // 默认为 false
-        let screensaverActionIsRestart = UserDefaults.standard.bool(forKey: "ScreensaverActionIsRestart") != false // 默认为 true
-        let idleActionIsRestart = UserDefaults.standard.bool(forKey: "IdleActionIsRestart") != false // 默认为 true
-        let showCancelRestButton = UserDefaults.standard.bool(forKey: "ShowCancelRestButton") != false // 默认为 true
+        let autoStartEnabled = SettingsStore.autoStartEnabled
+        let pomodoroTime = SettingsStore.pomodoroTimeMinutes
+        let breakTime = SettingsStore.breakTimeMinutes
+        let idleRestartEnabled = SettingsStore.idleRestartEnabled
+        let idleTime = SettingsStore.idleTimeMinutes
+        let screenLockRestartEnabled = SettingsStore.screenLockRestartEnabled
+        let screenLockActionIsRestart = SettingsStore.screenLockActionIsRestart
+        let screensaverRestartEnabled = SettingsStore.screensaverRestartEnabled
+        let screensaverActionIsRestart = SettingsStore.screensaverActionIsRestart
+        let idleActionIsRestart = SettingsStore.idleActionIsRestart
+        let showCancelRestButton = SettingsStore.showCancelRestButton
         
         // 加载计划设置
-        let longBreakCycleValue = UserDefaults.standard.integer(forKey: "LongBreakCycle")
-        let longBreakCycle = longBreakCycleValue == 0 ? 2 : longBreakCycleValue // 默认2次
-        let longBreakTimeMinutesValue = UserDefaults.standard.integer(forKey: "LongBreakTimeMinutes")
-        let longBreakTimeMinutes = longBreakTimeMinutesValue == 0 ? 5 : longBreakTimeMinutesValue // 默认5分钟
-        let showLongBreakCancelButton = UserDefaults.standard.bool(forKey: "ShowLongBreakCancelButton") != false // 默认为 true
-        let accumulateRestTime = UserDefaults.standard.bool(forKey: "AccumulateRestTime") // 默认为 false
+        let longBreakCycle = SettingsStore.longBreakCycle
+        let longBreakTimeMinutes = SettingsStore.longBreakTimeMinutes
+        let showLongBreakCancelButton = SettingsStore.showLongBreakCancelButton
+        let accumulateRestTime = SettingsStore.accumulateRestTime
         
         // 加载背景设置
         var backgroundFiles: [BackgroundFile] = []
-        if let backgroundData = UserDefaults.standard.data(forKey: "BackgroundFiles"),
+        if let backgroundData = SettingsStore.backgroundFilesData,
            let loadedBackgroundFiles = try? JSONDecoder().decode([BackgroundFile].self, from: backgroundData) {
             backgroundFiles = loadedBackgroundFiles
         }
         
         // 加载熬夜限制设置
-        let stayUpLimitEnabled = UserDefaults.standard.bool(forKey: "StayUpLimitEnabled") // 默认为 false
-        let stayUpLimitHour = UserDefaults.standard.integer(forKey: "StayUpLimitHour")
-        let stayUpHour = stayUpLimitHour == 0 ? 23 : stayUpLimitHour // 默认23:00
-        let stayUpLimitMinute = UserDefaults.standard.integer(forKey: "StayUpLimitMinute") // 默认为0分钟
+        let stayUpLimitEnabled = SettingsStore.stayUpLimitEnabled
+        let stayUpHour = SettingsStore.stayUpLimitHour
+        let stayUpLimitMinute = SettingsStore.stayUpLimitMinute
         
         // 加载会议模式设置
-        let meetingModeEnabled = UserDefaults.standard.bool(forKey: "MeetingModeEnabled") // 默认为 false
+        let meetingModeEnabled = SettingsStore.meetingModeEnabled
         
         // 应用设置到计时器
         pomodoroTimer.updateSettings(pomodoroMinutes: pomodoroTime, breakMinutes: breakTime, idleRestart: idleRestartEnabled, idleTime: idleTime, idleActionIsRestart: idleActionIsRestart, screenLockRestart: screenLockRestartEnabled, screenLockActionIsRestart: screenLockActionIsRestart, screensaverRestart: screensaverRestartEnabled, screensaverActionIsRestart: screensaverActionIsRestart, showCancelRestButton: showCancelRestButton, longBreakCycle: longBreakCycle, longBreakTimeMinutes: longBreakTimeMinutes, showLongBreakCancelButton: showLongBreakCancelButton, accumulateRestTime: accumulateRestTime, backgroundFiles: backgroundFiles, stayUpLimitEnabled: stayUpLimitEnabled, stayUpLimitHour: stayUpHour, stayUpLimitMinute: stayUpLimitMinute, meetingMode: meetingModeEnabled)
@@ -261,11 +255,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         
-        let currentMeetingMode = UserDefaults.standard.bool(forKey: "MeetingModeEnabled")
+        let currentMeetingMode = SettingsStore.meetingModeEnabled
         if !currentMeetingMode {
             print("📺 检测到投屏/外接显示器，自动启用会议模式")
-            UserDefaults.standard.set(true, forKey: "MeetingModeEnabled")
-            UserDefaults.standard.set(true, forKey: "MeetingModeAutoEnabled") // 标记为自动启用
+            SettingsStore.meetingModeEnabled = true
+            SettingsStore.meetingModeAutoEnabled = true
             
             // 通知状态栏更新会议模式状态
             statusBarController.refreshMeetingModeStatus()
@@ -274,13 +268,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     private func disableMeetingModeAutomatically() {
         // 只有当会议模式是自动启用的时候才自动关闭
-        let wasAutoEnabled = UserDefaults.standard.bool(forKey: "MeetingModeAutoEnabled")
-        let currentMeetingMode = UserDefaults.standard.bool(forKey: "MeetingModeEnabled")
+        let wasAutoEnabled = SettingsStore.meetingModeAutoEnabled
+        let currentMeetingMode = SettingsStore.meetingModeEnabled
         
         if currentMeetingMode && wasAutoEnabled {
             print("📺 投屏/外接显示器已断开，自动关闭会议模式")
-            UserDefaults.standard.set(false, forKey: "MeetingModeEnabled")
-            UserDefaults.standard.set(false, forKey: "MeetingModeAutoEnabled")
+            SettingsStore.meetingModeEnabled = false
+            SettingsStore.meetingModeAutoEnabled = false
             
             // 通知状态栏更新会议模式状态
             statusBarController.refreshMeetingModeStatus()

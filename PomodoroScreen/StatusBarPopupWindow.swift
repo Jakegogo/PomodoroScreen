@@ -512,7 +512,7 @@ class StatusBarPopupWindow: NSWindow {
     
     private func handleMeetingModeSwitchChanged(_ isEnabled: Bool) {
         // 保存设置到 UserDefaults
-        UserDefaults.standard.set(isEnabled, forKey: "MeetingModeEnabled")
+        SettingsStore.meetingModeEnabled = isEnabled
         
         print("🔇 会议模式开关：\(isEnabled ? "开启" : "关闭")")
         
@@ -581,17 +581,17 @@ class StatusBarPopupWindow: NSWindow {
     }
     
     private func updateMeetingModeSwitch() {
-        let isEnabled = UserDefaults.standard.bool(forKey: "MeetingModeEnabled")
+        let isEnabled = SettingsStore.meetingModeEnabled
         meetingModeSwitch.setOn(isEnabled, animated: false)
     }
     
     /// 刷新会议模式开关状态（外部调用）
     func refreshMeetingModeSwitch() {
-        let isEnabled = UserDefaults.standard.bool(forKey: "MeetingModeEnabled")
+        let isEnabled = SettingsStore.meetingModeEnabled
         meetingModeSwitch.setOn(isEnabled, animated: true) // 有动画效果
         
         // 检查是否是自动启用的
-        let wasAutoEnabled = UserDefaults.standard.bool(forKey: "MeetingModeAutoEnabled")
+        let wasAutoEnabled = SettingsStore.meetingModeAutoEnabled
         if wasAutoEnabled {
             print("🔇 会议模式开关状态已自动更新: \(isEnabled ? "开启" : "关闭")")
         }
