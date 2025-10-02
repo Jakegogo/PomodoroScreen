@@ -51,6 +51,39 @@
                 0 0 24px rgba(0,0,0,0.10);
             z-index: 0;
             pointer-events: none;
+            transition: box-shadow .25s ease, transform .25s ease, filter .25s ease;
+        }
+        /* 悬停时增强阴影并轻微放大，形成光晕感 */
+        .report-header:hover::before {
+            box-shadow:
+                inset 0 0 44px rgba(255,255,255,0.08),
+                0 0 18px rgba(0,0,0,0.20),
+                0 0 34px rgba(178,253,0,0.22),
+                0 0 64px rgba(178,253,0,0.18);
+            transform: scale(1.02);
+        }
+        /* 额外的光晕层（不改动HTML），在悬停时淡入 */
+        .report-header::after {
+            content: "";
+            position: absolute;
+            left: 24px;
+            top: 20px;
+            width: 280px;
+            height: 280px;
+            border-radius: 50%;
+            background: radial-gradient(circle,
+                rgba(178,253,0,0) 58%,
+                rgba(178,253,0,0.28) 78%,
+                rgba(178,253,0,0) 98%
+            );
+            filter: blur(8px);
+            opacity: 0;
+            transition: opacity .25s ease;
+            z-index: 0; /* 始终在文字之下（文字设置了 z-index:1） */
+            pointer-events: none;
+        }
+        .report-header:hover::after {
+            opacity: 1;
         }
         .report-header > * { position: relative; z-index: 1; }
         .report-header h1 { 
@@ -97,6 +130,12 @@
         .title-icon { width: 28px; height: 28px; display: inline-block; }
         .report-date { margin-top: 6px; font-size: 13px; color: #6b7280; }
 
+        /* 分享按钮（右上角） */
+        .share-button { position: fixed; top: 16px; right: 16px; width: 36px; height: 36px; border: none; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(17,24,39,0.08); cursor: pointer; z-index: 999; transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease; }
+        .share-button:hover { transform: translateY(-1px); box-shadow: 0 8px 16px rgba(17,24,39,0.12); background: #ffffff; }
+        .share-icon { width: 18px; height: 18px; opacity: .9; transition: transform .2s ease, opacity .2s ease; }
+        .share-button:hover .share-icon { transform: scale(1.05); opacity: 1; }
+
         /* Dashboard wrapper - 无圆角白底样式 */
         .dashboard {
             background: transparent;
@@ -122,7 +161,7 @@
         .metric-banner { position: absolute; left: 0; top: 0; bottom: 0; width: 88px; background-size: cover; background-position: center; background-repeat: no-repeat; }
         .metric-card { border-radius: 12px; }
         .metric-banner { border-top-left-radius: 12px; border-bottom-left-radius: 12px; }
-        .metric-card:hover { box-shadow: 0 6px 16px rgba(17,24,39,0.06); }
+        .metric-card:hover { box-shadow: 0 12px 32px rgba(17,24,39,0.10); transform: translateY(-2px); }
         /* 旧的emoji图标已被横幅图片替换 */
         .metric-icon { display: none; }
         .metric-content h3 { font-size: 28px; line-height: 1; font-weight: 800; color: #111827; margin-bottom: 4px; }
@@ -131,12 +170,32 @@
         .banner-time { background-image: url('banner_time.png'); }
         .banner-relax { background-image: url('banner_relax.png'); }
         .banner-health { background-image: url('banner_health.png'); }
+        /* Hover 过渡与横幅微动效 */
+        .metric-card { will-change: transform, box-shadow; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+        .metric-banner { transition: transform .25s ease, filter .25s ease; }
+        .metric-card:hover .metric-banner { transform: scale(1.03); filter: brightness(1.03); }
 
         /* Scores */
         .scores-section { margin-bottom: 16px; background:#ffffff; border:1px solid #eef2f7; border-radius:16px; padding:16px; box-shadow: 0 8px 24px rgba(17,24,39,0.06); }
         .scores-section h2 { margin-bottom: 12px; color:#111827; font-size:18px; display: inline-flex; align-items: center; gap: 8px; }
         .scores-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; text-align: center; }
         .score-item p { margin-top: 8px; font-weight: 600; color: #6b7280; font-size: 12px; }
+        /* Score item hover effects */
+        .score-item { background:#ffffff; border:1px solid transparent; border-radius:12px; padding:12px; box-shadow: none; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; will-change: transform, box-shadow; position: relative; overflow: hidden; }
+        .score-item:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(17,24,39,0.10); }
+        .score-item canvas { transition: transform .25s ease, filter .25s ease; }
+        .score-item:hover canvas { transform: scale(1.03); filter: brightness(1.03); }
+        /* 主题化 hover 微光（边框+外发光） */
+        .score-item::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: 12px; opacity: 0; transition: opacity .2s ease; }
+        .score-item:hover::after { opacity: 1; }
+        .score-work:hover { border-color: #ed347c; box-shadow: 0 12px 28px rgba(237,52,124,0.18), 0 6px 14px rgba(17,24,39,0.06); }
+        .score-work:hover::after { box-shadow: 0 0 0 2px rgba(237,52,124,0.18) inset; }
+        .score-rest:hover { border-color: #b2fd00; box-shadow: 0 12px 28px rgba(178,253,0,0.18), 0 6px 14px rgba(17,24,39,0.06); }
+        .score-rest:hover::after { box-shadow: 0 0 0 2px rgba(178,253,0,0.18) inset; }
+        .score-focus:hover { border-color: #04f6d1; box-shadow: 0 12px 28px rgba(4,246,209,0.18), 0 6px 14px rgba(17,24,39,0.06); }
+        .score-focus:hover::after { box-shadow: 0 0 0 2px rgba(4,246,209,0.18) inset; }
+        .score-health:hover { border-color: #cc66ff; box-shadow: 0 12px 28px rgba(204,102,255,0.18), 0 6px 14px rgba(17,24,39,0.06); }
+        .score-health:hover::after { box-shadow: 0 0 0 2px rgba(204,102,255,0.18) inset; }
 
         /* Calculation trigger */
         .calculation-trigger { 
@@ -236,7 +295,8 @@
         .details-section { margin: 8px 0 24px; background:#ffffff; border:1px solid #eef2f7; border-radius:16px; padding:16px; box-shadow: 0 8px 24px rgba(17,24,39,0.06); }
         .details-section h2 { margin-bottom: 12px; font-size:18px; color:#111827; display: inline-flex; align-items: center; gap: 8px; }
         .details-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; }
-        .detail-item { display:flex; justify-content:space-between; align-items:center; padding:12px 14px; background:#ffffff; border:1px solid #eef2f7; border-radius:10px; }
+        .detail-item { display:flex; justify-content:space-between; align-items:center; padding:12px 14px; background:#ffffff; border:1px solid #eef2f7; border-radius:10px; box-shadow: 0 1px 4px rgba(17,24,39,0.02); transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+        .detail-item:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(17,24,39,0.08); border-color: #e8ecf3; }
         .detail-left { display:flex; align-items:center; gap:8px; }
         .detail-icon { width:22px; text-align:center; font-size:14px; }
         .detail-label { color:#6b7280; font-size:12px; }
@@ -353,6 +413,9 @@
 </head>
 <body>
     <div class="container">
+        <button class="share-button" id="reportShareButton" title="分享">
+            <img class="share-icon" src="share.svg" alt="分享" />
+        </button>
         <header class="report-header">
             <h1>
                 今日工作报告
@@ -404,19 +467,19 @@
                     综合评估
                 </h2>
                 <div class="scores-grid">
-                    <div class="score-item">
+                    <div class="score-item score-work">
                         <canvas id="workIntensityChart" width="120" height="120"></canvas>
                         <p>工作强度</p>
                     </div>
-                    <div class="score-item">
+                    <div class="score-item score-rest">
                         <canvas id="restAdequacyChart" width="120" height="120"></canvas>
                         <p>休息充足度</p>
                     </div>
-                    <div class="score-item">
+                    <div class="score-item score-focus">
                         <canvas id="focusChart" width="120" height="120"></canvas>
                         <p>专注度</p>
                     </div>
-                    <div class="score-item">
+                    <div class="score-item score-health">
                         <canvas id="healthChart" width="120" height="120"></canvas>
                         <p>健康度</p>
                     </div>
@@ -1816,6 +1879,18 @@
             
             // 然后初始化报告
             initializeReport();
+
+            // 绑定分享按钮
+            const shareBtn = document.getElementById('reportShareButton');
+            if (shareBtn) {
+                shareBtn.addEventListener('click', async function() {
+                    try {
+                        await generateAndShareScreenshot();
+                    } catch (e) {
+                        console.error('Share failed:', e);
+                    }
+                });
+            }
         });
         
         // 如果Chart.js加载失败，提供备用初始化
@@ -1826,6 +1901,49 @@
                 setTimeout(initializeReport, 1000);
             }
         });
+
+        // 生成页面截图并保存到文件，同时拷贝到剪贴板
+        // 这里调用宿主App桥接方法；若不可用则尝试使用浏览器API做退化处理
+        function hideShareButton() {
+            const btn = document.getElementById('reportShareButton');
+            if (btn) { btn.dataset.prevDisplay = btn.style.display || ''; btn.style.display = 'none'; }
+        }
+        function showShareButton() {
+            const btn = document.getElementById('reportShareButton');
+            if (btn) { btn.style.display = (btn.dataset.prevDisplay !== undefined) ? btn.dataset.prevDisplay : ''; }
+        }
+        async function generateAndShareScreenshot() {
+            hideShareButton();
+            // 给样式应用一点时间，避免被截到
+            await new Promise(r => setTimeout(r, 60));
+
+            // 优先使用宿主提供的API（例如 WKWebView 注入）
+            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.saveReportImage) {
+                const payload = { action: 'capture', format: 'png', quality: 0.95 };
+                window.webkit.messageHandlers.saveReportImage.postMessage(payload);
+                return;
+            }
+
+            // 退化实现：使用 CSS Paint（需要 html2canvas 等库，当前项目未引入 -> 提示）
+            console.warn('No native bridge available for screenshot. Please integrate native capture.');
+            showShareButton();
+            alert('当前环境不支持直接截图，请从 App 端实现保存与拷贝。');
+        }
+
+        // 原生回调：显示简易的结果提示
+        window.__reportShareCallbackFromNative = function(payload) {
+            try {
+                const data = (typeof payload === 'string') ? JSON.parse(payload) : payload;
+                const ok = data && data.status === 'success';
+                const msg = ok ? '✅ 已保存并复制到剪贴板' : '❌ 分享失败，请重试';
+                showShareButton();
+                // 轻量提示（不引入UI库）：使用原生alert，或未来可替换成自定义toast
+                alert(msg + (ok && data.filePath ? ('\n文件: ' + data.filePath) : ''));
+            } catch (e) {
+                console.warn('share callback parse failed', e);
+                showShareButton();
+            }
+        };
     </script>
 </body>
 </html>

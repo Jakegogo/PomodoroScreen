@@ -289,7 +289,8 @@ struct ReportData {
                     activityType = "interruption"
                 }
             case .breakFinished:
-                activityType = "break"
+                // 为避免一次休息被计为两次（start + finish），热力图仅统计休息开始事件
+                continue
             case .screenLocked, .screensaverActivated:
                 activityType = "interruption"
             case .stayUpLateTriggered:
