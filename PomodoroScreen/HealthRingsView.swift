@@ -1023,19 +1023,31 @@ class HealthRingsView: NSView {
         // 格式化倒计时时间
         let minutes = Int(countdownTime) / 60
         let seconds = Int(countdownTime) % 60
+        // 使用普通冒号，稍微增加字距来提升视觉宽度
         let timeText = String(format: "%02d:%02d", minutes, seconds)
         
         // 使用预加载的自定义字体
         let font = countdownFont ?? NSFont.monospacedDigitSystemFont(ofSize: 24, weight: .bold)
         
-        // 绘制实心字体
-        let attributes: [NSAttributedString.Key: Any] = [
+        // 闪烁冒号：基于当前秒的奇偶切换可见性
+        let colonVisible = (max(0, Int(countdownTime)) % 2 == 0)
+
+        // 先绘制纯描边（正的 strokeWidth 只描边，不填充），避免变细
+        let strokeAttributes: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: NSColor.labelColor
+            .strokeColor: NSColor.white,
+            .strokeWidth: 3.0
         ]
-        
-        let attributedString = NSAttributedString(string: timeText, attributes: attributes)
-        let size = attributedString.size()
+        let strokeMutable = NSMutableAttributedString(string: timeText, attributes: strokeAttributes)
+        // 冒号范围位于索引2（两位分钟后）
+        let colonRange = NSRange(location: 2, length: 1)
+        // 为冒号增加少量字距以稍微加宽
+        strokeMutable.addAttributes([.kern: 0.2], range: colonRange)
+        if !colonVisible, timeText.count >= 3 {
+            // 将冒号的描边颜色设为透明，保持占位但不显示
+            strokeMutable.addAttributes([.strokeColor: NSColor.clear], range: colonRange)
+        }
+        let size = strokeMutable.size()
         let rect = CGRect(
             x: center.x - size.width / 2,
             y: center.y - size.height / 2,
@@ -1043,8 +1055,21 @@ class HealthRingsView: NSView {
             height: size.height
         )
         
-        // 绘制实心文字
-        attributedString.draw(in: rect)
+        // 先画白色描边
+        strokeMutable.draw(in: rect)
+        
+        // 再覆盖填充文字，保持字重不变
+        let fillAttributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.labelColor
+        ]
+        let fillMutable = NSMutableAttributedString(string: timeText, attributes: fillAttributes)
+        fillMutable.addAttributes([.kern: 0.2], range: colonRange)
+        if !colonVisible, timeText.count >= 3 {
+            // 将冒号的填充颜色设为透明
+            fillMutable.addAttributes([.foregroundColor: NSColor.clear], range: colonRange)
+        }
+        fillMutable.draw(in: rect)
         
         // 移除倒计时标题的绘制，只显示时间
     }

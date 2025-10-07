@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		230514E72E864ABA00691DCC /* CountdownNotificationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 230514E62E864ABA00691DCC /* CountdownNotificationWindow.swift */; };
+		230E00482E952F7200740B96 /* IconRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 230E00472E952F7200740B96 /* IconRenderer.swift */; };
 		231168BB2E8BE930004386D2 /* bar-chart.svg in Resources */ = {isa = PBXBuildFile; fileRef = 231168BA2E8BE930004386D2 /* bar-chart.svg */; };
 		231168BF2E8BE938004386D2 /* diagram.svg in Resources */ = {isa = PBXBuildFile; fileRef = 231168BC2E8BE938004386D2 /* diagram.svg */; };
 		231168C02E8BE938004386D2 /* statistical.svg in Resources */ = {isa = PBXBuildFile; fileRef = 231168BD2E8BE938004386D2 /* statistical.svg */; };
@@ -75,6 +76,7 @@
 
 /* Begin PBXFileReference section */
 		230514E62E864ABA00691DCC /* CountdownNotificationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountdownNotificationWindow.swift; sourceTree = "<group>"; };
+		230E00472E952F7200740B96 /* IconRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconRenderer.swift; sourceTree = "<group>"; };
 		231168BA2E8BE930004386D2 /* bar-chart.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "bar-chart.svg"; sourceTree = "<group>"; };
 		231168BC2E8BE938004386D2 /* diagram.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = diagram.svg; sourceTree = "<group>"; };
 		231168BD2E8BE938004386D2 /* statistical.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = statistical.svg; sourceTree = "<group>"; };
@@ -185,6 +187,7 @@
 		23BD5B2D2E818E48008AEE45 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				230E00472E952F7200740B96 /* IconRenderer.swift */,
 				231168C22E8BEAF8004386D2 /* TitlebarIconManager.swift */,
 				230514E62E864ABA00691DCC /* CountdownNotificationWindow.swift */,
 				23249BA72E826FCF00F45D58 /* IOSSwitchButton.swift */,
@@ -468,6 +471,7 @@
 				A1234567890ABCDEF015 /* SettingsWindow.swift in Sources */,
 				230514E72E864ABA00691DCC /* CountdownNotificationWindow.swift in Sources */,
 				A1234567890ABCDEF005 /* StatusBarController.swift in Sources */,
+				230E00482E952F7200740B96 /* IconRenderer.swift in Sources */,
 				A1234567890ABCDEF007 /* OverlayWindow.swift in Sources */,
 				23BD5C352E824FE6008AEE45 /* RoundIndicatorView.swift in Sources */,
 				23DAFA672E8B7C5C00DD6B6C /* SettingsStore.swift in Sources */,

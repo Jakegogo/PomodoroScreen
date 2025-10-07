@@ -46,10 +46,12 @@ class StatusBarController {
             let progress = totalTime > 0 ? (totalTime - remainingTime) / totalTime : 0.0
             
             // 生成动态时钟图标
+            let isPausedForIcon = (self.pomodoroTimer.isRunning == false) || self.pomodoroTimer.isPausedState
             let clockIcon = self.clockIconGenerator.generateClockIcon(
                 progress: progress,
                 totalTime: totalTime,
-                remainingTime: remainingTime
+                remainingTime: remainingTime,
+                isPaused: isPausedForIcon
             )
             
             // 更新状态栏图标和文字
@@ -113,10 +115,12 @@ class StatusBarController {
         guard let button = statusItem.button else { return }
         
         // 设置初始时钟图标（进度为0）
+        let initialPaused = (pomodoroTimer.isRunning == false) || pomodoroTimer.isPausedState
         let initialIcon = clockIconGenerator.generateClockIcon(
             progress: 0.0,
             totalTime: 25 * 60, // 25分钟
-            remainingTime: 25 * 60
+            remainingTime: 25 * 60,
+            isPaused: initialPaused
         )
         button.image = initialIcon
         button.title = showStatusBarText ? "25:00" : "" // 根据设置显示或隐藏文字
@@ -319,13 +323,19 @@ class StatusBarController {
         
         let startItem = NSMenuItem(title: title, action: action, keyEquivalent: "")
         startItem.target = self
-        // 根据不同状态设置不同图标
+        // 使用与文字高度一致的图标画布实现垂直居中
+        let menuFont = NSFont.systemFont(ofSize: 13)
+        // 设置标题字体（确保行高可控）
+        startItem.attributedTitle = NSAttributedString(string: title, attributes: [
+            .font: menuFont,
+        ])
+        // 根据不同状态设置不同图标（画布高度匹配文字行高）
         if pomodoroTimer.isRunning {
-            startItem.image = NSImage(systemSymbolName: "stop.fill", accessibilityDescription: "停止")
+            startItem.image = makeMenuIcon("stop.fill", font: menuFont)
         } else if pomodoroTimer.canResume {
-            startItem.image = NSImage(systemSymbolName: "play.fill", accessibilityDescription: "继续")
+            startItem.image = makeMenuIcon("play.fill", font: menuFont)
         } else {
-            startItem.image = NSImage(systemSymbolName: "play.fill", accessibilityDescription: "开始")
+            startItem.image = makeMenuIcon("play.fill", font: menuFont)
         }
         menu.addItem(startItem)
         
@@ -371,6 +381,11 @@ class StatusBarController {
         
         // 在鼠标位置显示菜单
         menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+    }
+
+    // 生成垂直居中的菜单图标：复用 IconRenderer
+    private func makeMenuIcon(_ systemName: String, font: NSFont, horizontalPadding: CGFloat = 2) -> NSImage? {
+        return IconRenderer.centeredSymbolImage(systemName: systemName, font: font, weight: .regular, horizontalPadding: horizontalPadding)
     }
     
     @objc private func startTimer() {

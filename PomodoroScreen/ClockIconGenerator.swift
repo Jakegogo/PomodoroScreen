@@ -19,6 +19,7 @@ class ClockIconGenerator {
     private var cachedIcon: NSImage?
     private var lastUpdateTime: Date = Date.distantPast
     private var lastProgress: Double = -1.0
+    private var lastPaused: Bool = false
     private let cacheUpdateInterval: TimeInterval = 5.0 // 5秒更新间隔
     
     // MARK: - Public Methods
@@ -29,23 +30,26 @@ class ClockIconGenerator {
     ///   - totalTime: 总时间（秒）
     ///   - remainingTime: 剩余时间（秒）
     /// - Returns: NSImage对象
-    func generateClockIcon(progress: Double, totalTime: TimeInterval, remainingTime: TimeInterval) -> NSImage {
+    func generateClockIcon(progress: Double, totalTime: TimeInterval, remainingTime: TimeInterval, isPaused: Bool = false) -> NSImage {
         let currentTime = Date()
         let timeSinceLastUpdate = currentTime.timeIntervalSince(lastUpdateTime)
         
         // 检查是否需要更新缓存
         let shouldUpdateCache = cachedIcon == nil || 
                                timeSinceLastUpdate >= cacheUpdateInterval ||
-                               abs(progress - lastProgress) > 0.01 // 进度变化超过1%时也更新
+                               abs(progress - lastProgress) > 0.01 || // 进度变化超过1%时也更新
+                               isPaused != lastPaused // 暂停状态切换时强制更新
         
         if shouldUpdateCache {
             // 生成新的图标
-            cachedIcon = createClockIcon(progress: progress)
+            cachedIcon = isPaused ? createPausedIcon(progress: progress) : createClockIcon(progress: progress)
             lastUpdateTime = currentTime
             lastProgress = progress
+            lastPaused = isPaused
         }
         
-        return cachedIcon ?? createClockIcon(progress: progress)
+        if let icon = cachedIcon { return icon }
+        return isPaused ? createPausedIcon(progress: progress) : createClockIcon(progress: progress)
     }
     
     /// 生成大尺寸的时钟图标（用于引导界面等需要清晰显示的场景）
@@ -120,6 +124,53 @@ class ClockIconGenerator {
         // 设置图像为模板图像，以便系统自动处理暗色模式
         image.isTemplate = true
         
+        return image
+    }
+
+    /// 创建暂停状态图标：在背景圆圈中绘制进度弧与“暂停”竖条
+    private func createPausedIcon(progress: Double) -> NSImage {
+        let image = NSImage(size: iconSize)
+        
+        image.lockFocus()
+        
+        guard let context = NSGraphicsContext.current?.cgContext else {
+            image.unlockFocus()
+            return image
+        }
+        
+        // 坐标系
+        context.translateBy(x: 0, y: iconSize.height)
+        context.scaleBy(x: 1, y: -1)
+        
+        let center = CGPoint(x: iconSize.width / 2, y: iconSize.height / 2)
+        
+        // 背景圆圈
+        drawClockBackground(in: context, center: center)
+        
+        // 进度弧（与运行中样式一致）
+        drawProgressArc(in: context, center: center, progress: progress)
+        
+        // 绘制暂停竖条
+        context.saveGState()
+        context.setFillColor(NSColor.labelColor.cgColor)
+        
+        let barHeight = clockRadius * 0.9
+        let barWidth: CGFloat = 1.6
+        let barSpacing: CGFloat = 2.0
+        
+        let leftBarX = center.x - barSpacing/2 - barWidth
+        let rightBarX = center.x + barSpacing/2
+        let barY = center.y - barHeight/2
+        
+        let leftRect = CGRect(x: leftBarX, y: barY, width: barWidth, height: barHeight)
+        let rightRect = CGRect(x: rightBarX, y: barY, width: barWidth, height: barHeight)
+        
+        context.fill(leftRect)
+        context.fill(rightRect)
+        context.restoreGState()
+        
+        image.unlockFocus()
+        image.isTemplate = true
         return image
     }
     

@@ -188,11 +188,10 @@ extension HoverButton {
     ///   - pointSize: 图标大小
     ///   - weight: 图标粗细
     func setIcon(_ symbolName: String, pointSize: CGFloat = 12, weight: NSFont.Weight = .medium) {
-        let symbolConfig = NSImage.SymbolConfiguration(pointSize: pointSize, weight: weight)
-        let icon = NSImage(systemSymbolName: symbolName, accessibilityDescription: symbolName)?
-            .withSymbolConfiguration(symbolConfig)
-        image = icon
+        let buttonFont = self.font ?? NSFont.systemFont(ofSize: 14, weight: .regular)
+        image = IconRenderer.centeredSymbolImage(systemName: symbolName, font: buttonFont, weight: weight, horizontalPadding: 1)
         imagePosition = .imageLeading
         imageHugsTitle = true
+        imageScaling = .scaleNone
     }
 }

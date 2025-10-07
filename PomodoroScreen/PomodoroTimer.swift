@@ -228,6 +228,9 @@ class PomodoroTimer: ObservableObject {
         
         // 通知状态机计时器已停止
         processAutoRestartEvent(.timerStopped)
+
+        // 暂停后立即刷新显示（用于更新状态栏图标为暂停样式）
+        updateTimeDisplay()
     }
     
     func pause() {
@@ -238,6 +241,9 @@ class PomodoroTimer: ObservableObject {
         
         // 通知状态机计时器已暂停
         processAutoRestartEvent(.timerPaused)
+
+        // 暂停后立即刷新显示（用于更新状态栏图标为暂停样式）
+        updateTimeDisplay()
     }
     
     func resume() {
@@ -724,6 +730,9 @@ class PomodoroTimer: ObservableObject {
         timer = nil
         print("⏸️ Timer paused by state machine")
         AppLogger.shared.logStateMachine("Timer -> paused", tag: "TIMER")
+
+        // 暂停后立即刷新显示（用于更新状态栏图标为暂停样式）
+        updateTimeDisplay()
     }
     
     /// 执行恢复操作
