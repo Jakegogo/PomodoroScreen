@@ -103,7 +103,8 @@ class StatusBarPopupWindow: NSWindow {
         // Title 顶部不留白（紧贴窗口顶部）
         var titleY: CGFloat { windowHeight - titleHeight - titlePadding }
         var menuButtonX: CGFloat { windowWidth - menuButtonSize - horizontalPadding/2 }
-        var menuButtonY: CGFloat { windowHeight - menuButtonSize - verticalPadding/2 }
+        // 与标题在同一水平高度：将菜单按钮在标题高度内垂直居中
+        var menuButtonY: CGFloat { titleY + (titleHeight - menuButtonSize) / 2 + 2 }
 
         // 内容区内部通用间距（适度放宽，观感更舒适）
         var spacingAfterTitle: CGFloat { verticalSpacing * 1.3 }
