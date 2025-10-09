@@ -36,8 +36,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.statusBarController.hideMeetingModeRestIndicator()
             }
             
-            // 先根据状态决定是否需要启动休息计时，再展示遮罩层
-            self.startRestIfNeededBeforeOverlay()
+            // The idempotency guard is now inside startBreak(), so we can call it directly.
+            #if DEBUG
+            print("TIMER_FLOW: onTimerFinished triggered.")
+            print("TIMER_FLOW: isMeetingMode=\(self.pomodoroTimer.isMeetingMode()), isInRestPeriod=\(self.pomodoroTimer.isInRestPeriod)")
+            #endif
+            
+            self.pomodoroTimer.startBreak()
+            
+            #if DEBUG
+            print("TIMER_FLOW: After startBreak() call.")
+            print("TIMER_FLOW: isMeetingMode=\(self.pomodoroTimer.isMeetingMode()), isInRestPeriod=\(self.pomodoroTimer.isInRestPeriod)")
+            #endif
+            
             self.showOverlay()
         }
         
@@ -175,21 +186,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// 将“是否需要开启休息计时”的判断与触发逻辑从 UI 展示中抽离，提升职责单一性
-    private func startRestIfNeededBeforeOverlay() {
-        // 强制睡眠：不应开启休息计时（避免事件爆增）
-        if pomodoroTimer.isInForcedSleepState { return }
-        // 已在休息计时运行中：不重复开启
-        if pomodoroTimer.isRestTimerRunning { return }
-        // 开始休息计时（进入短休息/长休息的既有逻辑由计时器内部决定）
-        pomodoroTimer.startBreak()
-    }
+
 
 #if DEBUG
     // 测试钩子：在测试中调用以触发 overlay 显示逻辑
     @objc func showOverlayForTesting() {
-        // 保持与正常流程一致：先判断是否需要启动休息计时，再显示遮罩
-        startRestIfNeededBeforeOverlay()
         showOverlay()
     }
 
@@ -201,6 +202,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // 测试钩子：从 UserDefaults 重新加载并应用设置（用于切换会议模式等）
     @objc func reloadSettingsForTesting() {
         loadAndApplySettings()
+    }
+
+    // 测试辅助：当前是否有可见的遮罩层
+    @objc func isOverlayVisibleForTesting() -> Bool {
+        if let window = overlayWindow, window.isVisible { return true }
+        if let manager = multiScreenOverlayManager {
+            // 简化判断：存在管理器即认为在多屏显示遮罩
+            return true
+        }
+        return false
+    }
+
+    // 测试辅助：输出关键状态（会议模式/是否休息期/休息计时是否在运行）
+    @objc func dumpTimerStateForTesting() -> String {
+        let meeting = pomodoroTimer.isMeetingMode()
+        let inRest = pomodoroTimer.isInRestPeriod
+        let restRunning = pomodoroTimer.isRestTimerRunning
+        return "meetingMode=\(meeting), inRest=\(inRest), restRunning=\(restRunning)"
     }
 #endif
     

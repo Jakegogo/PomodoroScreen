@@ -382,6 +382,11 @@ class PomodoroTimer: ObservableObject {
         return meetingMode
     }
     
+    // 即时生效：更新会议模式
+    public func setMeetingMode(_ isEnabled: Bool) {
+        meetingMode = isEnabled
+    }
+    
     /// 获取当前休息时间信息
     func getCurrentBreakInfo() -> (isLongBreak: Bool, breakMinutes: Int) {
         if isLongBreak {
@@ -539,6 +544,17 @@ class PomodoroTimer: ObservableObject {
     
     /// 启动休息（自动判断短休息还是长休息）
     func startBreak() {
+        // 强制睡眠：不应开启休息计时（避免事件爆增）
+        if isInForcedSleepState {
+            AppLogger.shared.logStateMachine("startBreak skipped: forced sleep state.", tag: "TIMER_IDEMPOTENT")
+            return
+        }
+        // Idempotency Guard (幂等性保护):
+        // 1. 如果当前已明确处于休息状态或休息计时器已在运行，则直接返回。
+        if isInRestPeriod || isRestTimerRunning {
+            AppLogger.shared.logStateMachine("startBreak skipped: already in rest period.", tag: "TIMER_IDEMPOTENT")
+            return
+        }
         stop() // 停止当前计时器
         
         // 判断是否应该进行长休息

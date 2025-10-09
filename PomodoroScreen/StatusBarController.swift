@@ -106,7 +106,8 @@ class StatusBarController {
         
         // 这里可以添加其他需要的逻辑，比如立即更新计时器设置
         // 目前会议模式的状态已经保存到 UserDefaults，
-        // 计时器在下次读取设置时会自动应用新状态
+        // 立即应用到计时器（无需等待完整设置刷新）
+        pomodoroTimer.setMeetingMode(isEnabled)
     }
     
     /// 刷新会议模式状态（用于屏幕检测自动切换）

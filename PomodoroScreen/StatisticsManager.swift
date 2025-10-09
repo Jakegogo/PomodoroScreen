@@ -6,6 +6,8 @@
 //
 
 import Foundation
+// import Combine // No longer needed
+
 // 使用集中封装的设置
 // 访问用户设置集中封装
 // SettingsStore 在同一模块内，无需额外依赖
@@ -15,16 +17,17 @@ class StatisticsManager {
     // 单例模式
     static let shared = StatisticsManager()
     
-    private let database = StatisticsDatabase.shared
+    internal let database = StatisticsDatabase.shared
     
-    private init() {
+    // Make init public for mocking
+    public init() {
         print("📊 统计管理器初始化完成")
     }
     
     // MARK: - 事件记录接口
     
     /// 记录番茄钟完成事件
-    func recordPomodoroCompleted(duration: TimeInterval) {
+    open func recordPomodoroCompleted(duration: TimeInterval) {
         let event = StatisticsEvent(
             eventType: .pomodoroCompleted,
             duration: duration,
@@ -38,7 +41,7 @@ class StatisticsManager {
     }
     
     /// 记录短休息开始事件
-    func recordShortBreakStarted(duration: TimeInterval? = nil) {
+    open func recordShortBreakStarted(duration: TimeInterval? = nil) {
         // 如果未传入时长，使用用户设置
         let plannedSeconds = duration ?? TimeInterval(SettingsStore.breakTimeMinutes * 60)
         let event = StatisticsEvent(
@@ -54,7 +57,7 @@ class StatisticsManager {
     }
     
     /// 记录长休息开始事件
-    func recordLongBreakStarted(duration: TimeInterval? = nil) {
+    open func recordLongBreakStarted(duration: TimeInterval? = nil) {
         let plannedSeconds = duration ?? TimeInterval(SettingsStore.longBreakTimeMinutes * 60)
         let event = StatisticsEvent(
             eventType: .longBreakStarted,
