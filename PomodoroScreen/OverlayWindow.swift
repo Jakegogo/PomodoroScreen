@@ -30,7 +30,7 @@ class OverlayWindow: NSWindow {
     private var deviceInfo: DevicePerformanceDetector.DeviceInfo?
 
     // 统一关闭原因
-    fileprivate enum DismissReason { case user, autoOverlay, preview }
+    fileprivate enum DismissReason { case user, autoOverlay, preview, shutdownConfirmed }
     
     // MARK: - Initialization
     
@@ -528,9 +528,9 @@ class OverlayWindow: NSWindow {
     }
     
     fileprivate func dismissOverlay(reason: DismissReason) {
-        // 如果是强制睡眠状态，阻止关闭遮罩层
-        if !isPreviewMode, let timer = self.timer, timer.isStayUpTime {
-            print("🚫 强制睡眠期间，无法关闭遮罩层")
+        // 如果是强制睡眠状态，默认阻止关闭；但“已确认关机”场景必须立刻隐藏以避免界面阻塞
+        if !isPreviewMode, let timer = self.timer, timer.isStayUpTime, reason != .shutdownConfirmed {
+            print("🚫 强制睡眠期间，无法关闭遮罩层 (reason=\(reason))")
             return
         }
         
@@ -550,6 +550,9 @@ class OverlayWindow: NSWindow {
                 timer.cancelBreak(source: "user")
             case .autoOverlay:
                 timer.finishBreak()
+            case .shutdownConfirmed:
+                // 关机确认：不去动计时器，立即隐藏遮罩以避免阻塞
+                break
             case .preview:
                 break
             }
@@ -1032,6 +1035,10 @@ class OverlayView: NSView {
         // 设置回调
         shutdownConfirmationWindow?.onConfirm = { [weak self] in
             print("✅ 用户确认关机")
+            // 先隐藏遮罩，避免部分应用阻止关机导致界面卡住
+            if let window = self?.window as? OverlayWindow {
+                window.dismissOverlay(reason: .shutdownConfirmed)
+            }
             self?.triggerSystemShutdown()
             self?.shutdownConfirmationWindow = nil
         }

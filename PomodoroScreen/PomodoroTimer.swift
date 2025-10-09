@@ -138,6 +138,8 @@ class PomodoroTimer: ObservableObject {
     // 回调闭包
     var onTimerFinished: (() -> Void)?
     var onTimeUpdate: ((String) -> Void)?
+    /// 强制睡眠结束回调：用于通知外部隐藏遮罩层等
+    var onForcedSleepEnded: (() -> Void)?
     
     // MARK: - Initialization
     
@@ -833,6 +835,11 @@ class PomodoroTimer: ObservableObject {
         }
         // 熬夜状态现在由状态机管理，无需手动重置
         AppLogger.shared.logStateMachine("Exit forced sleep", tag: "SLEEP")
+
+        // 通知外部（例如 AppDelegate）可以隐藏遮罩层
+        DispatchQueue.main.async { [weak self] in
+            self?.onForcedSleepEnded?()
+        }
     }
     
     // MARK: - 自动重新计时功能
@@ -1000,6 +1007,10 @@ class PomodoroTimer: ObservableObject {
     /// 添加一个便利属性，用于向后兼容
     var isStayUpTime: Bool {
         return autoRestartStateMachine.isInStayUpTime()
+    }
+    /// 是否处于强制睡眠状态（用于外部判断是否应启动休息计时）
+    var isInForcedSleepState: Bool {
+        return autoRestartStateMachine.isInForcedSleep()
     }
     
     /// 显示强制睡眠倒计时警告

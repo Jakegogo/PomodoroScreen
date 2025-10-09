@@ -149,6 +149,16 @@ class StatisticsManager {
     
     /// 记录熬夜模式触发事件
     func recordStayUpLateTriggered(triggerTime: Date, limitTime: String) {
+        // 去重：同一自然日仅记录一次，防止夜间重复触发导致数据爆增
+        let calendar = Calendar.current
+        let dayStart = calendar.startOfDay(for: triggerTime)
+        let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? triggerTime
+        let todayEvents = database.getEvents(from: dayStart, to: dayEnd)
+        if todayEvents.contains(where: { $0.eventType == .stayUpLateTriggered }) {
+            print("🛑 跳过重复的熬夜触发记录（同日已存在）")
+            return
+        }
+
         let event = StatisticsEvent(
             eventType: .stayUpLateTriggered,
             metadata: [

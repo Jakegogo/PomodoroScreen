@@ -36,12 +36,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.statusBarController.hideMeetingModeRestIndicator()
             }
             
+            // 先根据状态决定是否需要启动休息计时，再展示遮罩层
+            self.startRestIfNeededBeforeOverlay()
             self.showOverlay()
         }
         
         // 设置状态栏更新回调
         pomodoroTimer.onTimeUpdate = { [weak self] timeString in
             self?.statusBarController.updateTime(timeString)
+        }
+
+        // 当强制睡眠结束时，自动隐藏遮罩层
+        pomodoroTimer.onForcedSleepEnded = { [weak self] in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                self.multiScreenOverlayManager?.hideAllOverlays()
+                self.overlayWindow?.orderOut(nil)
+                self.overlayWindow = nil
+            }
         }
         
         // 加载设置并应用
@@ -115,13 +127,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
-            // 确保休息计时开始（用于统计与正确计数）。
-            // 注意：必须在会议模式判断之前调用，以保证会议模式下也会进入休息状态（静默）。
-            // 仅当休息计时器未在运行时才触发 startBreak，避免在 .restPeriod 阶段重复计数
-            if !self.pomodoroTimer.isRestTimerRunning {
-                self.pomodoroTimer.startBreak()
-            }
-
             // 检查是否为会议模式（静默休息，不弹出遮罩层）
             if self.pomodoroTimer.isMeetingMode() {
                 print("🔇 会议模式：跳过遮罩层显示，进行静默休息")
@@ -170,9 +175,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// 将“是否需要开启休息计时”的判断与触发逻辑从 UI 展示中抽离，提升职责单一性
+    private func startRestIfNeededBeforeOverlay() {
+        // 强制睡眠：不应开启休息计时（避免事件爆增）
+        if pomodoroTimer.isInForcedSleepState { return }
+        // 已在休息计时运行中：不重复开启
+        if pomodoroTimer.isRestTimerRunning { return }
+        // 开始休息计时（进入短休息/长休息的既有逻辑由计时器内部决定）
+        pomodoroTimer.startBreak()
+    }
+
 #if DEBUG
     // 测试钩子：在测试中调用以触发 overlay 显示逻辑
     @objc func showOverlayForTesting() {
+        // 保持与正常流程一致：先判断是否需要启动休息计时，再显示遮罩
+        startRestIfNeededBeforeOverlay()
         showOverlay()
     }
 
