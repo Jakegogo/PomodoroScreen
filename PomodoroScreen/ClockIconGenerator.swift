@@ -6,6 +6,7 @@
 //
 
 import Cocoa
+import CoreText
 
 class ClockIconGenerator {
     
@@ -20,6 +21,8 @@ class ClockIconGenerator {
     private var lastUpdateTime: Date = Date.distantPast
     private var lastProgress: Double = -1.0
     private var lastPaused: Bool = false
+    private var lastRest: Bool = false
+    private var lastRestMinutes: Int = -1
     private let cacheUpdateInterval: TimeInterval = 5.0 // 5秒更新间隔
     
     // MARK: - Public Methods
@@ -29,26 +32,40 @@ class ClockIconGenerator {
     ///   - progress: 倒计时进度 (0.0 - 1.0)，0表示开始，1表示结束
     ///   - totalTime: 总时间（秒）
     ///   - remainingTime: 剩余时间（秒）
+    ///   - isPaused: 是否为暂停态
+    ///   - isRest: 是否处于休息期（优先于暂停态）
     /// - Returns: NSImage对象
-    func generateClockIcon(progress: Double, totalTime: TimeInterval, remainingTime: TimeInterval, isPaused: Bool = false) -> NSImage {
+    func generateClockIcon(progress: Double, totalTime: TimeInterval, remainingTime: TimeInterval, isPaused: Bool = false, isRest: Bool = false) -> NSImage {
         let currentTime = Date()
         let timeSinceLastUpdate = currentTime.timeIntervalSince(lastUpdateTime)
         
         // 检查是否需要更新缓存
+        let currentRestMinutes = Int(ceil(remainingTime / 60.0))
         let shouldUpdateCache = cachedIcon == nil || 
                                timeSinceLastUpdate >= cacheUpdateInterval ||
                                abs(progress - lastProgress) > 0.01 || // 进度变化超过1%时也更新
-                               isPaused != lastPaused // 暂停状态切换时强制更新
+                               isPaused != lastPaused || // 暂停状态切换时强制更新
+                               isRest != lastRest || // 休息状态切换时强制更新
+                               (isRest && currentRestMinutes != lastRestMinutes) // 休息分钟变化时更新
         
         if shouldUpdateCache {
             // 生成新的图标
-            cachedIcon = isPaused ? createPausedIcon(progress: progress) : createClockIcon(progress: progress)
+            if isRest {
+                cachedIcon = createRestIcon(progress: progress, remainingTime: remainingTime, totalTime: totalTime)
+            } else if isPaused {
+                cachedIcon = createPausedIcon(progress: progress)
+            } else {
+                cachedIcon = createClockIcon(progress: progress)
+            }
             lastUpdateTime = currentTime
             lastProgress = progress
             lastPaused = isPaused
+            lastRest = isRest
+            lastRestMinutes = isRest ? currentRestMinutes : -1
         }
         
         if let icon = cachedIcon { return icon }
+        if isRest { return createRestIcon(progress: progress, remainingTime: remainingTime, totalTime: totalTime) }
         return isPaused ? createPausedIcon(progress: progress) : createClockIcon(progress: progress)
     }
     
@@ -169,6 +186,115 @@ class ClockIconGenerator {
         context.fill(rightRect)
         context.restoreGState()
         
+        image.unlockFocus()
+        image.isTemplate = true
+        return image
+    }
+
+    /// 创建休息状态图标：进度弧 + 热水杯（休息符号）
+    private func createRestIcon(progress: Double, remainingTime: TimeInterval, totalTime: TimeInterval) -> NSImage {
+        let image = NSImage(size: iconSize)
+        image.lockFocus()
+        guard let context = NSGraphicsContext.current?.cgContext else {
+            image.unlockFocus()
+            return image
+        }
+        // 坐标系
+        context.translateBy(x: 0, y: iconSize.height)
+        context.scaleBy(x: 1, y: -1)
+        let center = CGPoint(x: iconSize.width / 2, y: iconSize.height / 2)
+        
+        // 绘制热水杯主体（简化版）
+        context.saveGState()
+        // 由于上方已整体进行了Y轴翻转，这里针对杯子再做一次以中心为基准的垂直翻转，
+        // 使杯子在视觉上保持“正立”方向
+        context.translateBy(x: center.x, y: center.y)
+        context.scaleBy(x: 1, y: -1)
+        context.translateBy(x: -center.x, y: -center.y)
+
+        // 整体向下微调，避免图标偏上（单位：pt）
+        let restYOffset: CGFloat = -0.8
+        context.translateBy(x: 0, y: restYOffset)
+        context.setFillColor(NSColor.labelColor.cgColor)
+        context.setStrokeColor(NSColor.labelColor.cgColor)
+        context.setLineWidth(1.2)
+
+        // 杯体：位于画布下半部的圆角矩形
+        let cupWidth = clockRadius * 1.4 // 进一步收窄杯体，确保含把手不超过20pt画布
+        let cupHeight = clockRadius * 0.9
+        let cupRect = CGRect(
+            x: center.x - cupWidth / 2,
+            y: center.y - cupHeight * 0.8,
+            width: cupWidth,
+            height: cupHeight
+        )
+        let cupPath = CGPath(roundedRect: cupRect, cornerWidth: 2, cornerHeight: 2, transform: nil)
+        context.addPath(cupPath)
+        context.fillPath()
+
+        // 杯口：一条细线增强轮廓
+        context.move(to: CGPoint(x: cupRect.minX + 0.5, y: cupRect.maxY))
+        context.addLine(to: CGPoint(x: cupRect.maxX - 0.5, y: cupRect.maxY))
+        context.strokePath()
+
+        // 把手：杯体右侧一个小椭圆轮廓
+        let handleRect = CGRect(
+            x: cupRect.maxX - 0.6,
+            y: cupRect.minY + cupHeight * 0.2,
+            width: cupWidth * 0.38,
+            height: cupHeight * 0.6
+        )
+        context.strokeEllipse(in: handleRect)
+
+        // 蒸汽：三条波浪线（多段三次贝塞尔，弯折更丰富）
+        context.setLineWidth(1.0)
+        let steamBaseY = cupRect.maxY + 1.5
+
+        func drawSteamWave(atX: CGFloat, height: CGFloat, amplitude: CGFloat, segments: Int) {
+            let path = CGMutablePath()
+            let step = height / CGFloat(segments)
+            var y = steamBaseY
+            path.move(to: CGPoint(x: atX, y: y))
+            // 交替左右的控制点，形成波浪
+            for i in 0..<segments {
+                let dir: CGFloat = (i % 2 == 0) ? -1.0 : 1.0
+                let y1 = y + step
+                let c1 = CGPoint(x: atX + dir * amplitude, y: y + step * 0.33)
+                let c2 = CGPoint(x: atX - dir * amplitude, y: y + step * 0.66)
+                let p1 = CGPoint(x: atX, y: y1)
+                path.addCurve(to: p1, control1: c1, control2: c2)
+                y = y1
+            }
+            context.addPath(path)
+            context.strokePath()
+        }
+
+        // 根据剩余分钟/总分钟比例，显示 1~3 条蒸汽，并保持整体水平居中
+        let totalMinutes = max(1, Int(ceil(totalTime / 60.0)))
+        let remainingMinutes = max(0, Int(ceil(remainingTime / 60.0)))
+        let ratio = min(1.0, max(0.0, Double(remainingMinutes) / Double(totalMinutes)))
+        let steamCount = max(1, min(3, Int(ceil(ratio * 3.0))))
+
+        // 以杯体中心为基准的水平位移，保证蒸汽组居中
+        let centerX = cupRect.midX
+        let dx = cupWidth * 0.22
+
+        switch steamCount {
+        case 1:
+            // 使用原中间蒸汽的参数
+            drawSteamWave(atX: centerX, height: 6.2, amplitude: 1.1, segments: 3)
+        case 2:
+            // 左右各一，围绕中心对称，使用左右两侧原参数
+            drawSteamWave(atX: centerX - dx * 0.5, height: 6.2, amplitude: 1.2, segments: 3)
+            drawSteamWave(atX: centerX + dx * 0.5, height: 6.8, amplitude: 1.3, segments: 3)
+        default:
+            // 三条：左/中/右，保持与既有视觉接近
+            drawSteamWave(atX: centerX - dx, height: 6.2, amplitude: 1.2, segments: 3)
+            drawSteamWave(atX: centerX, height: 6.8, amplitude: 1.1, segments: 3)
+            drawSteamWave(atX: centerX + dx, height: 7.0, amplitude: 1.3, segments: 3)
+        }
+        context.restoreGState()
+
         image.unlockFocus()
         image.isTemplate = true
         return image

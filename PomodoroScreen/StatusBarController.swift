@@ -45,13 +45,15 @@ class StatusBarController {
             // 计算进度（0.0表示开始，1.0表示结束）
             let progress = totalTime > 0 ? (totalTime - remainingTime) / totalTime : 0.0
             
-            // 生成动态时钟图标
+            // 生成动态时钟图标：休息态优先，其次暂停态
             let isPausedForIcon = (self.pomodoroTimer.isRunning == false) || self.pomodoroTimer.isPausedState
+            let isRest = self.pomodoroTimer.isInRestPeriod
             let clockIcon = self.clockIconGenerator.generateClockIcon(
                 progress: progress,
                 totalTime: totalTime,
                 remainingTime: remainingTime,
-                isPaused: isPausedForIcon
+                isPaused: isPausedForIcon,
+                isRest: isRest
             )
             
             // 更新状态栏图标和文字
@@ -65,6 +67,12 @@ class StatusBarController {
             // 同时更新健康环视图的倒计时显示
             self.popupWindow?.updateCountdown(time: remainingTime, title: "")
         }
+    }
+
+    // MARK: - Testing Accessors (internal)
+    /// 当前状态栏图标（用于测试验证）
+    public func currentStatusBarImage() -> NSImage? {
+        return statusItem.button?.image
     }
     
     /// 显示会议模式休息提示
