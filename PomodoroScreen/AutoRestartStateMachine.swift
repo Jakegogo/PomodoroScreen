@@ -60,6 +60,7 @@ enum StatusBarIconType {
     case runningClock   // 正常运行时钟
     case pausedBars     // 暂停双竖线
     case restCup        // 休息热水杯
+    case stayUpMoon     // 熬夜提醒（月亮）
 }
 
 /// 自动重新计时状态机
@@ -460,26 +461,22 @@ class AutoRestartStateMachine {
     private func checkStayUpTime() -> Bool {
         guard settings.stayUpLimitEnabled else { return false }
         
+        // 用户设置的熬夜起始时间 -> 次日 04:30 之间均视为熬夜
+        // 将时间统一转换为分钟，并在跨日时使用扩展时间轴比较
         let now = Date()
         let calendar = Calendar.current
         let currentHour = calendar.component(.hour, from: now)
         let currentMinute = calendar.component(.minute, from: now)
+        let currentMinutes = currentHour * 60 + currentMinute
         
-        // 将当前时间转换为分钟数（从00:00开始计算）
-        let currentTimeInMinutes = currentHour * 60 + currentMinute
+        let startMinutes = settings.stayUpLimitHour * 60 + settings.stayUpLimitMinute
+        let nextDayEndMinutes = (4 * 60 + 30) + 24 * 60 // 次日 04:30
         
-        // 将设定的熬夜限制时间转换为分钟数
-        let limitTimeInMinutes = settings.stayUpLimitHour * 60 + settings.stayUpLimitMinute
+        // 将当前时间映射到扩展时间轴上：如果在起始点之前，则视为次日时间
+        let currentExtended = currentMinutes >= startMinutes ? currentMinutes : currentMinutes + 24 * 60
         
-        // 处理跨日期的情况
-        if settings.stayUpLimitHour >= 21 {
-            // 如果限制时间是21:00-23:59，则当前时间超过限制时间就算熬夜
-            return currentTimeInMinutes >= limitTimeInMinutes
-        } else {
-            // 如果限制时间是00:00-01:00（次日），则需要考虑跨日期
-            // 当前时间在00:00-01:00之间，或者在21:00-23:59之间都算熬夜
-            return currentTimeInMinutes <= limitTimeInMinutes || currentTimeInMinutes >= 21 * 60
-        }
+        // 区间：[start, nextDay 04:30)
+        return currentExtended >= startMinutes && currentExtended < nextDayEndMinutes
     }
     
     /// 更新熬夜状态并触发相应的处理
@@ -554,6 +551,11 @@ class AutoRestartStateMachine {
     /// 根据当前状态与会议模式，推导状态栏图标类型
     /// 说明：不改变状态机现有逻辑，仅根据 currentState 派生 UI 层图标类型
     func deriveStatusBarIconType(meetingMode: Bool) -> StatusBarIconType {
+        // 熬夜期间优先显示熬夜图标
+        if isInStayUpTime() {
+            return .stayUpMoon
+        }
+        
         switch currentState {
         case .restPeriod, .restTimerRunning, .restTimerPausedByUser, .restTimerPausedBySystem:
             // 休息相关一律显示热水杯（会议模式只影响遮罩层，不影响图标样式）

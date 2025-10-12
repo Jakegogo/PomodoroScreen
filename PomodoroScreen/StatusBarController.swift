@@ -30,6 +30,7 @@ class StatusBarController {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
         setupStatusItem()
+
     }
     
     // MARK: - Public Methods
@@ -60,6 +61,16 @@ class StatusBarController {
             // 选择具体图标渲染（保持原有视觉）
             let clockIcon: NSImage
             switch iconType {
+            case .stayUpMoon:
+                // 熬夜时段：显示月亮符号图标，并将文字改为“请勿熬夜”
+                let textIcon = self.clockIconGenerator.generateTextIcon(timeString: "🌙")
+                clockIcon = textIcon
+                self.statusItem.button?.title = self.showStatusBarText ? "请勿熬夜" : ""
+                self.statusItem.button?.toolTip = "熬夜时间段：请注意休息"
+                self.statusItem.button?.image = clockIcon
+                self.statusItem.button?.imagePosition = .imageLeading
+                self.popupWindow?.updateCountdown(time: remainingTime, title: "")
+                return
             case .restCup:
                 clockIcon = self.clockIconGenerator.generateClockIcon(
                     progress: progress,
@@ -110,11 +121,22 @@ class StatusBarController {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
-            // 在状态栏显示"休息时间"文字
-            self.statusItem.button?.title = "休息时间"
-            self.statusItem.button?.toolTip = "会议模式：静默休息中"
-            
-            print("🔇 会议模式：显示休息时间提示")
+            // 熬夜时段：统一由 updateTime 分支渲染（月亮+请勿熬夜）
+            if self.pomodoroTimer.isStayUpTime {
+                self.statusItem.button?.title = "请勿熬夜"
+                self.statusItem.button?.toolTip = "熬夜时间段：请注意休息"
+                return
+            }
+
+            // 仅在确实处于休息期间时显示“休息时间”，否则恢复正常显示
+            if self.pomodoroTimer.isInRestPeriod {
+                self.statusItem.button?.title = "休息时间"
+                self.statusItem.button?.toolTip = "会议模式：静默休息中"
+                print("🔇 会议模式：显示休息时间提示")
+            } else {
+                let timeString = self.pomodoroTimer.getRemainingTimeString()
+                self.updateTime(timeString)
+            }
         }
     }
     
