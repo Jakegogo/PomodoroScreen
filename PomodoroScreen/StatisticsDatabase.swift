@@ -8,15 +8,56 @@
 import Foundation
 import SQLite3
 
+protocol StatisticsDatabasePathProviding {
+    func resolveDatabasePath(appSupportDefault: URL) -> URL
+}
+
+struct DefaultStatisticsDatabasePathProvider: StatisticsDatabasePathProviding {
+    func resolveDatabasePath(appSupportDefault: URL) -> URL {
+        return appSupportDefault
+    }
+}
+
 class StatisticsDatabase {
     private var db: OpaquePointer?
     private let dbPath: String
     
-    // 单例模式
-    static let shared = StatisticsDatabase()
+    // 单例：可替换实例，支持测试注入
+    private static var _shared: StatisticsDatabase = StatisticsDatabase()
+    static var shared: StatisticsDatabase { _shared }
+    
+    // 路径提供者（默认生产环境路径）
+    private static var pathProvider: StatisticsDatabasePathProviding = DefaultStatisticsDatabasePathProvider()
+    
+    // 允许外部（测试）注入路径提供者（需在首次使用前调用）
+    static func setPathProvider(_ provider: StatisticsDatabasePathProviding) {
+        pathProvider = provider
+    }
+    
+    #if DEBUG
+    /// 本地 Xcode Debug 便捷切换：支持三种方式触发（任一满足即可）
+    /// 1) 环境变量: PS_DEBUG_DB=1
+    /// 2) 启动参数: -PS_DEBUG_DB 或 --ps-debug-db
+    /// 3) UserDefaults: -PS_DEBUG_DB YES（Xcode Arguments 会注入到 UserDefaults）
+    static func enableDebugRootDBIfRequested() {
+        pathProvider = DebugStatisticsDatabasePathProvider()
+    }
+    #endif
+    
+    #if DEBUG
+    /// 测试专用：设置路径提供者并重新创建单例实例（请在首次访问前调用）
+    static func setTestPathProviderAndReinitialize(_ provider: StatisticsDatabasePathProviding) {
+        pathProvider = provider
+        _shared = StatisticsDatabase()
+    }
+    #endif
     
     private init() {
-        // 数据库文件路径：~/Library/Application Support/PomodoroScreen/statistics.db
+        #if DEBUG
+        // 允许通过环境变量在本地 Debug 使用根目录 statistics-debug.db
+        StatisticsDatabase.enableDebugRootDBIfRequested()
+        #endif
+        // 数据库文件路径：默认 ~/Library/Application Support/PomodoroScreen/statistics.db
         let fileManager = FileManager.default
         let appSupportDir = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let appDir = appSupportDir.appendingPathComponent("PomodoroScreen")
@@ -28,7 +69,10 @@ class StatisticsDatabase {
             print("❌ 创建应用目录失败: \(error)")
         }
         
-        dbPath = appDir.appendingPathComponent("statistics.db").path
+        let defaultURL = appDir.appendingPathComponent("statistics.db")
+        let resolvedURL = StatisticsDatabase.pathProvider.resolveDatabasePath(appSupportDefault: defaultURL)
+        
+        dbPath = resolvedURL.path
         print("📁 数据库路径: \(dbPath)")
         
         openDatabase()
@@ -200,7 +244,7 @@ class StatisticsDatabase {
             
         case .shortBreakStarted:
             dailyStats.shortBreakCount += 1
-
+        
         case .longBreakStarted:
             dailyStats.longBreakCount += 1
             
@@ -247,8 +291,6 @@ class StatisticsDatabase {
         // 保存到数据库
         saveDailyStatistics(dailyStats)
     }
-
-    
     
     private func saveDailyStatistics(_ stats: DailyStatistics) {
         let dateString = DateFormatter.dateKey.string(from: stats.date)
@@ -261,7 +303,7 @@ class StatisticsDatabase {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """
         // 预记录SQL与参数（把 Optional 直观输出）
-        var params: [Any?] = [
+        let params: [Any?] = [
             dateString,
             stats.completedPomodoros,
             stats.totalWorkTime,
@@ -541,7 +583,6 @@ extension StatisticsDatabase {
 }
 
 // MARK: - DateFormatter扩展
-
 extension DateFormatter {
     static let dateKey: DateFormatter = {
         let formatter = DateFormatter()

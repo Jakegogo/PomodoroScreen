@@ -1060,4 +1060,8 @@ class PomodoroTimer: ObservableObject {
         
         print("🚨 显示强制睡眠倒计时警告: \(minutesRemaining)分钟")
     }
+    
+    func getStatusBarIconType() -> StatusBarIconType {
+        return autoRestartStateMachine.deriveStatusBarIconType(meetingMode: meetingMode)
+    }
 }

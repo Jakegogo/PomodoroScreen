@@ -40,21 +40,51 @@ class StatusBarController {
             
             // 获取倒计时信息
             let remainingTime = self.pomodoroTimer.getRemainingTime()
-            let totalTime = self.pomodoroTimer.getTotalTime()
+            
+            // 从状态机派生图标类型（不改变现有逻辑）
+            let iconType = self.pomodoroTimer.getStatusBarIconType()
+            
+            // 计算总时长：休息时使用休息总时长，其他沿用现有逻辑
+            let totalTimeForIcon: TimeInterval
+            switch iconType {
+            case .restCup:
+                let breakInfo = self.pomodoroTimer.getCurrentBreakInfo()
+                totalTimeForIcon = TimeInterval(breakInfo.breakMinutes * 60)
+            default:
+                totalTimeForIcon = self.pomodoroTimer.getTotalTime()
+            }
             
             // 计算进度（0.0表示开始，1.0表示结束）
-            let progress = totalTime > 0 ? (totalTime - remainingTime) / totalTime : 0.0
+            let progress = totalTimeForIcon > 0 ? (totalTimeForIcon - remainingTime) / totalTimeForIcon : 0.0
             
-            // 生成动态时钟图标：休息态优先，其次暂停态
-            let isPausedForIcon = (self.pomodoroTimer.isRunning == false) || self.pomodoroTimer.isPausedState
-            let isRest = self.pomodoroTimer.isInRestPeriod
-            let clockIcon = self.clockIconGenerator.generateClockIcon(
-                progress: progress,
-                totalTime: totalTime,
-                remainingTime: remainingTime,
-                isPaused: isPausedForIcon,
-                isRest: isRest
-            )
+            // 选择具体图标渲染（保持原有视觉）
+            let clockIcon: NSImage
+            switch iconType {
+            case .restCup:
+                clockIcon = self.clockIconGenerator.generateClockIcon(
+                    progress: progress,
+                    totalTime: totalTimeForIcon,
+                    remainingTime: remainingTime,
+                    isPaused: false,
+                    isRest: true
+                )
+            case .pausedBars:
+                clockIcon = self.clockIconGenerator.generateClockIcon(
+                    progress: progress,
+                    totalTime: totalTimeForIcon,
+                    remainingTime: remainingTime,
+                    isPaused: true,
+                    isRest: false
+                )
+            case .runningClock:
+                clockIcon = self.clockIconGenerator.generateClockIcon(
+                    progress: progress,
+                    totalTime: totalTimeForIcon,
+                    remainingTime: remainingTime,
+                    isPaused: false,
+                    isRest: false
+                )
+            }
             
             // 更新状态栏图标和文字
             self.statusItem.button?.image = clockIcon

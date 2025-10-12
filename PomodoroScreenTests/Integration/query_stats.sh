@@ -2,6 +2,11 @@
 set -euo pipefail
 APP_SUPPORT="$HOME/Library/Application Support/PomodoroScreen"
 DB_PATH="$APP_SUPPORT/statistics.db"
+# Prefer test Integration DB if exists under PomodoroScreenTests/Integration
+TEST_DB_DIR="$(cd "$(dirname "$0")"/../PomodoroScreenTests/Integration 2>/dev/null && pwd || true)"
+if [ -n "${TEST_DB_DIR:-}" ] && [ -f "$TEST_DB_DIR/statistics.db" ]; then
+  DB_PATH="$TEST_DB_DIR/statistics.db"
+fi
 if [ ! -f "$DB_PATH" ]; then
   echo "Database not found: $DB_PATH" >&2
   exit 1

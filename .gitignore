@@ -10,3 +10,6 @@ Breakpoints_v2.xcbkptlist
 /*.app
 /*.zip
 /*.dmg
+/PomodoroScreenTests/Integration/*.db
+/PomodoroScreen.xcodeproj/xcuserdata/jake.xcuserdatad/xcdebugger/Breakpoints_v2.xcbkptlist
+statistics-debug.db

@@ -55,6 +55,13 @@ enum TimerType {
     case longBreak   // 长休息
 }
 
+/// 状态栏图标类型（纯派生，不改变现有逻辑）
+enum StatusBarIconType {
+    case runningClock   // 正常运行时钟
+    case pausedBars     // 暂停双竖线
+    case restCup        // 休息热水杯
+}
+
 /// 自动重新计时状态机
 class AutoRestartStateMachine {
     private var currentState: AutoRestartState = .idle
@@ -542,5 +549,23 @@ class AutoRestartStateMachine {
     /// 获取熬夜限制设置信息（用于统计和显示）
     func getStayUpLimitInfo() -> (enabled: Bool, hour: Int, minute: Int) {
         return (settings.stayUpLimitEnabled, settings.stayUpLimitHour, settings.stayUpLimitMinute)
+    }
+    
+    /// 根据当前状态与会议模式，推导状态栏图标类型
+    /// 说明：不改变状态机现有逻辑，仅根据 currentState 派生 UI 层图标类型
+    func deriveStatusBarIconType(meetingMode: Bool) -> StatusBarIconType {
+        switch currentState {
+        case .restPeriod, .restTimerRunning, .restTimerPausedByUser, .restTimerPausedBySystem:
+            // 休息相关一律显示热水杯（会议模式只影响遮罩层，不影响图标样式）
+            return .restCup
+        case .timerRunning:
+            return .runningClock
+        case .timerPausedByUser, .timerPausedByIdle, .timerPausedBySystem,
+             .forcedSleep, .awaitingRestart, .idle:
+            // 非运行态统一显示暂停双竖线（与原有 UI 逻辑一致：未运行或暂停 -> 显示暂停图标）
+            return .pausedBars
+        default:
+            return .pausedBars
+        }
     }
 }

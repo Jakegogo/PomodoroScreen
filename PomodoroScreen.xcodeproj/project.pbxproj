@@ -44,6 +44,7 @@
 		23DAFA642E8B6E8C00DD6B6C /* DatabaseMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23DAFA622E8B6E8C00DD6B6C /* DatabaseMigration.swift */; };
 		23DAFA672E8B7C5C00DD6B6C /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23DAFA652E8B7C5C00DD6B6C /* SettingsStore.swift */; };
 		23F4A38E2E842FE100B71AA7 /* ScreenDetectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23F4A38D2E842FE100B71AA7 /* ScreenDetectionManager.swift */; };
+		23FA66042E9B5101000F9F07 /* DebugStatisticsDatabaseProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23FA66022E9B5101000F9F07 /* DebugStatisticsDatabaseProvider.swift */; };
 		23MS5DPE2E864ABA00691DCC /* MultiScreenOverlayManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23MS5DPD2E864ABA00691DCC /* MultiScreenOverlayManager.swift */; };
 		23SC5DPE2E864ABA00691DCC /* ShutdownConfirmationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23SC5DPD2E864ABA00691DCC /* ShutdownConfirmationWindow.swift */; };
 		A1234567890ABCDEF001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF002 /* AppDelegate.swift */; };
@@ -113,6 +114,7 @@
 		23DAFA622E8B6E8C00DD6B6C /* DatabaseMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseMigration.swift; sourceTree = "<group>"; };
 		23DAFA652E8B7C5C00DD6B6C /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
 		23F4A38D2E842FE100B71AA7 /* ScreenDetectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenDetectionManager.swift; sourceTree = "<group>"; };
+		23FA66022E9B5101000F9F07 /* DebugStatisticsDatabaseProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugStatisticsDatabaseProvider.swift; sourceTree = "<group>"; };
 		23MS5DPD2E864ABA00691DCC /* MultiScreenOverlayManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiScreenOverlayManager.swift; sourceTree = "<group>"; };
 		23SC5DPD2E864ABA00691DCC /* ShutdownConfirmationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShutdownConfirmationWindow.swift; sourceTree = "<group>"; };
 		5F523799673D4942B090EFE3 /* LaunchAtLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLogin.swift; sourceTree = "<group>"; };
@@ -250,6 +252,14 @@
 			path = Settings;
 			sourceTree = "<group>";
 		};
+		23FA66032E9B5101000F9F07 /* Debug */ = {
+			isa = PBXGroup;
+			children = (
+				23FA66022E9B5101000F9F07 /* DebugStatisticsDatabaseProvider.swift */,
+			);
+			path = Debug;
+			sourceTree = "<group>";
+		};
 		A1234567890ABCDEF012 = {
 			isa = PBXGroup;
 			children = (
@@ -262,6 +272,7 @@
 		A1234567890ABCDEF013 /* PomodoroScreen */ = {
 			isa = PBXGroup;
 			children = (
+				23FA66032E9B5101000F9F07 /* Debug */,
 				23DAFA662E8B7C5C00DD6B6C /* Settings */,
 				23DAFA632E8B6E8C00DD6B6C /* Migration */,
 				JS1234567890ABCDEF003 /* Resources */,
@@ -461,6 +472,7 @@
 				23F4A38E2E842FE100B71AA7 /* ScreenDetectionManager.swift in Sources */,
 				23BD5B2F2E818E48008AEE45 /* HoverButton.swift in Sources */,
 				23BD5B302E818F49008AEE45 /* OnboardingWindow.swift in Sources */,
+				23FA66042E9B5101000F9F07 /* DebugStatisticsDatabaseProvider.swift in Sources */,
 				23BD5DPE2E864ABA00691DCC /* DevicePerformanceDetector.swift in Sources */,
 				23MS5DPE2E864ABA00691DCC /* MultiScreenOverlayManager.swift in Sources */,
 				23DAFA642E8B6E8C00DD6B6C /* DatabaseMigration.swift in Sources */,

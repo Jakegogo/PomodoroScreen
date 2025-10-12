@@ -13,6 +13,8 @@ class StatisticsTests: XCTestCase {
     
     override func setUp() {
         super.setUp()
+        // 在获取单例前注入测试用路径提供者并重新初始化数据库单例
+        StatisticsDatabase.setTestPathProviderAndReinitialize(TestStatisticsDatabasePathProvider())
         statisticsManager = StatisticsManager.shared
     }
     
