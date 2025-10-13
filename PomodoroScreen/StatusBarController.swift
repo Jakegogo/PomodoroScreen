@@ -392,8 +392,8 @@ class StatusBarController {
         var action: Selector
         
         if pomodoroTimer.isRunning {
-            // 计时器正在运行 - 显示"停止"
-            title = "停止"
+            // 计时器正在运行 - 显示"暂停"
+            title = "暂停"
             action = #selector(stopTimer)
         } else if pomodoroTimer.canResume {
             // 计时器可以继续（暂停或停止但有进度） - 显示"继续"
@@ -499,7 +499,12 @@ class StatusBarController {
     }
     
     @objc private func stopTimer() {
-        pomodoroTimer.stop()
+        // 在休息过程中，"停止"应表现为暂停休息，而非彻底停止到 idle
+        if pomodoroTimer.isInRestPeriod || pomodoroTimer.isRestTimerRunning {
+            pomodoroTimer.pause()
+        } else {
+            pomodoroTimer.stop()
+        }
         // 清除图标缓存以立即更新状态
         clockIconGenerator.clearCache()
         // 更新健康环数据
@@ -508,7 +513,7 @@ class StatusBarController {
         updatePopupButtonStates()
         // 更新轮数指示器
         updateRoundIndicator()
-        // 控制健康环动画：计时器停止时收缩并停止动画
+        // 控制健康环动画：暂停/停止后不运行
         popupWindow?.healthRingsView.setTimerRunning(false)
     }
     
@@ -561,7 +566,7 @@ class StatusBarController {
         var title: String
         
         if pomodoroTimer.isRunning {
-            title = "停止"
+            title = "暂停"
         } else if pomodoroTimer.canResume {
             title = "继续"
         } else {

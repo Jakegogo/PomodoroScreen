@@ -111,7 +111,7 @@ class AutoRestartStateMachine {
     /// 检查是否处于休息期间
     func isInRestPeriod() -> Bool {
         switch currentState {
-        case .restPeriod, .restTimerRunning, .restTimerPausedBySystem:
+        case .restPeriod, .restTimerRunning, .restTimerPausedBySystem, .restTimerPausedByUser:
             return true
         default:
             return false

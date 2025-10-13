@@ -579,8 +579,8 @@ class StatusBarPopupWindow: NSWindow {
         switch title {
         case "开始":
             symbolName = "play.fill"
-        case "停止":
-            symbolName = "stop.fill"
+        case "暂停":
+            symbolName = "pause.fill"
         case "继续":
             symbolName = "play.fill"
         default:
