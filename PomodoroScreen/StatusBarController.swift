@@ -107,6 +107,25 @@ class StatusBarController {
             
             // 同时更新健康环视图的倒计时显示
             self.popupWindow?.updateCountdown(time: remainingTime, title: "")
+
+            // 同步强制睡眠下的控件可用性
+            let controlsEnabled = !self.pomodoroTimer.isInForcedSleepState
+            self.popupWindow?.setControlsEnabled(controlsEnabled)
+
+            // 同步休息模式下的重置按钮样式与标题（避免依赖外部手动刷新）
+            let isResting = self.pomodoroTimer.isInRestPeriod || self.pomodoroTimer.isRestTimerRunning
+            let resetTitle = isResting ? "取消休息" : "重置"
+            let style: StatusBarPopupWindow.ResetButtonStyle = isResting ? .cancelRest : .reset
+            self.popupWindow?.updateResetButton(title: resetTitle, style: style)
+            // 同步按钮动作：休息中 -> 取消休息；否则 -> 重置
+            self.popupWindow?.setResetButtonAction { [weak self] in
+                guard let self = self else { return }
+                if isResting {
+                    self.cancelRest()
+                } else {
+                    self.resetTimer()
+                }
+            }
         }
     }
 
@@ -233,6 +252,10 @@ class StatusBarController {
         
         // 初始化按钮状态
         updatePopupButtonStates()
+
+        // 根据强制睡眠状态初始化可用性
+        let controlsEnabled = !pomodoroTimer.isInForcedSleepState
+        popupWindow?.setControlsEnabled(controlsEnabled)
     }
     
     @objc private func togglePopup() {
@@ -398,12 +421,21 @@ class StatusBarController {
         } else {
             startItem.image = makeMenuIcon("play.fill", font: menuFont)
         }
+        if pomodoroTimer.isInForcedSleepState {
+            startItem.isEnabled = false
+        }
         menu.addItem(startItem)
         
-        // 重置按钮
-        let resetItem = NSMenuItem(title: "重置", action: #selector(resetTimer), keyEquivalent: "")
+        // 重置/取消休息：在休息模式下变为“取消休息”
+        let isResting = pomodoroTimer.isInRestPeriod || pomodoroTimer.isRestTimerRunning
+        let resetTitle = isResting ? "取消休息" : "重置"
+        let resetSelector: Selector = isResting ? #selector(cancelRest) : #selector(resetTimer)
+        let resetItem = NSMenuItem(title: resetTitle, action: resetSelector, keyEquivalent: "")
         resetItem.target = self
-        resetItem.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "重置")
+        resetItem.image = NSImage(systemSymbolName: isResting ? "xmark.circle" : "arrow.clockwise", accessibilityDescription: resetTitle)
+        if pomodoroTimer.isInForcedSleepState {
+            resetItem.isEnabled = false
+        }
         menu.addItem(resetItem)
         
         menu.addItem(NSMenuItem.separator())
@@ -412,6 +444,9 @@ class StatusBarController {
         let testFinishItem = NSMenuItem(title: "立即完成", action: #selector(testFinishTimer), keyEquivalent: "")
         testFinishItem.target = self
         testFinishItem.image = NSImage(systemSymbolName: "checkmark.circle.fill", accessibilityDescription: "立即完成")
+        if pomodoroTimer.isInForcedSleepState {
+            testFinishItem.isEnabled = false
+        }
         menu.addItem(testFinishItem)
         
         menu.addItem(NSMenuItem.separator())
@@ -491,6 +526,21 @@ class StatusBarController {
         popupWindow?.healthRingsView.setTimerRunning(false)
     }
     
+    @objc private func cancelRest() {
+        // 用户触发取消休息
+        pomodoroTimer.cancelBreak(source: "user")
+        // 清除图标缓存以立即更新状态
+        clockIconGenerator.clearCache()
+        // 更新健康环数据
+        updateHealthRingsData()
+        // 更新popup按钮状态
+        updatePopupButtonStates()
+        // 更新轮数指示器
+        updateRoundIndicator()
+        // 休息取消后计时器未运行
+        popupWindow?.healthRingsView.setTimerRunning(false)
+    }
+    
     
     private func handleControlButtonClicked() {
         if pomodoroTimer.isRunning {
@@ -519,6 +569,14 @@ class StatusBarController {
         }
         
         popupWindow?.updateControlButtonTitle(title)
+        // 在休息模式下将重置按钮样式切换为取消休息（标题可本地化）
+        let isResting = pomodoroTimer.isInRestPeriod || pomodoroTimer.isRestTimerRunning
+        let resetTitle = isResting ? "取消休息" : "重置"
+        let style: StatusBarPopupWindow.ResetButtonStyle = isResting ? .cancelRest : .reset
+        popupWindow?.updateResetButton(title: resetTitle, style: style)
+        // 同步按钮可用状态：强制睡眠时禁用
+        let controlsEnabled = !pomodoroTimer.isInForcedSleepState
+        popupWindow?.setControlsEnabled(controlsEnabled)
     }
     
     private func updateRoundIndicator() {
@@ -531,8 +589,12 @@ class StatusBarController {
     }
     
     @objc private func testFinishTimer() {
-        // 立即触发计时器完成，用于测试遮罩层
-        pomodoroTimer.triggerFinish()
+        // 在休息期内：直接完成休息；否则完成番茄钟
+        if pomodoroTimer.isInRestPeriod {
+            pomodoroTimer.finishBreak()
+        } else {
+            pomodoroTimer.triggerFinish()
+        }
     }
     
     @objc private func showSettings() {

@@ -550,9 +550,10 @@ class PomodoroTimer: ObservableObject {
             return
         }
         // Idempotency Guard (幂等性保护):
-        // 1. 如果当前已明确处于休息状态或休息计时器已在运行，则直接返回。
-        if isInRestPeriod || isRestTimerRunning {
-            AppLogger.shared.logStateMachine("startBreak skipped: already in rest period.", tag: "TIMER_IDEMPOTENT")
+        // 仅当休息计时器已经在运行时才跳过，
+        // 允许从 restPeriod（尚未启动计时器）进入真正的休息计时。
+        if isRestTimerRunning {
+            AppLogger.shared.logStateMachine("startBreak skipped: rest timer already running.", tag: "TIMER_IDEMPOTENT")
             return
         }
         stop() // 停止当前计时器
@@ -651,11 +652,7 @@ class PomodoroTimer: ObservableObject {
 
     /// 完成休息（与取消休息不同）：记录 break_finished，并进入下一阶段番茄钟
     func finishBreak() {
-        // 如果是强制睡眠状态，禁止用户取消
-        if autoRestartStateMachine.isInForcedSleep() {
-            print("🚫 强制睡眠期间，用户无法取消休息")
-            return
-        }
+        // 允许在强制睡眠期间自然完成休息（仅禁止用户取消）
         
         if accumulateRestTime && !isLongBreak {
             // 如果启用了累积功能且当前是短休息，记录剩余时间

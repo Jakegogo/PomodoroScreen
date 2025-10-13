@@ -9,6 +9,10 @@
 import Cocoa
 
 class StatusBarPopupWindow: NSWindow {
+    enum ResetButtonStyle {
+        case reset
+        case cancelRest
+    }
     // MARK: - UI Components
     internal var healthRingsView: HealthRingsView!
     private var menuButton: NSButton!
@@ -398,6 +402,24 @@ class StatusBarPopupWindow: NSWindow {
         menuButton.target = self
         menuButton.action = #selector(menuButtonClicked)
         return menuButton
+    }
+
+    /// 设置弹窗内控件的可用性（用于强制睡眠时禁用交互）
+    func setControlsEnabled(_ enabled: Bool) {
+        controlButton?.isEnabled = enabled
+        resetButton?.isEnabled = enabled
+    }
+
+    /// 更新重置按钮（标题与样式分离，避免基于标题判断）
+    func updateResetButton(title: String, style: ResetButtonStyle) {
+        resetButton?.title = title
+        let symbolName: String = {
+            switch style {
+            case .reset: return "arrow.counterclockwise"
+            case .cancelRest: return "xmark.circle"
+            }
+        }()
+        resetButton?.setIcon(symbolName)
     }
     
     private func updateUIElementFrames() {

@@ -272,7 +272,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "206"
             endingLineNumber = "206"
-            landmarkName = "setupPopupWindow()"
+            landmarkName = "setupStatusItem()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -288,7 +288,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "208"
             endingLineNumber = "208"
-            landmarkName = "setupPopupWindow()"
+            landmarkName = "setupStatusItem()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -545,8 +545,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "132"
             endingLineNumber = "132"
-            landmarkName = "showMeetingModeRestIndicator()"
-            landmarkType = "7">
+            landmarkName = "StatusBarController"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -569,7 +569,7 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "E2D922BE-57BB-4B58-8542-13152189485D"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "PomodoroScreen/StatusBarController.swift"
@@ -579,36 +579,22 @@
             endingLineNumber = "108"
             landmarkName = "updateTime(_:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "E2D922BE-57BB-4B58-8542-13152189485D - f366a31a4f2284ea"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #1 @Swift.MainActor () -&gt; () in PomodoroScreen.StatusBarController.updateTime(Swift.String) -&gt; ()"
-                  moduleName = "PomodoroScreen.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/jake/Documents/Projects/PomodoroScreen/PomodoroScreen/StatusBarController.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "108"
-                  endingLineNumber = "108">
-               </Location>
-               <Location
-                  uuid = "E2D922BE-57BB-4B58-8542-13152189485D - f366a31a4f228489"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #1 @Swift.MainActor () -&gt; () in PomodoroScreen.StatusBarController.updateTime(Swift.String) -&gt; ()"
-                  moduleName = "PomodoroScreen.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/jake/Documents/Projects/PomodoroScreen/PomodoroScreen/StatusBarController.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "109"
-                  endingLineNumber = "109">
-               </Location>
-            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "909896D8-06CF-40A9-A1A0-2C5F5BB25308"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "PomodoroScreen/PomodoroTimer.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "555"
+            endingLineNumber = "555"
+            landmarkName = "startBreak()"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>
