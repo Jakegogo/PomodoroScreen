@@ -211,6 +211,9 @@ class AutoRestartStateMachine {
         case (.screenLocked, .timerRunning):
             guard settings.screenLockEnabled else { return .none }
             return settings.screenLockActionIsRestart ? .none : .pauseTimer
+        case (.screenLocked, .restTimerRunning):
+            guard settings.screenLockEnabled else { return .none }
+            return settings.screenLockActionIsRestart ? .none : .pauseTimer
         case (.screenUnlocked, .timerPausedBySystem):
             guard settings.screenLockEnabled else { return .none }
             // 检查是否刚刚处理过屏保事件，如果是则忽略解锁事件
@@ -219,6 +222,14 @@ class AutoRestartStateMachine {
                 return .none
             }
             return settings.screenLockActionIsRestart ? .restartTimer : .resumeTimer
+        case (.screenUnlocked, .restTimerPausedBySystem):
+            guard settings.screenLockEnabled else { return .none }
+            // 休息期间由系统事件暂停后，解锁一律恢复休息计时，避免误触发重启
+            if wasRecentlyResumedByScreensaver() {
+                print("🔄 State Machine: 忽略解锁事件（休息），因为刚刚通过屏保恢复")
+                return .none
+            }
+            return .resumeTimer
         case (.screenUnlocked, .timerRunning):
             guard settings.screenLockEnabled else { return .none }
             // 如果计时器已经在运行，且刚刚通过屏保恢复，则忽略解锁事件

@@ -957,13 +957,10 @@ class PomodoroTimer: ObservableObject {
     }
     
     @objc private func screenDidLock() {
-        print("📱 Screen lock detected")
         processAutoRestartEvent(.screenLocked)
     }
     
-    @objc private func screenDidUnlock() {
-        print("🔓 Screen unlock detected")
-        
+    @objc private func screenDidUnlock() {        
         // 先处理解锁事件
         processAutoRestartEvent(.screenUnlocked)
         
