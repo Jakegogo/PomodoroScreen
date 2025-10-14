@@ -270,6 +270,9 @@ class StatisticsDatabase {
             
         case .stayUpLateTriggered:
             dailyStats.stayUpLateCount += 1
+        case .stayUpLateActivity:
+            // 半小时熬夜活动事件仅用于热力图标记，不影响日汇总计数
+            break
         case .moodUpdated:
             if let metadata = event.metadata {
                 if let level = metadata["mood_level"] as? Int {

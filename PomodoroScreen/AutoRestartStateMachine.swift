@@ -73,6 +73,7 @@ class AutoRestartStateMachine {
     // 熬夜状态管理
     private var isStayUpTime: Bool = false // 当前是否处于熬夜时间
     private var stayUpMonitoringTimer: Timer? // 熬夜监控定时器
+    private var lastStayUpLoggedSlot: Date? // 上一次记录的半小时槽起始时间
     
     struct AutoRestartSettings {
         let idleEnabled: Bool
@@ -481,7 +482,7 @@ class AutoRestartStateMachine {
         let currentMinutes = currentHour * 60 + currentMinute
         
         let startMinutes = settings.stayUpLimitHour * 60 + settings.stayUpLimitMinute
-        let nextDayEndMinutes = (4 * 60 + 30) + 24 * 60 // 次日 04:30
+        let nextDayEndMinutes = (StayUpConstants.endHour * 60 + StayUpConstants.endMinute) + 24 * 60 // 次日结束时间
         
         // 将当前时间映射到扩展时间轴上：如果在起始点之前，则视为次日时间
         let currentExtended = currentMinutes >= startMinutes ? currentMinutes : currentMinutes + 24 * 60
@@ -508,7 +509,30 @@ class AutoRestartStateMachine {
         else if wasStayUpTime && !isStayUpTime && isInForcedSleep() {
             print("🌙 状态机：熬夜时间结束，触发强制睡眠结束事件")
             onStayUpTimeChanged?(false)
+            // 退出熬夜时段时重置最近记录槽
+            lastStayUpLoggedSlot = nil
         }
+
+        // 在熬夜时间内，按半小时槽记录熬夜活动
+        if isStayUpTime {
+            maybeLogStayUpActivity()
+        }
+    }
+
+    /// 在当前熬夜时段内，如果到达新的半小时槽则记录一次熬夜活动
+    private func maybeLogStayUpActivity() {
+        let now = Date()
+        let calendar = Calendar.current
+        let hour = calendar.component(.hour, from: now)
+        let minute = calendar.component(.minute, from: now)
+        let slotMinute = (minute < 30) ? 0 : 30
+        guard let slotStart = calendar.date(bySettingHour: hour, minute: slotMinute, second: 0, of: now) else { return }
+        if let last = lastStayUpLoggedSlot, calendar.isDate(last, equalTo: slotStart, toGranularity: .minute) {
+            return
+        }
+        // 记录一次熬夜活动
+        StatisticsManager.shared.recordStayUpLateActivity()
+        lastStayUpLoggedSlot = slotStart
     }
     
     /// 检查是否需要显示强制睡眠倒计时警告

@@ -384,7 +384,7 @@ class StatusBarController {
         
         // 开始/暂停/继续按钮逻辑
         // 根据优化后的状态表确定菜单显示：
-        // - Running: 显示"停止"
+        // - Running: 显示"暂停"
         // - Idle(停止但可继续): 显示"继续" 
         // - Pause: 显示"继续"
         // - Idle(全新): 显示"开始"
@@ -415,7 +415,8 @@ class StatusBarController {
         ])
         // 根据不同状态设置不同图标（画布高度匹配文字行高）
         if pomodoroTimer.isRunning {
-            startItem.image = makeMenuIcon("stop.fill", font: menuFont)
+            // 运行中：菜单显示“暂停”，图标与弹窗保持一致（pause.fill）
+            startItem.image = makeMenuIcon("pause.fill", font: menuFont)
         } else if pomodoroTimer.canResume {
             startItem.image = makeMenuIcon("play.fill", font: menuFont)
         } else {

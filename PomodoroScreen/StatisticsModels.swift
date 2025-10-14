@@ -17,6 +17,7 @@ enum StatisticsEventType: String, CaseIterable {
     case screenLocked = "screen_locked"               // 息屏
     case screensaverActivated = "screensaver_activated" // 屏保激活
     case stayUpLateTriggered = "stay_up_late_triggered" // 熬夜模式触发
+    case stayUpLateActivity = "stay_up_late_activity"   // 熬夜时段实际活动（每半小时记录）
     case moodUpdated = "mood_updated"                 // 心情/感受更新
 }
 
@@ -184,6 +185,16 @@ struct ReportConfiguration {
     var includeRecommendations: Bool = true
     var chartTheme: ChartTheme = .light
     
+    // Stay-up (late night) window configuration for report rendering
+    // These fields are serialized to HTML to allow the heatmap to highlight late-night hours
+    var stayUpLimitEnabled: Bool = SettingsStore.stayUpLimitEnabled
+    var stayUpStartHour: Int = SettingsStore.stayUpLimitHour
+    var stayUpStartMinute: Int = SettingsStore.stayUpLimitMinute
+    // End time currently follows AutoRestartStateMachine logic: next day 04:30
+    // If future settings support customization, these can be overridden accordingly
+    var stayUpEndHour: Int = StayUpConstants.endHour
+    var stayUpEndMinute: Int = StayUpConstants.endMinute
+    
     enum ChartTheme: String {
         case light = "light"
         case dark = "dark"
@@ -245,7 +256,13 @@ struct ReportData {
                 "includeCharts": configuration.includeCharts,
                 "includeTrends": configuration.includeTrends,
                 "includeRecommendations": configuration.includeRecommendations,
-                "chartTheme": configuration.chartTheme.rawValue
+                "chartTheme": configuration.chartTheme.rawValue,
+                // Stay-up window configuration passed to front-end for visualization
+                "stayUpLimitEnabled": configuration.stayUpLimitEnabled,
+                "stayUpStartHour": configuration.stayUpStartHour,
+                "stayUpStartMinute": configuration.stayUpStartMinute,
+                "stayUpEndHour": configuration.stayUpEndHour,
+                "stayUpEndMinute": configuration.stayUpEndMinute
             ]
         ]
         
@@ -295,6 +312,8 @@ struct ReportData {
                 activityType = "interruption"
             case .stayUpLateTriggered:
                 activityType = "interruption"
+            case .stayUpLateActivity:
+                activityType = "late_night"
             case .moodUpdated:
                 // 心情更新事件不计入热力图活动
                 continue

@@ -324,6 +324,7 @@
         .break-color { background: #b2fd00; }
         .interruption-color { background: #04f6d1; }
         .cancelled-color { background: #cc66ff; }
+        .late-night-color { background: #f59e0b; }
         
         .heatmap-grid { 
             display: grid; 
@@ -360,6 +361,21 @@
             position: relative;
             cursor: pointer;
             transition: transform 0.1s ease;
+        }
+        /* Late-night visual hint: diagonal light gray stripe overlay (subtle) */
+        .heatmap-cell.late-night::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background-image: repeating-linear-gradient(
+                -45deg,
+                rgba(0, 0, 0, 0.03),
+                rgba(0, 0, 0, 0.03) 3px,
+                rgba(0, 0, 0, 0.00) 3px,
+                rgba(0, 0, 0, 0.00) 12px
+            );
+            border-radius: 2px;
         }
         .heatmap-cell:hover { 
             transform: scale(1.1); 
@@ -660,6 +676,10 @@
                         <div class="legend-item">
                             <span class="legend-color cancelled-color"></span>
                             <span class="legend-text">取消休息</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color late-night-color"></span>
+                            <span class="legend-text">熬夜时段</span>
                         </div>
                     </div>
                     <div class="heatmap-grid" id="heatmapGrid">
@@ -1240,11 +1260,53 @@
                         totalActivities: 0
                     };
                     
+                    // 标记熬夜时段（无论是否有活动，以视觉弱提示为主）
+                    try {
+                        const cfg = reportData && reportData.configuration ? reportData.configuration : {};
+                        if (cfg && cfg.stayUpLimitEnabled) {
+                            const startHour = parseInt(cfg.stayUpStartHour || 23);
+                            const startMinute = parseInt(cfg.stayUpStartMinute || 30);
+                            const endHour = parseInt(cfg.stayUpEndHour || 4);
+                            const endMinute = parseInt(cfg.stayUpEndMinute || 30);
+
+                            // Mark hour if its [hour:00, hour+1:00) overlaps the late-night window
+                            const startTotal = startHour * 60 + startMinute;
+                            let endTotal = endHour * 60 + endMinute;
+                            // normalize end to be after start (handle cross-day)
+                            if (endTotal <= startTotal) endTotal += 24 * 60;
+
+                            // hour slot range in minutes (original day frame)
+                            const hourStart = hour * 60;
+                            const hourEnd = hourStart + 60;
+
+                            // helper: range overlap on linear axis
+                            const overlaps = (aStart, aEnd, bStart, bEnd) => (aStart < bEnd) && (aEnd > bStart);
+
+                            // check overlap in original frame and shifted-by-24h frame
+                            const isLateNight = overlaps(hourStart, hourEnd, startTotal, endTotal)
+                                || overlaps(hourStart + 24 * 60, hourEnd + 24 * 60, startTotal, endTotal);
+                            if (isLateNight) {
+                                cell.classList.add('late-night');
+                                cell.title = (cell.title ? (cell.title + '\n') : '') + '🌙 熬夜时段';
+                            }
+                        }
+                    } catch (e) {
+                        // no-op
+                    }
+
                     // 只有当不是未来日期且有活动时才显示数据
                     if (!isFutureDate && hourData.hasActivity) {
                         cell.classList.add('has-activity');
                         const color = getActivityColor(hourData.primaryActivity, hourData);
-                        cell.style.backgroundColor = color;
+                        // 若为熬夜时段与活动同时存在，用对角分割显示两种颜色（活动色 + 熬夜黄）
+                        if (cell.classList.contains('late-night')) {
+                            const lateNightColor = '#f59e0b';
+                            // 反斜杠分割：左上为活动色，右下为熬夜色
+                            cell.style.background = `linear-gradient(135deg, ${color} 50%, ${lateNightColor} 50%)`;
+                            cell.style.backgroundColor = '';
+                        } else {
+                            cell.style.backgroundColor = color;
+                        }
                         // 根据活动强度调整透明度
                         const intensity = Math.min(hourData.totalActivities / 5, 1); // 最大5个活动为满强度
                         const opacity = 0.3 + (intensity * 0.7); // 0.3-1.0的透明度范围
@@ -1405,12 +1467,19 @@
                 let breakCount = 0;
                 let cancelledCount = 0;
                 let interruptionCount = 0;
+                let lateNightCount = 0;
                 hourData.activities.forEach(activity => {
                     if (activity.type === 'pomodoro') pomodoroCount += activity.count;
                     else if (activity.type === 'break') breakCount += activity.count;
                     else if (activity.type === 'cancelled') cancelledCount += activity.count;
                     else if (activity.type === 'interruption') interruptionCount += activity.count;
+                    else if (activity.type === 'late_night') lateNightCount += activity.count;
                 });
+
+                // late-night explicit color override if present and dominates the hour
+                if (lateNightCount > 0 && pomodoroCount === 0 && breakCount === 0 && cancelledCount === 0 && interruptionCount === 0) {
+                    return '#f59e0b'; // amber/yellow
+                }
 
                 // 规则：
                 // 1) 若存在番茄钟：按 番茄钟/休息 比例映射红色深浅（不考虑中断与取消，以免误判）
@@ -1442,7 +1511,8 @@
                 'pomodoro': '#ed347c',
                 'break': '#b2fd00',
                 'interruption': '#04f6d1',
-                'cancelled': '#cc66ff'
+                'cancelled': '#cc66ff',
+                'late_night': '#f59e0b'
             };
             return fallback[activityType] || '#ffffff';
         }

@@ -173,6 +173,20 @@ class StatisticsManager {
         database.recordEvent(event)
         print("🌃 记录熬夜模式触发: \(limitTime)")
     }
+
+    /// 记录实际熬夜活动（用于热力图标记，每半小时一次）
+    func recordStayUpLateActivity() {
+        let event = StatisticsEvent(
+            eventType: .stayUpLateActivity,
+            duration: nil,
+            metadata: [
+                "source": "auto",
+                "note": "half_hour_slot"
+            ]
+        )
+        database.recordEvent(event)
+        print("🌙 记录熬夜活动(半小时)")
+    }
     
     // MARK: - 数据查询接口
     
@@ -231,11 +245,20 @@ class StatisticsManager {
         debugPrintHourEventCounts(date: dailyStats.date, hour: 11)
         #endif
         
+        // Populate stay-up configuration from SettingsStore
+        var cfg = configuration
+        cfg.stayUpLimitEnabled = SettingsStore.stayUpLimitEnabled
+        cfg.stayUpStartHour = SettingsStore.stayUpLimitHour
+        cfg.stayUpStartMinute = SettingsStore.stayUpLimitMinute
+        // End time aligned with AutoRestartStateMachine (next day)
+        cfg.stayUpEndHour = StayUpConstants.endHour
+        cfg.stayUpEndMinute = StayUpConstants.endMinute
+
         return ReportData(
             dailyStats: dailyStats,
             weeklyStats: weeklyStats,
             recentEvents: weekEvents,
-            configuration: configuration
+            configuration: cfg
         )
     }
     
