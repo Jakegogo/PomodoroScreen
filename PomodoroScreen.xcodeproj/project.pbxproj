@@ -7,13 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		230514E72E864ABA00691DCC /* CountdownNotificationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 230514E62E864ABA00691DCC /* CountdownNotificationWindow.swift */; };
 		230E00482E952F7200740B96 /* IconRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 230E00472E952F7200740B96 /* IconRenderer.swift */; };
 		231168BB2E8BE930004386D2 /* bar-chart.svg in Resources */ = {isa = PBXBuildFile; fileRef = 231168BA2E8BE930004386D2 /* bar-chart.svg */; };
 		231168BF2E8BE938004386D2 /* diagram.svg in Resources */ = {isa = PBXBuildFile; fileRef = 231168BC2E8BE938004386D2 /* diagram.svg */; };
 		231168C02E8BE938004386D2 /* statistical.svg in Resources */ = {isa = PBXBuildFile; fileRef = 231168BD2E8BE938004386D2 /* statistical.svg */; };
 		231168C12E8BE938004386D2 /* statistics.svg in Resources */ = {isa = PBXBuildFile; fileRef = 231168BE2E8BE938004386D2 /* statistics.svg */; };
-		231168C32E8BEAF8004386D2 /* TitlebarIconManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 231168C22E8BEAF8004386D2 /* TitlebarIconManager.swift */; };
 		231168C72E8BEC96004386D2 /* pie-chart.svg in Resources */ = {isa = PBXBuildFile; fileRef = 231168C52E8BEC96004386D2 /* pie-chart.svg */; };
 		231168C82E8BEC96004386D2 /* caculator.svg in Resources */ = {isa = PBXBuildFile; fileRef = 231168C42E8BEC96004386D2 /* caculator.svg */; };
 		231168C92E8BEC96004386D2 /* speedometer.svg in Resources */ = {isa = PBXBuildFile; fileRef = 231168C62E8BEC96004386D2 /* speedometer.svg */; };
@@ -31,7 +29,6 @@
 		23BD5A8B2E80F742008AEE45 /* BeautifulPoliceOfficer-rvv8x.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 23BD5A892E80F742008AEE45 /* BeautifulPoliceOfficer-rvv8x.ttf */; };
 		23BD5AA92E80F9CD008AEE45 /* ClockIconGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BD5AA82E80F9CD008AEE45 /* ClockIconGenerator.swift */; };
 		23BD5B2F2E818E48008AEE45 /* HoverButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BD5B2C2E818E48008AEE45 /* HoverButton.swift */; };
-		23BD5B302E818F49008AEE45 /* OnboardingWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BD5B312E818F49008AEE45 /* OnboardingWindow.swift */; };
 		23BD5C352E824FE6008AEE45 /* RoundIndicatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BD5C342E824FE3008AEE45 /* RoundIndicatorView.swift */; };
 		23BD5DPE2E864ABA00691DCC /* DevicePerformanceDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BD5DPD2E864ABA00691DCC /* DevicePerformanceDetector.swift */; };
 		23CD00252E8E266F00290908 /* share.svg in Resources */ = {isa = PBXBuildFile; fileRef = 23CD00242E8E266F00290908 /* share.svg */; };
@@ -44,26 +41,16 @@
 		23D95B752E8BF8870049726C /* smile.svg in Resources */ = {isa = PBXBuildFile; fileRef = 23D95B742E8BF8870049726C /* smile.svg */; };
 		23DAFA642E8B6E8C00DD6B6C /* DatabaseMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23DAFA622E8B6E8C00DD6B6C /* DatabaseMigration.swift */; };
 		23DAFA672E8B7C5C00DD6B6C /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23DAFA652E8B7C5C00DD6B6C /* SettingsStore.swift */; };
-		23F4A38E2E842FE100B71AA7 /* ScreenDetectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23F4A38D2E842FE100B71AA7 /* ScreenDetectionManager.swift */; };
 		23FA66042E9B5101000F9F07 /* DebugStatisticsDatabaseProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23FA66022E9B5101000F9F07 /* DebugStatisticsDatabaseProvider.swift */; };
-		23MS5DPE2E864ABA00691DCC /* MultiScreenOverlayManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23MS5DPD2E864ABA00691DCC /* MultiScreenOverlayManager.swift */; };
-		23SC5DPE2E864ABA00691DCC /* ShutdownConfirmationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23SC5DPD2E864ABA00691DCC /* ShutdownConfirmationWindow.swift */; };
 		A1234567890ABCDEF001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF002 /* AppDelegate.swift */; };
 		A1234567890ABCDEF003 /* PomodoroTimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF004 /* PomodoroTimer.swift */; };
 		A1234567890ABCDEF005 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF006 /* StatusBarController.swift */; };
-		A1234567890ABCDEF007 /* OverlayWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF008 /* OverlayWindow.swift */; };
 		A1234567890ABCDEF009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF00A /* Assets.xcassets */; };
 		A1234567890ABCDEF00B /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF00C /* MainMenu.xib */; };
 		A1234567890ABCDEF015 /* SettingsWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF016 /* SettingsWindow.swift */; };
 		FDF3445FA03D44929CE879D5 /* LaunchAtLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F523799673D4942B090EFE3 /* LaunchAtLogin.swift */; };
-		HR1234567890ABCDEF001 /* HealthRingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1234567890ABCDEF002 /* HealthRingsView.swift */; };
 		HTML1234567890ABCDEF01 /* report.html in Resources */ = {isa = PBXBuildFile; fileRef = HTML1234567890ABCDEF02 /* report.html */; };
 		JS1234567890ABCDEF001 /* chart.js in Resources */ = {isa = PBXBuildFile; fileRef = JS1234567890ABCDEF002 /* chart.js */; };
-		PW1234567890ABCDEF001 /* StatusBarPopupWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = PW1234567890ABCDEF002 /* StatusBarPopupWindow.swift */; };
-		ST1234567890ABCDEF001 /* StatisticsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST1234567890ABCDEF002 /* StatisticsModels.swift */; };
-		ST1234567890ABCDEF003 /* StatisticsDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST1234567890ABCDEF004 /* StatisticsDatabase.swift */; };
-		ST1234567890ABCDEF005 /* StatisticsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST1234567890ABCDEF006 /* StatisticsManager.swift */; };
-		ST1234567890ABCDEF007 /* ReportWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST1234567890ABCDEF008 /* ReportWindow.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -77,13 +64,11 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		230514E62E864ABA00691DCC /* CountdownNotificationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountdownNotificationWindow.swift; sourceTree = "<group>"; };
 		230E00472E952F7200740B96 /* IconRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconRenderer.swift; sourceTree = "<group>"; };
 		231168BA2E8BE930004386D2 /* bar-chart.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "bar-chart.svg"; sourceTree = "<group>"; };
 		231168BC2E8BE938004386D2 /* diagram.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = diagram.svg; sourceTree = "<group>"; };
 		231168BD2E8BE938004386D2 /* statistical.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = statistical.svg; sourceTree = "<group>"; };
 		231168BE2E8BE938004386D2 /* statistics.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = statistics.svg; sourceTree = "<group>"; };
-		231168C22E8BEAF8004386D2 /* TitlebarIconManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitlebarIconManager.swift; sourceTree = "<group>"; };
 		231168C42E8BEC96004386D2 /* caculator.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = caculator.svg; sourceTree = "<group>"; };
 		231168C52E8BEC96004386D2 /* pie-chart.svg */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = "pie-chart.svg"; sourceTree = "<group>"; };
 		231168C62E8BEC96004386D2 /* speedometer.svg */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = speedometer.svg; sourceTree = "<group>"; };
@@ -102,7 +87,6 @@
 		23BD5A892E80F742008AEE45 /* BeautifulPoliceOfficer-rvv8x.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "BeautifulPoliceOfficer-rvv8x.ttf"; sourceTree = "<group>"; };
 		23BD5AA82E80F9CD008AEE45 /* ClockIconGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockIconGenerator.swift; sourceTree = "<group>"; };
 		23BD5B2C2E818E48008AEE45 /* HoverButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverButton.swift; sourceTree = "<group>"; };
-		23BD5B312E818F49008AEE45 /* OnboardingWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingWindow.swift; sourceTree = "<group>"; };
 		23BD5C342E824FE3008AEE45 /* RoundIndicatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoundIndicatorView.swift; sourceTree = "<group>"; };
 		23BD5DPD2E864ABA00691DCC /* DevicePerformanceDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicePerformanceDetector.swift; sourceTree = "<group>"; };
 		23CD00242E8E266F00290908 /* share.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = share.svg; sourceTree = "<group>"; };
@@ -115,33 +99,27 @@
 		23D95B742E8BF8870049726C /* smile.svg */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = smile.svg; sourceTree = "<group>"; };
 		23DAFA622E8B6E8C00DD6B6C /* DatabaseMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseMigration.swift; sourceTree = "<group>"; };
 		23DAFA652E8B7C5C00DD6B6C /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
-		23F4A38D2E842FE100B71AA7 /* ScreenDetectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenDetectionManager.swift; sourceTree = "<group>"; };
 		23FA66022E9B5101000F9F07 /* DebugStatisticsDatabaseProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugStatisticsDatabaseProvider.swift; sourceTree = "<group>"; };
-		23MS5DPD2E864ABA00691DCC /* MultiScreenOverlayManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiScreenOverlayManager.swift; sourceTree = "<group>"; };
-		23SC5DPD2E864ABA00691DCC /* ShutdownConfirmationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShutdownConfirmationWindow.swift; sourceTree = "<group>"; };
 		5F523799673D4942B090EFE3 /* LaunchAtLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLogin.swift; sourceTree = "<group>"; };
 		A1234567890ABCDEF000 /* PomodoroScreen.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PomodoroScreen.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1234567890ABCDEF002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		A1234567890ABCDEF004 /* PomodoroTimer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PomodoroTimer.swift; sourceTree = "<group>"; };
 		A1234567890ABCDEF006 /* StatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
-		A1234567890ABCDEF008 /* OverlayWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayWindow.swift; sourceTree = "<group>"; };
 		A1234567890ABCDEF00A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A1234567890ABCDEF00D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/MainMenu.xib; sourceTree = "<group>"; };
 		A1234567890ABCDEF00F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1234567890ABCDEF010 /* PomodoroScreen.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PomodoroScreen.entitlements; sourceTree = "<group>"; };
 		A1234567890ABCDEF016 /* SettingsWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindow.swift; sourceTree = "<group>"; };
-		HR1234567890ABCDEF002 /* HealthRingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthRingsView.swift; sourceTree = "<group>"; };
 		HTML1234567890ABCDEF02 /* report.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = report.html; sourceTree = "<group>"; };
 		JS1234567890ABCDEF002 /* chart.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = chart.js; sourceTree = "<group>"; };
-		PW1234567890ABCDEF002 /* StatusBarPopupWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarPopupWindow.swift; sourceTree = "<group>"; };
-		ST1234567890ABCDEF002 /* StatisticsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsModels.swift; sourceTree = "<group>"; };
-		ST1234567890ABCDEF004 /* StatisticsDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsDatabase.swift; sourceTree = "<group>"; };
-		ST1234567890ABCDEF006 /* StatisticsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsManager.swift; sourceTree = "<group>"; };
-		ST1234567890ABCDEF008 /* ReportWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportWindow.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		2348232C2E7EAAF800DC507E /* PomodoroScreenTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = PomodoroScreenTests; sourceTree = "<group>"; };
+		23CE750C2E9FE03D00C94EC7 /* Statistics */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Statistics; sourceTree = "<group>"; };
+		23CE750D2E9FE12000C94EC7 /* Window */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Window; sourceTree = "<group>"; };
+		23CE750E2E9FE16E00C94EC7 /* Manager */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Manager; sourceTree = "<group>"; };
+		23CE750F2E9FE1F200C94EC7 /* Effects */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Effects; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -192,16 +170,12 @@
 		23BD5B2D2E818E48008AEE45 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				23BD5AA82E80F9CD008AEE45 /* ClockIconGenerator.swift */,
 				230E00472E952F7200740B96 /* IconRenderer.swift */,
-				231168C22E8BEAF8004386D2 /* TitlebarIconManager.swift */,
-				230514E62E864ABA00691DCC /* CountdownNotificationWindow.swift */,
 				23249BA72E826FCF00F45D58 /* IOSSwitchButton.swift */,
 				23BD5C342E824FE3008AEE45 /* RoundIndicatorView.swift */,
 				23BD5B2C2E818E48008AEE45 /* HoverButton.swift */,
-				23BD5B312E818F49008AEE45 /* OnboardingWindow.swift */,
 				23BD5DPD2E864ABA00691DCC /* DevicePerformanceDetector.swift */,
-				23MS5DPD2E864ABA00691DCC /* MultiScreenOverlayManager.swift */,
-				23SC5DPD2E864ABA00691DCC /* ShutdownConfirmationWindow.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -209,6 +183,9 @@
 		23BD5B2E2E818E48008AEE45 /* UI */ = {
 			isa = PBXGroup;
 			children = (
+				23CE750F2E9FE1F200C94EC7 /* Effects */,
+				23CE750E2E9FE16E00C94EC7 /* Manager */,
+				23CE750D2E9FE12000C94EC7 /* Window */,
 				23BD5B2D2E818E48008AEE45 /* Components */,
 			);
 			path = UI;
@@ -251,6 +228,7 @@
 			isa = PBXGroup;
 			children = (
 				23DAFA652E8B7C5C00DD6B6C /* SettingsStore.swift */,
+				A1234567890ABCDEF016 /* SettingsWindow.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -281,20 +259,11 @@
 				JS1234567890ABCDEF003 /* Resources */,
 				233855982E8CA10C00809053 /* Utils */,
 				23BD5B2E2E818E48008AEE45 /* UI */,
-				23F4A38D2E842FE100B71AA7 /* ScreenDetectionManager.swift */,
-				23BD5AA82E80F9CD008AEE45 /* ClockIconGenerator.swift */,
+				23CE750C2E9FE03D00C94EC7 /* Statistics */,
 				234823252E7EAAC500DC507E /* AutoRestartStateMachine.swift */,
 				A1234567890ABCDEF002 /* AppDelegate.swift */,
 				A1234567890ABCDEF004 /* PomodoroTimer.swift */,
 				A1234567890ABCDEF006 /* StatusBarController.swift */,
-				A1234567890ABCDEF008 /* OverlayWindow.swift */,
-				PW1234567890ABCDEF002 /* StatusBarPopupWindow.swift */,
-				HR1234567890ABCDEF002 /* HealthRingsView.swift */,
-				A1234567890ABCDEF016 /* SettingsWindow.swift */,
-				ST1234567890ABCDEF002 /* StatisticsModels.swift */,
-				ST1234567890ABCDEF004 /* StatisticsDatabase.swift */,
-				ST1234567890ABCDEF006 /* StatisticsManager.swift */,
-				ST1234567890ABCDEF008 /* ReportWindow.swift */,
 				5F523799673D4942B090EFE3 /* LaunchAtLogin.swift */,
 				A1234567890ABCDEF00A /* Assets.xcassets */,
 				A1234567890ABCDEF00C /* MainMenu.xib */,
@@ -371,6 +340,12 @@
 			buildRules = (
 			);
 			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				23CE750C2E9FE03D00C94EC7 /* Statistics */,
+				23CE750D2E9FE12000C94EC7 /* Window */,
+				23CE750E2E9FE16E00C94EC7 /* Manager */,
+				23CE750F2E9FE1F200C94EC7 /* Effects */,
 			);
 			name = PomodoroScreen;
 			productName = PomodoroScreen;
@@ -472,35 +447,22 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1234567890ABCDEF001 /* AppDelegate.swift in Sources */,
-				23F4A38E2E842FE100B71AA7 /* ScreenDetectionManager.swift in Sources */,
 				23BD5B2F2E818E48008AEE45 /* HoverButton.swift in Sources */,
-				23BD5B302E818F49008AEE45 /* OnboardingWindow.swift in Sources */,
 				23FA66042E9B5101000F9F07 /* DebugStatisticsDatabaseProvider.swift in Sources */,
 				23BD5DPE2E864ABA00691DCC /* DevicePerformanceDetector.swift in Sources */,
 				23905D092E9DFC060033DA01 /* StayUpConstants.swift in Sources */,
-				23MS5DPE2E864ABA00691DCC /* MultiScreenOverlayManager.swift in Sources */,
 				23DAFA642E8B6E8C00DD6B6C /* DatabaseMigration.swift in Sources */,
-				23SC5DPE2E864ABA00691DCC /* ShutdownConfirmationWindow.swift in Sources */,
 				23249BA82E826FCF00F45D58 /* IOSSwitchButton.swift in Sources */,
 				23BD5AA92E80F9CD008AEE45 /* ClockIconGenerator.swift in Sources */,
 				A1234567890ABCDEF003 /* PomodoroTimer.swift in Sources */,
 				A1234567890ABCDEF015 /* SettingsWindow.swift in Sources */,
-				230514E72E864ABA00691DCC /* CountdownNotificationWindow.swift in Sources */,
 				A1234567890ABCDEF005 /* StatusBarController.swift in Sources */,
 				230E00482E952F7200740B96 /* IconRenderer.swift in Sources */,
-				A1234567890ABCDEF007 /* OverlayWindow.swift in Sources */,
 				23BD5C352E824FE6008AEE45 /* RoundIndicatorView.swift in Sources */,
 				23DAFA672E8B7C5C00DD6B6C /* SettingsStore.swift in Sources */,
 				2338559B2E8CA7A600809053 /* AppLogger.swift in Sources */,
 				234823262E7EAAC500DC507E /* AutoRestartStateMachine.swift in Sources */,
-				PW1234567890ABCDEF001 /* StatusBarPopupWindow.swift in Sources */,
-				HR1234567890ABCDEF001 /* HealthRingsView.swift in Sources */,
 				A1234567890ABCDEF015 /* SettingsWindow.swift in Sources */,
-				231168C32E8BEAF8004386D2 /* TitlebarIconManager.swift in Sources */,
-				ST1234567890ABCDEF001 /* StatisticsModels.swift in Sources */,
-				ST1234567890ABCDEF003 /* StatisticsDatabase.swift in Sources */,
-				ST1234567890ABCDEF005 /* StatisticsManager.swift in Sources */,
-				ST1234567890ABCDEF007 /* ReportWindow.swift in Sources */,
 				FDF3445FA03D44929CE879D5 /* LaunchAtLogin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -1575,7 +1575,11 @@
                         'late_night': '熬夜'
                     };
                     const label = activityNames[activity.type] || activity.type || '其他';
-                    content += `${label}: ${activity.count}次<br>`;
+                    if (activity.type === 'late_night') {
+                        content += `${label}<br>`;
+                    } else {
+                        content += `${label}: ${activity.count}次<br>`;
+                    }
                     
                     // 统计番茄钟和休息数量
                     if (activity.type === 'pomodoro') {

@@ -321,8 +321,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "34"
             endingLineNumber = "34"
-            landmarkName = "generateClockIcon(progress:totalTime:remainingTime:isPaused:)"
-            landmarkType = "7">
+            landmarkName = "ClockIconGenerator"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
