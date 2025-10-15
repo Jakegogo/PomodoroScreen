@@ -1231,8 +1231,40 @@
                 heatmapGrid.appendChild(dayCell);
             });
             
-            // 创建24小时的数据行
-            for (let hour = 0; hour < 24; hour++) {
+            // 预判是否需要折叠夜间 1:00-6:00 行（若该时段所有展示天均无活动）
+            let collapseNightRows = true;
+            try {
+                const hoursToCheck = [1, 2, 3, 4, 5];
+                outer: for (let h of hoursToCheck) {
+                    for (let dayIndex = 0; dayIndex < daysToShow; dayIndex++) {
+                        const currentDate = new Date(weekStart);
+                        currentDate.setDate(weekStart.getDate() + dayIndex);
+                        const isFutureDate = currentDate > today;
+                        if (isFutureDate) continue;
+                        const dayData = weekData[dayIndex];
+                        const hourData = dayData && dayData[h] ? dayData[h] : null;
+                        if (hourData && hourData.hasActivity) {
+                            collapseNightRows = false;
+                            break outer;
+                        }
+                    }
+                }
+            } catch (e) { /* no-op */ }
+
+            const allHours = Array.from({ length: 24 }, (_, i) => i);
+            const renderedHours = collapseNightRows ? allHours.filter(h => h === 0 || h > 5) : allHours;
+            // 覆盖行模板以匹配实际渲染小时数
+            heatmapGrid.style.gridTemplateRows = `30px repeat(${renderedHours.length}, 1fr)`;
+            // 动态设置最小高度，折叠后整体高度随之减小
+            try {
+                const headerRow = 30; // px
+                const perRowMin = 22; // 估算：单元最小高20 + 间隙1 + 余量1
+                const minHeightPx = headerRow + (renderedHours.length * perRowMin) + 2; // +2 for padding/border
+                heatmapGrid.style.minHeight = `${minHeightPx}px`;
+            } catch (e) { /* no-op */ }
+
+            // 创建按需的小时数据行
+            for (const hour of renderedHours) {
                 // 时间标签（左侧）
                 const hourCell = document.createElement('div');
                 hourCell.className = 'heatmap-hour-label';
@@ -1539,9 +1571,11 @@
                         'pomodoro': '番茄钟',
                         'break': '休息',
                         'interruption': '中断',
-                        'cancelled': '取消休息'
+                        'cancelled': '取消休息',
+                        'late_night': '熬夜'
                     };
-                    content += `${activityNames[activity.type]}: ${activity.count}次<br>`;
+                    const label = activityNames[activity.type] || activity.type || '其他';
+                    content += `${label}: ${activity.count}次<br>`;
                     
                     // 统计番茄钟和休息数量
                     if (activity.type === 'pomodoro') {

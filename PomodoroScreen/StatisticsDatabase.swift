@@ -72,10 +72,31 @@ class StatisticsDatabase {
         let defaultURL = appDir.appendingPathComponent("statistics.db")
         let resolvedURL = StatisticsDatabase.pathProvider.resolveDatabasePath(appSupportDefault: defaultURL)
         
-        dbPath = resolvedURL.path
-        print("📁 数据库路径: \(dbPath)")
+        var chosenPath = resolvedURL.path
+        print("📁 目标数据库路径: \(chosenPath)")
         
-        openDatabase()
+        // 首次尝试打开（可能是 Debug 自定义路径）
+        var (openedDB, rc, msg) = StatisticsDatabase.openSQLite(path: chosenPath)
+        
+        // 如果失败且不是默认路径，则回退到默认 Application Support 路径
+        if openedDB == nil && resolvedURL.path != defaultURL.path {
+            print("⚠️ Debug 路径打开失败(code=\(rc), msg=\(msg ?? ""))，回退到默认路径: \(defaultURL.path)")
+            let fallback = StatisticsDatabase.openSQLite(path: defaultURL.path)
+            openedDB = fallback.0
+            rc = fallback.1
+            msg = fallback.2
+            if openedDB != nil { chosenPath = defaultURL.path }
+        }
+        
+        dbPath = chosenPath
+        db = openedDB
+        if db != nil {
+            print("✅ 数据库连接成功")
+            DatabaseMigration.shared.runMigrationsIfNeeded(db: db)
+        } else {
+            print("❌ 无法打开数据库 (code=\(rc), msg=\(msg ?? ""), path=\(chosenPath))")
+        }
+        
         createTables()
     }
     
@@ -85,14 +106,19 @@ class StatisticsDatabase {
     
     // MARK: - 数据库连接管理
     
-    private func openDatabase() {
-        if sqlite3_open(dbPath, &db) != SQLITE_OK {
-            print("❌ 无法打开数据库")
-            return
+    private static func openSQLite(path: String) -> (OpaquePointer?, Int32, String?) {
+        var pointer: OpaquePointer?
+        let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
+        let rc = sqlite3_open_v2(path, &pointer, flags, nil)
+        if rc != SQLITE_OK {
+            var msg: String? = nil
+            if let p = pointer, let cstr = sqlite3_errmsg(p) {
+                msg = String(cString: cstr)
+                _ = sqlite3_close(p)
+            }
+            return (nil, rc, msg)
         }
-        print("✅ 数据库连接成功")
-        // 连接成功后执行数据库迁移
-        DatabaseMigration.shared.runMigrationsIfNeeded(db: db)
+        return (pointer, rc, nil)
     }
     
     private func closeDatabase() {
@@ -105,6 +131,10 @@ class StatisticsDatabase {
     // MARK: - 创建表结构
     
     private func createTables() {
+        guard db != nil else {
+            print("❌ 数据库未打开，跳过建表")
+            return
+        }
         createEventsTable()
         createDailyStatsTable()
     }
@@ -188,6 +218,10 @@ class StatisticsDatabase {
         
         var statement: OpaquePointer?
         
+        guard db != nil else {
+            print("❌ 数据库未打开，无法记录事件")
+            return
+        }
         if sqlite3_prepare_v2(db, insertSQL, -1, &statement, nil) == SQLITE_OK {
             sqlite3_bind_text(statement, 1, event.id, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self))
             sqlite3_bind_text(statement, 2, event.eventType.rawValue, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self))
@@ -228,6 +262,10 @@ class StatisticsDatabase {
     // MARK: - 日统计更新
     
     private func updateDailyStatistics(for event: StatisticsEvent) {
+        guard db != nil else {
+            print("❌ 数据库未打开，跳过日统计更新")
+            return
+        }
         let calendar = Calendar.current
         let dateKey = calendar.dateInterval(of: .day, for: event.timestamp)?.start ?? event.timestamp
         
@@ -296,6 +334,10 @@ class StatisticsDatabase {
     }
     
     private func saveDailyStatistics(_ stats: DailyStatistics) {
+        guard db != nil else {
+            print("❌ 数据库未打开，无法保存日统计")
+            return
+        }
         let dateString = DateFormatter.dateKey.string(from: stats.date)
         
         let upsertSQL = """

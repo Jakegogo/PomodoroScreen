@@ -23,8 +23,9 @@ struct DebugStatisticsDatabasePathProvider: StatisticsDatabasePathProviding {
     }
     
     func resolveDatabasePath(appSupportDefault: URL) -> URL {
-        guard let root = resolveRepoRoot() else { return appSupportDefault }
-        return root.appendingPathComponent("Debug/statistics-debug.db")
+        // 将 Debug 数据库放到 App Support 可写目录，避免权限问题
+        let appDir = appSupportDefault.deletingLastPathComponent()
+        return appDir.appendingPathComponent("statistics-debug.db")
     }
 }
 #endif
