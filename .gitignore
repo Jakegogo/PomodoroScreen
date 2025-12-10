@@ -13,3 +13,4 @@ Breakpoints_v2.xcbkptlist
 /PomodoroScreenTests/Integration/*.db
 /PomodoroScreen.xcodeproj/xcuserdata/jake.xcuserdatad/xcdebugger/Breakpoints_v2.xcbkptlist
 statistics-debug.db
+Windows/build/**

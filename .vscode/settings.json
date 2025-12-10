@@ -1,3 +1,4 @@
 {
-    "makefile.configureOnOpen": false
+    "makefile.configureOnOpen": false,
+    "cmake.sourceDirectory": "D:/Programing/swift/PomodoroScreen/Windows"
 }
