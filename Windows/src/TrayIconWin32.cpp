@@ -91,6 +91,18 @@ namespace {
 
 namespace pomodoro {
 
+    namespace {
+        bool PointInRect(const RECT& rc, POINT pt) {
+            return pt.x >= rc.left && pt.x < rc.right && pt.y >= rc.top && pt.y < rc.bottom;
+        }
+
+        bool IsPointNear(POINT a, POINT b, int thresholdPx) {
+            const int dx = a.x - b.x;
+            const int dy = a.y - b.y;
+            return (dx >= -thresholdPx && dx <= thresholdPx) && (dy >= -thresholdPx && dy <= thresholdPx);
+        }
+    } // namespace
+
     TrayIconWin32::TrayIconWin32(HINSTANCE hInstance, HWND messageHwnd, PomodoroTimer& timer)
         : hInstance_(hInstance)
         , messageHwnd_(messageHwnd)
@@ -147,10 +159,10 @@ namespace pomodoro {
         nid_.cbSize = sizeof(nid_);
         nid_.hWnd = messageHwnd_;
         nid_.uID = 1;
-        nid_.uFlags = NIF_MESSAGE | NIF_TIP | NIF_ICON;
+        // Tooltip is intentionally disabled; popup UI is the primary surface.
+        nid_.uFlags = NIF_MESSAGE | NIF_ICON;
         nid_.uCallbackMessage = WM_TRAYICON;
         nid_.hIcon = workIcon_ ? workIcon_ : LoadIcon(nullptr, IDI_APPLICATION);
-        wcscpy_s(nid_.szTip, L"PomodoroScreen");
 
         Shell_NotifyIconW(NIM_ADD, &nid_);
     }
@@ -174,25 +186,6 @@ namespace pomodoro {
         lastRunning_ = isRunning;
 
         updateIcon(state, isRunning);
-
-        // 更新 tooltip 文本
-        std::wstring tip = L"PomodoroScreen - ";
-        switch (state) {
-        case TrayIconState::Work:
-            tip += L"\u5de5\u4f5c\u4e2d ";    // "工作中 "
-            break;
-        case TrayIconState::Rest:
-            tip += L"\u4f11\u606f\u4e2d ";    // "休息中 "
-            break;
-        case TrayIconState::ForcedSleep:
-            tip += L"\u5f3a\u5236\u4f11\u606f "; // "强制休息 "
-            break;
-        }
-        tip += L"(" + lastTimeText_ + L")";
-
-        wcsncpy_s(nid_.szTip, tip.c_str(), _TRUNCATE);
-        nid_.uFlags = NIF_TIP | NIF_ICON;
-        Shell_NotifyIconW(NIM_MODIFY, &nid_);
 
         // 同步弹窗内容（如果当前可见）
         std::wstring status;
@@ -239,20 +232,133 @@ namespace pomodoro {
         }
     }
 
+    void TrayIconWin32::showPopupIfNeeded() {
+        if (popup_.isVisible()) return;
+
+        // 悬停弹出时也先刷新内容，确保状态与倒计时是最新的
+        std::wstring status;
+        switch (lastState_) {
+        case TrayIconState::Work:
+            status = lastRunning_ ? L"\u4e13\u6ce8\u4e2d" : L"\u5df2\u6682\u505c"; // "专注中" / "已暂停"
+            break;
+        case TrayIconState::Rest:
+            status = L"\u4f11\u606f\u65f6\u95f4"; // "休息时间"
+            break;
+        case TrayIconState::ForcedSleep:
+            status = L"\u5f3a\u5236\u4f11\u606f"; // "强制休息"
+            break;
+        }
+        popup_.updateContent(status, lastTimeText_);
+        popup_.setRunningState(lastRunning_);
+        popup_.showNearCursor();
+    }
+
+    void TrayIconWin32::hidePopupIfNeeded() {
+        if (!popup_.isVisible()) return;
+        popup_.hide();
+    }
+
     void TrayIconWin32::handleTrayMessage(WPARAM wParam, LPARAM lParam) {
         if (LOWORD(wParam) != nid_.uID) return;
 
         switch (LOWORD(lParam)) {
+        case WM_MOUSEMOVE: {
+            // 悬停显示弹窗：收到鼠标移动后启动一个轻量定时器，避免瞬间弹出造成抖动
+            const DWORD now = GetTickCount();
+            POINT pt{};
+            GetCursorPos(&pt);
+            lastTrayCursorPos_ = pt;
+            hasLastTrayCursorPos_ = true;
+
+            // 如果之前不处于 hover，或已经很久没收到鼠标移动（说明离开后又回来），则重置 hover 起点
+            if (!hoveringIcon_ || (now - lastMouseMoveTick_) > 200) {
+                hoverStartTick_ = now;
+            }
+            hoveringIcon_ = true;
+            lastMouseMoveTick_ = now;
+            if (!pinnedByClick_ && messageHwnd_) {
+                SetTimer(messageHwnd_, kHoverTimerId, 50, nullptr);
+            }
+            break;
+        }
         case WM_LBUTTONUP:
             togglePopup();
+            pinnedByClick_ = popup_.isVisible();
+            if (pinnedByClick_) {
+                KillTimer(messageHwnd_, kHoverTimerId);
+            } else {
+                const DWORD now = GetTickCount();
+                hoveringIcon_ = true;
+                hoverStartTick_ = now;
+                lastMouseMoveTick_ = now;
+                POINT pt{};
+                GetCursorPos(&pt);
+                lastTrayCursorPos_ = pt;
+                hasLastTrayCursorPos_ = true;
+                SetTimer(messageHwnd_, kHoverTimerId, 50, nullptr);
+            }
             break;
         case WM_RBUTTONUP:
             // 右键预留：将来可添加菜单
             togglePopup();
+            pinnedByClick_ = popup_.isVisible();
+            if (pinnedByClick_) {
+                KillTimer(messageHwnd_, kHoverTimerId);
+            } else {
+                const DWORD now = GetTickCount();
+                hoveringIcon_ = true;
+                hoverStartTick_ = now;
+                lastMouseMoveTick_ = now;
+                POINT pt{};
+                GetCursorPos(&pt);
+                lastTrayCursorPos_ = pt;
+                hasLastTrayCursorPos_ = true;
+                SetTimer(messageHwnd_, kHoverTimerId, 50, nullptr);
+            }
             break;
         default:
             break;
         }
+    }
+
+    void TrayIconWin32::handleTimer(UINT_PTR timerId) {
+        if (timerId != kHoverTimerId) return;
+        if (!messageHwnd_) return;
+        if (pinnedByClick_) return;
+
+        const DWORD now = GetTickCount();
+        // 读取鼠标位置（用于判断是否仍停留在弹窗/托盘图标附近）
+        POINT pt{};
+        GetCursorPos(&pt);
+
+        // 关键判断：只要鼠标仍停留在上一次 tray WM_MOUSEMOVE 时的光标位置附近，
+        // 就认为仍在托盘图标上（即使鼠标不动不会继续触发 WM_MOUSEMOVE）。
+        // 这样可以避免“快速划过托盘图标也弹出”的闪现问题。
+        const bool cursorStillNearTrayPos = hasLastTrayCursorPos_ && IsPointNear(pt, lastTrayCursorPos_, 10);
+        const bool likelyStillOnIcon = hoveringIcon_ && cursorStillNearTrayPos;
+
+        bool inPopup = false;
+        if (popup_.isVisible() && popup_.hwnd()) {
+            RECT popupRc{};
+            if (GetWindowRect(popup_.hwnd(), &popupRc)) {
+                inPopup = PointInRect(popupRc, pt);
+            }
+        }
+
+        // hover 延迟，避免鼠标经过就弹出
+        const DWORD hoverDelayMs = 450;
+
+        if (likelyStillOnIcon || inPopup) {
+            if (!popup_.isVisible() && likelyStillOnIcon && (now - hoverStartTick_) >= hoverDelayMs) {
+                showPopupIfNeeded();
+            }
+            return;
+        }
+
+        // 鼠标离开托盘图标与弹窗：隐藏并停止定时器
+        hoveringIcon_ = false;
+        hidePopupIfNeeded();
+        KillTimer(messageHwnd_, kHoverTimerId);
     }
 
 } // namespace pomodoro

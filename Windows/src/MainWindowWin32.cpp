@@ -24,6 +24,11 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             tray->handleTrayMessage(wParam, lParam);
         }
         return 0;
+    case WM_TIMER:
+        if (tray) {
+            tray->handleTimer(static_cast<UINT_PTR>(wParam));
+        }
+        return 0;
     case WM_APP + 2: // 来自托盘弹窗的“设置”按钮
         if (g_backgroundSettings) {
             if (!g_settingsWindow) {

@@ -26,10 +26,15 @@ namespace pomodoro {
         // 处理来自托盘的回调消息
         void handleTrayMessage(WPARAM wParam, LPARAM lParam);
 
+        // 处理主窗口转发的定时器消息（用于 hover 弹窗）
+        void handleTimer(UINT_PTR timerId);
+
     private:
         void initNotifyIcon();
         void updateIcon(TrayIconState state, bool isRunning);
         void togglePopup();
+        void showPopupIfNeeded();
+        void hidePopupIfNeeded();
 
         HICON createStateIcon(TrayIconState state);
 
@@ -47,6 +52,15 @@ namespace pomodoro {
         std::wstring lastTimeText_;
         TrayIconState lastState_{ TrayIconState::Work };
         bool lastRunning_{ false };
+
+        // hover 弹窗逻辑
+        static constexpr UINT_PTR kHoverTimerId = 9001;
+        DWORD lastMouseMoveTick_{ 0 };
+        DWORD hoverStartTick_{ 0 };
+        bool hoveringIcon_{ false };
+        bool hasLastTrayCursorPos_{ false };
+        POINT lastTrayCursorPos_{};
+        bool pinnedByClick_{ false };
     };
 
 } // namespace pomodoro

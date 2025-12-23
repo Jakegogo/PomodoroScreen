@@ -1,11 +1,10 @@
 @echo off
-setlocal
+setlocal EnableExtensions DisableDelayedExpansion
 
-rem 简单构建脚本，对应 README 中的构建步骤：
+rem Simple build script (Windows):
 rem   cd Windows
-rem   cmake -S . -B build
-rem   cmake --build build --config Release
-rem   ./build/PomodoroScreenWin.exe
+rem   build.bat
+rem   build.bat --no-clean
 
 cd /d "%~dp0"
 
@@ -21,13 +20,20 @@ cmake -S . -B build
 if errorlevel 1 goto :cmake_error
 
 echo.
-if "%CLEAN_FIRST%"=="1" (
-  echo [build] Building (clean first, verbose)...
-  cmake --build build --config Release --verbose --clean-first
-) else (
-  echo [build] Building (no clean-first, verbose)...
-  cmake --build build --config Release --verbose
-)
+if "%CLEAN_FIRST%"=="1" goto :build_clean_first
+goto :build_no_clean_first
+
+:build_clean_first
+echo [build] Building (clean first, verbose)...
+cmake --build build --config Release --verbose --clean-first
+goto :build_done
+
+:build_no_clean_first
+echo [build] Building (no clean-first, verbose)...
+cmake --build build --config Release --verbose
+goto :build_done
+
+:build_done
 if errorlevel 1 goto :build_error
 
 echo.
