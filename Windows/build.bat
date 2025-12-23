@@ -9,31 +9,59 @@ rem   ./build/PomodoroScreenWin.exe
 
 cd /d "%~dp0"
 
-echo [build] 配置 CMake 工程...
+rem Build options:
+rem   build.bat              -> build with --clean-first (default)
+rem   build.bat --no-clean   -> build without --clean-first
+set "CLEAN_FIRST=1"
+if /I "%~1"=="--no-clean" set "CLEAN_FIRST=0"
+if /I "%~1"=="--no-clean-first" set "CLEAN_FIRST=0"
+
+echo [build] Configuring CMake project...
 cmake -S . -B build
 if errorlevel 1 goto :cmake_error
 
 echo.
-echo [build] 开始编译 (显示详细编译命令)...
-cmake --build build --config Release --verbose
+if "%CLEAN_FIRST%"=="1" (
+  echo [build] Building (clean first, verbose)...
+  cmake --build build --config Release --verbose --clean-first
+) else (
+  echo [build] Building (no clean-first, verbose)...
+  cmake --build build --config Release --verbose
+)
 if errorlevel 1 goto :build_error
 
 echo.
-echo [build] 编译成功，启动程序...
+echo [build] Build succeeded, searching for executable and starting program...
 echo.
-.\build\PomodoroScreenWin.exe
+
+set "EXE_PATH="
+if exist ".\build\PomodoroScreenWin.exe" (
+  set "EXE_PATH=.\build\PomodoroScreenWin.exe"
+) else if exist ".\build\Release\PomodoroScreenWin.exe" (
+  set "EXE_PATH=.\build\Release\PomodoroScreenWin.exe"
+) else if exist ".\build\Debug\PomodoroScreenWin.exe" (
+  set "EXE_PATH=.\build\Debug\PomodoroScreenWin.exe"
+)
+
+if defined EXE_PATH (
+  echo [build] Run: %EXE_PATH%
+  echo.
+  %EXE_PATH%
+) else (
+  echo [build] WARNING: PomodoroScreenWin.exe not found, please check the build directory.
+)
 goto :end
 
 :cmake_error
 echo.
-echo [build] ❌ CMake 配置失败，详细错误信息已在上方输出。
-echo [build] 如需更多信息，可查看 build\CMakeFiles\CMakeError.log
+echo [build] CMake configuration FAILED, see errors above.
+echo [build] For more details, check build\CMakeFiles\CMakeError.log
 goto :end
 
 :build_error
 echo.
-echo [build] ❌ 编译失败，上方已经显示 cl.exe / nmake 的完整错误输出。
-echo [build] 可以滚动终端向上查看具体出错的源文件和行号。
+echo [build] Build FAILED, full cl.exe / nmake error output is shown above.
+echo [build] Scroll up to find the exact source file and line number.
 goto :end
 
 :end

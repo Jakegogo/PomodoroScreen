@@ -96,13 +96,20 @@ namespace pomodoro {
     }
 
     void PomodoroTimer::resume() {
+        // 仅在状态机认为处于“暂停”状态时才允许恢复
         if (!stateMachine_.isInPausedState()) return;
+
+        // 如果已经走到 0 秒，再次点击“启动”视为重新开始一轮番茄
         if (remainingSeconds_ <= 0) {
             remainingSeconds_ = pomodoroSeconds_;
             updateTimeDisplay();
             return;
         }
-        handleAutoRestartAction(AutoRestartAction::ResumeTimer);
+
+        // 恢复时让状态机重新进入 TimerRunning 状态，不改变剩余时间
+        // 这里复用 TimerStarted 事件，只触发状态迁移，不需要额外动作
+        auto action = stateMachine_.processEvent(AutoRestartEvent::TimerStarted);
+        handleAutoRestartAction(action);
     }
 
     bool PomodoroTimer::isRunning() const {

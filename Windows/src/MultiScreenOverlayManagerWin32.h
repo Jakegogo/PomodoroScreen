@@ -12,6 +12,7 @@
 #include <windows.h>
 #include <vector>
 #include <memory>
+#include <functional>
 
 #include "OverlayWindowWin32.h"
 
@@ -30,6 +31,9 @@ namespace pomodoro {
 
         bool hasOverlays() const { return !overlays_.empty(); }
 
+        // 当“取消休息”或 ESC 关闭任一遮罩时回调（用于进入下一轮番茄）
+        void setOnDismissAllCallback(const std::function<void()>& cb) { onDismissAll_ = cb; }
+
     private:
         static BOOL CALLBACK MonitorEnumProc(HMONITOR hMonitor, HDC hdc, LPRECT lprcMonitor, LPARAM dwData);
         void createOverlayForRect(const RECT& rect);
@@ -37,6 +41,7 @@ namespace pomodoro {
     private:
         HINSTANCE hInstance_{ nullptr };
         std::vector<std::unique_ptr<OverlayWindowWin32>> overlays_;
+        std::function<void()> onDismissAll_{};
     };
 
 } // namespace pomodoro

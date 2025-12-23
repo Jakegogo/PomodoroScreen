@@ -8,19 +8,22 @@
 #include "MultiScreenOverlayManagerWin32.h"
 #include "BackgroundSettingsWin32.h"
 #include "SettingsWindowWin32.h"
+#include "TrayIconWin32.h"
+#include "MainWindowWin32.h"
 
 // NOTE:
 // Windows 端临时前端：
 // - 单线程主循环 + Win32 消息泵
+// - 托盘图标显示当前状态 + 倒计时，点击时弹出自绘制弹窗
 // - 在番茄结束进入休息期时，通过 MultiScreenOverlayManagerWin32 显示多屏遮罩
-// - 遮罩窗口的点击 / 按键会触发关闭回调，隐藏所有遮罩
-// - 按下 'c' 打开简单的设置面板，可添加图片 / 视频作为遮罩背景（配置暂未接入渲染逻辑）
+// - 按下 'c' 打开背景设置面板
 int main() {
     using namespace std::chrono;
     using pomodoro::PomodoroTimer;
     using pomodoro::MultiScreenOverlayManagerWin32;
     using pomodoro::BackgroundSettingsWin32;
     using pomodoro::SettingsWindowWin32;
+    using pomodoro::TrayIconWin32;
 
     // 获取当前进程实例句柄，用于创建 Win32 窗口
     HINSTANCE hInstance = GetModuleHandleW(nullptr);
@@ -32,6 +35,23 @@ int main() {
     BackgroundSettingsWin32 backgroundSettings;
     const std::wstring settingsPath = BackgroundSettingsWin32::DefaultConfigPath();
     backgroundSettings.loadFromFile(settingsPath);
+    g_backgroundSettings = &backgroundSettings;
+
+    // 当用户点击“取消休息”按钮或按下 ESC 关闭遮罩时：
+    // - 隐藏所有遮罩（由 MultiScreenOverlayManagerWin32 完成）
+    // - 立即开始下一轮番茄钟（跳过剩余休息时间）
+    overlayManager.setOnDismissAllCallback([&timer]() {
+        timer.start();
+    });
+
+    // 注册并创建隐藏主窗口（用于托盘消息分发）
+    WNDCLASSEXW wc{};
+    wc.cbSize = sizeof(wc);
+    wc.style = CS_HREDRAW | CS_VREDRAW;
+    wc.lpfnWndProc = MainWndProc;
+    wc.hInstance = hInstance;
+    wc.lpszClassName = kMainWindowClassName;
+    RegisterClassExW(&wc);
 
     PomodoroTimer::Settings settings;
     settings.pomodoroMinutes = 1;  // 便于测试，设为 1 分钟
@@ -40,8 +60,45 @@ int main() {
     settings.longBreakCycle = 2;
     timer.updateSettings(settings);
 
-    timer.onTimeUpdate = [](const std::string& text) {
+    // 创建隐藏主窗口和托盘图标
+    TrayIconWin32* trayIcon = nullptr;
+    HWND mainHwnd = CreateWindowExW(
+        0,
+        kMainWindowClassName,
+        L"PomodoroScreenMain",
+        WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        100,
+        100,
+        nullptr,
+        nullptr,
+        hInstance,
+        nullptr
+    );
+
+    if (mainHwnd) {
+        trayIcon = new TrayIconWin32(hInstance, mainHwnd, timer);
+        SetWindowLongPtrW(mainHwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(trayIcon));
+    }
+
+    timer.onTimeUpdate = [trayIcon, &timer, &overlayManager, &backgroundSettings](const std::string& text) {
         std::cout << "\rTime: " << text << "    " << std::flush;
+        if (trayIcon) {
+            bool isRest = timer.isInRestPeriod();
+            bool isForced = false; // TODO: 暂未暴露强制休眠状态，可在 AutoRestartStateMachine 上增加只读接口
+            bool isRunning = timer.isRunning();
+            trayIcon->updateTime(text, isRest, isForced, isRunning);
+        }
+
+        // 如果当前不在休息期且仍有遮罩显示，根据设置决定是否自动隐藏遮罩层
+        if (backgroundSettings.autoHideOverlayAfterRest()) {
+            if (!timer.isInRestPeriod() && !timer.isRestTimerRunning()) {
+                if (overlayManager.hasOverlays()) {
+                    overlayManager.hideAllOverlays();
+                }
+            }
+        }
     };
 
     // 工作阶段结束 -> 进入休息期时，在所有屏幕上展示遮罩层
@@ -56,13 +113,10 @@ int main() {
         overlayManager.hideAllOverlays();
     };
 
-    std::cout << "PomodoroScreen Windows (console + overlay test)\n";
+    std::cout << "PomodoroScreen Windows (console + overlay + tray icon)\n";
     std::cout << "Commands: s=start, p=pause, r=resume, c=config, q=quit\n";
 
     bool running = true;
-
-    // 设置窗口（懒创建）
-    SettingsWindowWin32* settingsWindow = nullptr;
 
     // 记录上一秒 tick 的时间，用于每秒调用一次 timer.tickOneSecond()
     auto lastTick = steady_clock::now();
@@ -95,10 +149,10 @@ int main() {
             } else if (ch == 'r' || ch == 'R') {
                 timer.resume();
             } else if (ch == 'c' || ch == 'C') {
-                if (!settingsWindow) {
-                    settingsWindow = new SettingsWindowWin32(hInstance, backgroundSettings);
+                if (!g_settingsWindow) {
+                    g_settingsWindow = new SettingsWindowWin32(hInstance, backgroundSettings);
                 }
-                settingsWindow->show();
+                g_settingsWindow->show();
             }
         }
 
@@ -117,10 +171,11 @@ int main() {
     overlayManager.hideAllOverlays();
     backgroundSettings.saveToFile(settingsPath);
 
-    delete settingsWindow;
+    delete trayIcon;
+    DestroyWindow(mainHwnd);
+    delete g_settingsWindow;
+    g_settingsWindow = nullptr;
 
     std::cout << "\nExiting...\n";
     return 0;
 }
-
-

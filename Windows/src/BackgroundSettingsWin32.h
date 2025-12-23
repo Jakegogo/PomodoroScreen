@@ -35,8 +35,13 @@ namespace pomodoro {
         const std::vector<BackgroundFileWin32>& files() const { return files_; }
         std::vector<BackgroundFileWin32>& files() { return files_; }
 
+        // 是否在休息结束后自动隐藏遮罩层并开始下一次番茄（Windows 端行为开关）
+        bool autoHideOverlayAfterRest() const { return autoHideOverlayAfterRest_; }
+        void setAutoHideOverlayAfterRest(bool value) { autoHideOverlayAfterRest_ = value; }
+
     private:
         std::vector<BackgroundFileWin32> files_{};
+        bool autoHideOverlayAfterRest_{ true };
     };
 
 } // namespace pomodoro

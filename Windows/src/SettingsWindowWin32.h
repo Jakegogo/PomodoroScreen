@@ -31,12 +31,24 @@ namespace pomodoro {
         void onRemove();
         void onMoveUp();
         void onMoveDown();
+        void onAutoHideChanged();
+        void switchToTab(int index);
 
         void refreshList();
 
         HINSTANCE hInstance_{ nullptr };
         HWND hwnd_{ nullptr };
         HWND listBox_{ nullptr };
+        HWND autoHideCheckbox_{ nullptr };
+        HWND behaviorTabButton_{ nullptr };
+        HWND backgroundTabButton_{ nullptr };
+        HWND behaviorGroupBox_{ nullptr };
+        HWND addImageButton_{ nullptr };
+        HWND addVideoButton_{ nullptr };
+        HWND removeButton_{ nullptr };
+        HWND moveUpButton_{ nullptr };
+        HWND moveDownButton_{ nullptr };
+        int activeTabIndex_{ 0 };
         BackgroundSettingsWin32& settings_;
     };
 

@@ -13,6 +13,9 @@ namespace {
     constexpr int kIdRemoveButton = 1004;
     constexpr int kIdMoveUpButton = 1005;
     constexpr int kIdMoveDownButton = 1006;
+    constexpr int kIdAutoHideCheckbox = 1007;
+    constexpr int kIdTabBehavior = 1101;
+    constexpr int kIdTabBackground = 1102;
 
     ATOM RegisterSettingsWindowClass(HINSTANCE hInstance) {
         static ATOM s_atom = 0;
@@ -128,6 +131,15 @@ namespace pomodoro {
                 case kIdMoveDownButton:
                     onMoveDown();
                     break;
+                case kIdAutoHideCheckbox:
+                    onAutoHideChanged();
+                    break;
+                case kIdTabBehavior:
+                    switchToTab(0);
+                    break;
+                case kIdTabBackground:
+                    switchToTab(1);
+                    break;
                 default:
                     break;
                 }
@@ -148,14 +160,45 @@ namespace pomodoro {
     }
 
     void SettingsWindowWin32::onCreate(HWND hwnd) {
-        // 创建左侧列表框
+        // 顶部“标签”按钮（行为 / 背景）
+        behaviorTabButton_ = CreateWindowExW(
+            0,
+            L"BUTTON",
+            L"\u884c\u4e3a\u8bbe\u7f6e", // "行为设置"
+            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            20,
+            10,
+            120,
+            24,
+            hwnd,
+            reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdTabBehavior)),
+            hInstance_,
+            nullptr
+        );
+
+        backgroundTabButton_ = CreateWindowExW(
+            0,
+            L"BUTTON",
+            L"\u80cc\u666f\u8bbe\u7f6e", // "背景设置"
+            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            150,
+            10,
+            120,
+            24,
+            hwnd,
+            reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdTabBackground)),
+            hInstance_,
+            nullptr
+        );
+
+        // 背景设置页控件：左侧列表框
         listBox_ = CreateWindowExW(
             WS_EX_CLIENTEDGE,
             L"LISTBOX",
             nullptr,
             WS_CHILD | WS_VISIBLE | LBS_NOTIFY | WS_VSCROLL | WS_BORDER,
             20,
-            20,
+            50,
             320,
             320,
             hwnd,
@@ -164,14 +207,14 @@ namespace pomodoro {
             nullptr
         );
 
-        // 右侧按钮区域起始位置
+        // 右侧按钮区域起始位置（背景设置标签页）
         const int btnX = 360;
-        int btnY = 40;
+        int btnY = 70;
         const int btnWidth = 120;
         const int btnHeight = 28;
         const int btnGap = 10;
 
-        CreateWindowExW(
+        addImageButton_ = CreateWindowExW(
             0,
             L"BUTTON",
             L"\u6dfb\u52a0\u56fe\u7247...", // "添加图片..."
@@ -187,7 +230,7 @@ namespace pomodoro {
         );
         btnY += btnHeight + btnGap;
 
-        CreateWindowExW(
+        addVideoButton_ = CreateWindowExW(
             0,
             L"BUTTON",
             L"\u6dfb\u52a0\u89c6\u9891...", // "添加视频..."
@@ -203,7 +246,7 @@ namespace pomodoro {
         );
         btnY += btnHeight + btnGap;
 
-        CreateWindowExW(
+        removeButton_ = CreateWindowExW(
             0,
             L"BUTTON",
             L"\u5220\u9664", // "删除"
@@ -219,7 +262,7 @@ namespace pomodoro {
         );
         btnY += btnHeight + btnGap;
 
-        CreateWindowExW(
+        moveUpButton_ = CreateWindowExW(
             0,
             L"BUTTON",
             L"\u4e0a\u79fb", // "上移"
@@ -235,7 +278,7 @@ namespace pomodoro {
         );
         btnY += btnHeight + btnGap;
 
-        CreateWindowExW(
+        moveDownButton_ = CreateWindowExW(
             0,
             L"BUTTON",
             L"\u4e0b\u79fb", // "下移"
@@ -249,6 +292,53 @@ namespace pomodoro {
             hInstance_,
             nullptr
         );
+
+        // 行为设置页控件：顶部区域下的分组框和复选框
+        const int groupX = 20;
+        const int groupY = 50;
+        const int groupWidth = 500;
+        const int groupHeight = 110;
+
+        behaviorGroupBox_ = CreateWindowExW(
+            0,
+            L"BUTTON",
+            L"\u884c\u4e3a\u8bbe\u7f6e", // "行为设置"
+            WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
+            groupX,
+            groupY,
+            groupWidth,
+            groupHeight,
+            hwnd,
+            nullptr,
+            hInstance_,
+            nullptr
+        );
+
+        // 复选框：休息结束后自动隐藏遮罩并开始下一番茄
+        autoHideCheckbox_ = CreateWindowExW(
+            0,
+            L"BUTTON",
+            L"\u4f11\u606f\u7ed3\u675f\u540e\u81ea\u52a8\u9690\u85cf\u906e\u7f69\u5c42\u5e76\u5f00\u59cb\u4e0b\u4e00\u4e2a\u756a\u8304\u949f", // "休息结束后自动隐藏遮罩层并开始下一个番茄钟"
+            WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+            groupX + 15,
+            groupY + 18,
+            groupWidth - 30,
+            18,
+            hwnd,
+            reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdAutoHideCheckbox)),
+            hInstance_,
+            nullptr
+        );
+
+        SendMessageW(
+            autoHideCheckbox_,
+            BM_SETCHECK,
+            settings_.autoHideOverlayAfterRest() ? BST_CHECKED : BST_UNCHECKED,
+            0
+        );
+
+        // 默认切换到“行为设置”标签页
+        switchToTab(0);
 
         refreshList();
     }
@@ -332,6 +422,57 @@ namespace pomodoro {
         files.erase(files.begin() + index);
         refreshList();
         settings_.saveToFile(BackgroundSettingsWin32::DefaultConfigPath());
+    }
+
+    void SettingsWindowWin32::onAutoHideChanged() {
+        if (!autoHideCheckbox_) return;
+        LRESULT state = SendMessageW(autoHideCheckbox_, BM_GETCHECK, 0, 0);
+        bool enabled = (state == BST_CHECKED);
+        settings_.setAutoHideOverlayAfterRest(enabled);
+        settings_.saveToFile(BackgroundSettingsWin32::DefaultConfigPath());
+    }
+
+    void SettingsWindowWin32::switchToTab(int index) {
+        activeTabIndex_ = index;
+
+        // 更新“标签”按钮的可用状态（当前页禁用，看起来类似选中状态）
+        if (behaviorTabButton_) {
+            EnableWindow(behaviorTabButton_, index != 0);
+        }
+        if (backgroundTabButton_) {
+            EnableWindow(backgroundTabButton_, index != 1);
+        }
+
+        const BOOL showBehavior = (index == 0) ? TRUE : FALSE;
+        const BOOL showBackground = (index == 1) ? TRUE : FALSE;
+
+        // 行为设置页控件
+        if (behaviorGroupBox_) {
+            ShowWindow(behaviorGroupBox_, showBehavior ? SW_SHOW : SW_HIDE);
+        }
+        if (autoHideCheckbox_) {
+            ShowWindow(autoHideCheckbox_, showBehavior ? SW_SHOW : SW_HIDE);
+        }
+
+        // 背景设置页控件
+        if (listBox_) {
+            ShowWindow(listBox_, showBackground ? SW_SHOW : SW_HIDE);
+        }
+        if (addImageButton_) {
+            ShowWindow(addImageButton_, showBackground ? SW_SHOW : SW_HIDE);
+        }
+        if (addVideoButton_) {
+            ShowWindow(addVideoButton_, showBackground ? SW_SHOW : SW_HIDE);
+        }
+        if (removeButton_) {
+            ShowWindow(removeButton_, showBackground ? SW_SHOW : SW_HIDE);
+        }
+        if (moveUpButton_) {
+            ShowWindow(moveUpButton_, showBackground ? SW_SHOW : SW_HIDE);
+        }
+        if (moveDownButton_) {
+            ShowWindow(moveDownButton_, showBackground ? SW_SHOW : SW_HIDE);
+        }
     }
 
     void SettingsWindowWin32::onMoveUp() {

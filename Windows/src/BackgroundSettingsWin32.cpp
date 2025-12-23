@@ -10,7 +10,7 @@
 namespace {
 
     std::wstring ExtractFileName(const std::wstring& path) {
-        auto pos = path.find_last_of(L"\\/"); // 同时支持 / 和 \
+        auto pos = path.find_last_of(L"\\/"); // 同时支持 / 和 '\\'
         if (pos == std::wstring::npos) return path;
         return path.substr(pos + 1);
     }
@@ -191,6 +191,23 @@ namespace pomodoro {
             files_.push_back(BackgroundFileWin32{ path, type, name, rate });
         }
 
+        // 解析可选的 autoHideOverlayAfterRest 字段
+        std::wstring boolKey = L"\"autoHideOverlayAfterRest\"";
+        auto boolPos = json.find(boolKey);
+        if (boolPos != std::wstring::npos) {
+            auto colonPos = json.find(L':', boolPos + boolKey.size());
+            if (colonPos != std::wstring::npos) {
+                auto valueStart = json.find_first_not_of(L" \t\r\n", colonPos + 1);
+                if (valueStart != std::wstring::npos) {
+                    if (json.compare(valueStart, 4, L"true") == 0) {
+                        autoHideOverlayAfterRest_ = true;
+                    } else if (json.compare(valueStart, 5, L"false") == 0) {
+                        autoHideOverlayAfterRest_ = false;
+                    }
+                }
+            }
+        }
+
         return true;
     }
 
@@ -220,7 +237,9 @@ namespace pomodoro {
             out << L"\n";
         }
 
-        out << L"  ]\n}\n";
+        out << L"  ],\n";
+        out << L"  \"autoHideOverlayAfterRest\": " << (autoHideOverlayAfterRest_ ? L"true" : L"false") << L"\n";
+        out << L"}\n";
 
         return true;
     }

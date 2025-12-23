@@ -41,8 +41,13 @@ namespace pomodoro {
         auto overlay = std::make_unique<OverlayWindowWin32>();
 
         auto dismissHandler = [this]() {
-            // 当前简单策略：任意一个遮罩被“点击/按键关闭”时，隐藏所有遮罩。
+            // 任意一个遮罩被“取消休息”或 ESC 关闭时：
+            // 1. 隐藏所有遮罩层
+            // 2. 通知上层（例如 PomodoroTimer）进入下一轮番茄
             hideAllOverlays();
+            if (onDismissAll_) {
+                onDismissAll_();
+            }
         };
 
         if (overlay->create(hInstance_, rect, dismissHandler)) {
