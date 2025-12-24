@@ -1,5 +1,6 @@
 #include "OverlayWindowWin32.h"
 #include "BackgroundSettingsWin32.h"
+#include "DpiUtilsWin32.h"
 
 #include <iostream>
 #include <gdiplus.h>
@@ -143,7 +144,10 @@ namespace pomodoro {
         LoadBackgroundImageFromSettingsOnce();
 
         // 设置整体透明度（例如 80% 不透明）
-        const BYTE alpha = static_cast<BYTE>(255 * 0.8);
+        // const BYTE alpha = static_cast<BYTE>(255 * 0.8);
+        // 遮罩背景图想要“清晰”，就不要让整个窗口半透明，否则会与桌面内容混合，视觉上发虚。
+        // 这里将遮罩层设为不透明（alpha=255）。
+        const BYTE alpha = 255;
         if (!SetLayeredWindowAttributes(hwnd_, 0, alpha, LWA_ALPHA)) {
             DWORD err = GetLastError();
             std::cerr << "[OverlayWindow] SetLayeredWindowAttributes failed, error=" << err << "\n";
@@ -186,6 +190,12 @@ namespace pomodoro {
         if (msg == WM_NCCREATE) {
             auto* cs = reinterpret_cast<CREATESTRUCTW*>(lParam);
             self = static_cast<OverlayWindowWin32*>(cs->lpCreateParams);
+            // Important: WM_CREATE is dispatched before CreateWindowExW returns, so members set after
+            // CreateWindowExW (like hwnd_) are not available yet. Store hwnd now so DPI/layout code
+            // in WM_CREATE can use it safely.
+            if (self) {
+                self->hwnd_ = hwnd;
+            }
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
         } else {
             self = reinterpret_cast<OverlayWindowWin32*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -206,23 +216,14 @@ namespace pomodoro {
     LRESULT OverlayWindowWin32::handleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         switch (msg) {
         case WM_CREATE: {
+            dpi_ = pomodoro::win32::GetDpiForHwnd(hwnd);
             // 创建“取消休息”按钮，位于窗口底部中间
-            RECT client{};
-            GetClientRect(hwnd, &client);
-            const int btnWidth = 120;
-            const int btnHeight = 36;
-            const int centerX = (client.right - client.left) / 2;
-            const int bottom = client.bottom - 60;
-
             cancelButton_ = CreateWindowExW(
                 0,
                 L"BUTTON",
                 L"\u53d6\u6d88\u4f11\u606f", // "取消休息"
                 WS_CHILD | WS_VISIBLE | BS_OWNERDRAW | WS_TABSTOP,
-                centerX - btnWidth / 2,
-                bottom - btnHeight / 2,
-                btnWidth,
-                btnHeight,
+                0, 0, 10, 10, // 真实位置/大小在 layoutCancelButton 中按 DPI 计算
                 hwnd,
                 reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdCancelButton)),
                 hInstance_,
@@ -231,15 +232,19 @@ namespace pomodoro {
 
             // 设置按钮字体，使其更接近 macOS 的粗体样式
             if (!buttonFont_) {
-                LOGFONTW lf{};
-                lf.lfHeight = -18; // 约 13~14pt
-                lf.lfWeight = FW_SEMIBOLD;
-                wcscpy_s(lf.lfFaceName, L"Segoe UI");
-                buttonFont_ = CreateFontIndirectW(&lf);
+                buttonFont_ = pomodoro::win32::CreateUiFontPx(18, FW_SEMIBOLD, L"Segoe UI", dpi_);
             }
             if (cancelButton_ && buttonFont_) {
                 SendMessageW(cancelButton_, WM_SETFONT, reinterpret_cast<WPARAM>(buttonFont_), TRUE);
             }
+
+            layoutCancelButton();
+            return 0;
+        }
+        case WM_DPICHANGED: {
+            const UINT newDpi = HIWORD(wParam);
+            auto* suggested = reinterpret_cast<RECT*>(lParam);
+            applyDpiLayout(newDpi, suggested);
             return 0;
         }
         case WM_PAINT:
@@ -298,7 +303,8 @@ namespace pomodoro {
 
                 RECT r = dis->rcItem;
                 // 留一点内边距，避免贴边
-                InflateRect(&r, -2, -2);
+                const UINT dpi = dpi_ ? dpi_ : pomodoro::win32::GetDpiForHwnd(hwnd_);
+                InflateRect(&r, -pomodoro::win32::Scale(2, dpi), -pomodoro::win32::Scale(2, dpi));
                 Rectangle(hdc, r.left, r.top, r.right, r.bottom);
 
                 SelectObject(hdc, oldBrush);
@@ -314,7 +320,8 @@ namespace pomodoro {
 
                     Gdiplus::FontFamily family(L"Segoe UI");
                     // 使用粗体近似 macOS 的半粗体效果
-                    Gdiplus::Font font(&family, 14.0f, Gdiplus::FontStyleBold, Gdiplus::UnitPixel);
+                    const float fontPx = static_cast<float>(pomodoro::win32::Scale(14, dpi));
+                    Gdiplus::Font font(&family, fontPx, Gdiplus::FontStyleBold, Gdiplus::UnitPixel);
 
                     Gdiplus::Color color(
                         255,
@@ -399,6 +406,9 @@ namespace pomodoro {
         // 优先绘制用户配置的背景图片（填充模式，保持宽高比）
         if (g_backgroundImage && g_gdiplusToken != 0) {
             Gdiplus::Graphics graphics(hdc);
+            graphics.SetCompositingQuality(Gdiplus::CompositingQualityHighQuality);
+            graphics.SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
+            graphics.SetPixelOffsetMode(Gdiplus::PixelOffsetModeHighQuality);
 
             const auto imgWidth = static_cast<float>(g_backgroundImage->GetWidth());
             const auto imgHeight = static_cast<float>(g_backgroundImage->GetHeight());
@@ -435,8 +445,11 @@ namespace pomodoro {
         // 绘制提示文本：初始全亮，随后通过 textAlpha_ 渐变消失
         if (textAlpha_ > 0 && g_gdiplusToken != 0) {
             Gdiplus::Graphics graphics(hdc);
+            graphics.SetTextRenderingHint(Gdiplus::TextRenderingHintClearTypeGridFit);
             Gdiplus::FontFamily family(L"Segoe UI");
-            Gdiplus::Font font(&family, 32.0f, Gdiplus::FontStyleBold, Gdiplus::UnitPixel);
+            const UINT dpi = dpi_ ? dpi_ : pomodoro::win32::GetDpiForHwnd(hwnd_);
+            const float fontPx = static_cast<float>(pomodoro::win32::Scale(32, dpi));
+            Gdiplus::Font font(&family, fontPx, Gdiplus::FontStyleBold, Gdiplus::UnitPixel);
 
             Gdiplus::Color color(textAlpha_, 255, 255, 255);
             Gdiplus::SolidBrush brush(color);
@@ -448,7 +461,7 @@ namespace pomodoro {
             const wchar_t* text = L"Rest Time - PomodoroScreen";
             Gdiplus::RectF rect(
                 static_cast<Gdiplus::REAL>(client.left),
-                static_cast<Gdiplus::REAL>(client.top - 80), // 稍微上移，避免挡住按钮
+                static_cast<Gdiplus::REAL>(client.top - pomodoro::win32::Scale(80, dpi)), // 稍微上移，避免挡住按钮
                 static_cast<Gdiplus::REAL>(client.right - client.left),
                 static_cast<Gdiplus::REAL>(client.bottom - client.top)
             );
@@ -457,6 +470,59 @@ namespace pomodoro {
         }
 
         EndPaint(hwnd_, &ps);
+    }
+
+    void OverlayWindowWin32::applyDpiLayout(UINT dpi, const RECT* suggestedWindowRect) {
+        dpi_ = dpi ? dpi : 96;
+
+        if (suggestedWindowRect && hwnd_) {
+            // Per-monitor DPI change: accept system suggested rect for this top-level window
+            SetWindowPos(
+                hwnd_,
+                nullptr,
+                suggestedWindowRect->left,
+                suggestedWindowRect->top,
+                suggestedWindowRect->right - suggestedWindowRect->left,
+                suggestedWindowRect->bottom - suggestedWindowRect->top,
+                SWP_NOZORDER | SWP_NOACTIVATE
+            );
+        }
+
+        // Refresh button font at new DPI
+        if (buttonFont_) {
+            DeleteObject(buttonFont_);
+            buttonFont_ = nullptr;
+        }
+        buttonFont_ = pomodoro::win32::CreateUiFontPx(18, FW_SEMIBOLD, L"Segoe UI", dpi_);
+        if (cancelButton_ && buttonFont_) {
+            SendMessageW(cancelButton_, WM_SETFONT, reinterpret_cast<WPARAM>(buttonFont_), TRUE);
+        }
+
+        layoutCancelButton();
+        InvalidateRect(hwnd_, nullptr, TRUE);
+    }
+
+    void OverlayWindowWin32::layoutCancelButton() {
+        if (!hwnd_ || !cancelButton_) return;
+
+        RECT client{};
+        GetClientRect(hwnd_, &client);
+
+        const UINT dpi = dpi_ ? dpi_ : pomodoro::win32::GetDpiForHwnd(hwnd_);
+        const int btnWidth = pomodoro::win32::Scale(140, dpi);
+        const int btnHeight = pomodoro::win32::Scale(44, dpi);
+        const int centerX = (client.right - client.left) / 2;
+        const int bottom = client.bottom - pomodoro::win32::Scale(70, dpi);
+
+        SetWindowPos(
+            cancelButton_,
+            nullptr,
+            centerX - btnWidth / 2,
+            bottom - btnHeight / 2,
+            btnWidth,
+            btnHeight,
+            SWP_NOZORDER | SWP_NOACTIVATE
+        );
     }
 
 } // namespace pomodoro

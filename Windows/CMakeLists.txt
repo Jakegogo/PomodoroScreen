@@ -35,6 +35,6 @@ else()
     target_compile_options(PomodoroScreenWin PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-target_link_libraries(PomodoroScreenWin PRIVATE Gdiplus)
+target_link_libraries(PomodoroScreenWin PRIVATE Gdiplus Comctl32)
 
 

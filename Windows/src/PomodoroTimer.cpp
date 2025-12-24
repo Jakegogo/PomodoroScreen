@@ -44,31 +44,13 @@ namespace pomodoro {
             return;
         }
 
-        // 当前阶段结束
-        if (!isInRestPeriod()) {
-            // 工作阶段结束 -> 进入休息
-            completedPomodoros_++;
-            stateMachine_.processEvent(AutoRestartEvent::PomodoroFinished);
-            if (onTimerFinished) {
-                onTimerFinished();
-            }
+        handlePhaseFinished();
+    }
 
-            // 根据 cycle 决定长休息还是短休息
-            isLongBreak_ = (completedPomodoros_ > 0) &&
-                (settings_.longBreakCycle > 0) &&
-                (completedPomodoros_ % settings_.longBreakCycle == 0);
-
-            remainingSeconds_ = isLongBreak_ ? longBreakSeconds_ : breakSeconds_;
-            stateMachine_.setTimerType(isLongBreak_ ? TimerType::LongBreak : TimerType::ShortBreak);
-            stateMachine_.processEvent(AutoRestartEvent::RestStarted);
-        } else {
-            // 休息阶段结束 -> 下一轮工作
-            stateMachine_.processEvent(AutoRestartEvent::RestFinished);
-            stateMachine_.setTimerType(TimerType::Pomodoro);
-            remainingSeconds_ = pomodoroSeconds_;
-        }
-
-        updateTimeDisplay();
+    void PomodoroTimer::finishNow() {
+        // Force-finish regardless of remaining seconds; preserve "phase finished" logic.
+        remainingSeconds_ = 0;
+        handlePhaseFinished();
     }
 
     void PomodoroTimer::start() {
@@ -230,6 +212,41 @@ namespace pomodoro {
             return pomodoroSeconds_;
         }
         return isLongBreak_ ? longBreakSeconds_ : breakSeconds_;
+    }
+
+    void PomodoroTimer::handlePhaseFinished() {
+        // 当前阶段结束
+        if (!isInRestPeriod()) {
+            // 工作阶段结束 -> 进入休息
+            completedPomodoros_++;
+            stateMachine_.processEvent(AutoRestartEvent::PomodoroFinished);
+            if (onTimerFinished) {
+                onTimerFinished();
+            }
+
+            // 根据 cycle 决定长休息还是短休息
+            isLongBreak_ = (completedPomodoros_ > 0) &&
+                (settings_.longBreakCycle > 0) &&
+                (completedPomodoros_ % settings_.longBreakCycle == 0);
+
+            remainingSeconds_ = isLongBreak_ ? longBreakSeconds_ : breakSeconds_;
+            stateMachine_.setTimerType(isLongBreak_ ? TimerType::LongBreak : TimerType::ShortBreak);
+            stateMachine_.processEvent(AutoRestartEvent::RestStarted);
+        } else {
+            // 休息阶段结束 -> 下一轮工作
+            auto action = stateMachine_.processEvent(AutoRestartEvent::RestFinished);
+            stateMachine_.setTimerType(TimerType::Pomodoro);
+            remainingSeconds_ = pomodoroSeconds_;
+
+            // RestFinished 在状态机中会切到 Idle，需要上层决定是否立即开始下一轮番茄。
+            // Windows 端用设置项控制：开启时自动开始；关闭时等待用户（例如点击“取消休息”）触发 start。
+            if (action == AutoRestartAction::StartNextPomodoro && settings_.autoStartNextPomodoroAfterRest) {
+                start();
+                return;
+            }
+        }
+
+        updateTimeDisplay();
     }
 
 } // namespace pomodoro

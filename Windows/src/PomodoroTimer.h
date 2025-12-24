@@ -16,6 +16,7 @@
 
 #include <functional>
 #include <chrono>
+#include <string>
 
 #include "AutoRestartStateMachine.h"
 
@@ -30,6 +31,10 @@ namespace pomodoro {
             int breakMinutes{ 3 };
             int longBreakCycle{ 4 };
             int longBreakMinutes{ 15 };
+
+            // 休息结束后是否自动开始下一轮番茄钟。
+            // 该开关与 Windows 端“休息结束后自动隐藏遮罩层…”设置保持一致。
+            bool autoStartNextPomodoroAfterRest{ true };
 
             bool idleRestartEnabled{ false };
             int idleTimeMinutes{ 10 };
@@ -88,10 +93,15 @@ namespace pomodoro {
         void onForcedSleepTriggered();
         void onForcedSleepEnded();
 
+        // Force-finish the current phase immediately.
+        // Used by tray menu: "Complete Now" to end the current pomodoro and enter rest (show overlay).
+        void finishNow();
+
     private:
         void handleAutoRestartAction(AutoRestartAction action);
         void updateTimeDisplay();
         int totalCurrentSeconds() const;
+        void handlePhaseFinished();
 
     private:
         Settings settings_{};

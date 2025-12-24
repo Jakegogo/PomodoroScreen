@@ -43,6 +43,8 @@ namespace pomodoro {
         LRESULT handleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
         void paint();
+        void applyDpiLayout(UINT dpi, const RECT* suggestedWindowRect);
+        void layoutCancelButton();
 
     private:
         HWND hwnd_{ nullptr };
@@ -59,6 +61,8 @@ namespace pomodoro {
         // 取消休息按钮
         HWND cancelButton_{ nullptr };
         HFONT buttonFont_{ nullptr };
+
+        UINT dpi_{ 96 };
     };
 
 } // namespace pomodoro

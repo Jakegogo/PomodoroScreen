@@ -6,10 +6,18 @@ namespace {
 
     // 与 main.cpp 中的 WM_APP+1 保持一致
     constexpr UINT WM_TRAYICON = WM_APP + 1;
+    constexpr UINT WM_OPEN_SETTINGS = WM_APP + 2;
+
+    constexpr UINT kMenuIdCompleteNow = 41001;
+    constexpr UINT kMenuIdSettings = 41002;
 
     // 统一的 'P' 字母图标，右下角用小圆点表示不同状态
     HICON CreateStateIcon(pomodoro::TrayIconState state) {
-        const int size = 16;
+        // Do not hardcode 16x16: on high-DPI systems the tray icon is larger and Windows will scale,
+        // causing blur. Use the system small-icon metrics so the icon is rendered at native size.
+        const int sizeX = GetSystemMetrics(SM_CXSMICON);
+        const int sizeY = GetSystemMetrics(SM_CYSMICON);
+        const int size = (sizeX > 0 && sizeY > 0) ? min(sizeX, sizeY) : 16;
 
         HDC hdc = GetDC(nullptr);
         HDC memDC = CreateCompatibleDC(hdc);
@@ -30,7 +38,7 @@ namespace {
         SetTextColor(memDC, RGB(255, 255, 255));
 
         LOGFONTW lf = {};
-        lf.lfHeight = -13;
+        lf.lfHeight = -MulDiv(13, size, 16);
         lf.lfWeight = FW_BOLD;
         wcscpy_s(lf.lfFaceName, L"Segoe UI");
         HFONT font = CreateFontIndirectW(&lf);
@@ -58,7 +66,7 @@ namespace {
         HBRUSH dotBrush = CreateSolidBrush(dotColor);
         HGDIOBJ oldBrush = SelectObject(memDC, dotBrush);
 
-        const int dotSize = 5;
+        const int dotSize = max(4, MulDiv(5, size, 16));
         RECT dotRc = {
             size - dotSize - 1,
             size - dotSize - 1,
@@ -282,40 +290,76 @@ namespace pomodoro {
             break;
         }
         case WM_LBUTTONUP:
-            togglePopup();
-            pinnedByClick_ = popup_.isVisible();
-            if (pinnedByClick_) {
-                KillTimer(messageHwnd_, kHoverTimerId);
+            // 点击逻辑：
+            // - 如果弹窗是“悬停弹出”的（未 pinned），点击应当“固定”它，而不是 toggle 关闭（避免闪现一次又隐藏）
+            // - 如果弹窗已 pinned，则点击关闭
+            if (popup_.isVisible()) {
+                if (!pinnedByClick_) {
+                    pinnedByClick_ = true;
+                    hoveringIcon_ = false;
+                    KillTimer(messageHwnd_, kHoverTimerId);
+                } else {
+                    popup_.hide();
+                    pinnedByClick_ = false;
+                }
             } else {
-                const DWORD now = GetTickCount();
-                hoveringIcon_ = true;
-                hoverStartTick_ = now;
-                lastMouseMoveTick_ = now;
-                POINT pt{};
-                GetCursorPos(&pt);
-                lastTrayCursorPos_ = pt;
-                hasLastTrayCursorPos_ = true;
-                SetTimer(messageHwnd_, kHoverTimerId, 50, nullptr);
+                popup_.updateContent(L"", lastTimeText_);
+                popup_.showNearCursor();
+                pinnedByClick_ = true;
+                hoveringIcon_ = false;
+                KillTimer(messageHwnd_, kHoverTimerId);
             }
             break;
-        case WM_RBUTTONUP:
-            // 右键预留：将来可添加菜单
-            togglePopup();
-            pinnedByClick_ = popup_.isVisible();
-            if (pinnedByClick_) {
-                KillTimer(messageHwnd_, kHoverTimerId);
-            } else {
-                const DWORD now = GetTickCount();
-                hoveringIcon_ = true;
-                hoverStartTick_ = now;
-                lastMouseMoveTick_ = now;
+        case WM_RBUTTONUP: {
+            // 右键：显示菜单（立即完成 / 设置）
+            hoveringIcon_ = false;
+            pinnedByClick_ = false;
+            KillTimer(messageHwnd_, kHoverTimerId);
+
+            if (popup_.isVisible()) {
+                popup_.hide();
+            }
+
+            if (messageHwnd_) {
+                SetForegroundWindow(messageHwnd_);
+            }
+
+            HMENU menu = CreatePopupMenu();
+            if (menu) {
+                AppendMenuW(menu, MF_STRING, kMenuIdCompleteNow, L"\u7acb\u5373\u5b8c\u6210"); // "立即完成"
+                AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+                AppendMenuW(menu, MF_STRING, kMenuIdSettings, L"\u8bbe\u7f6e"); // "设置"
+
                 POINT pt{};
                 GetCursorPos(&pt);
-                lastTrayCursorPos_ = pt;
-                hasLastTrayCursorPos_ = true;
-                SetTimer(messageHwnd_, kHoverTimerId, 50, nullptr);
+
+                const UINT cmd = TrackPopupMenuEx(
+                    menu,
+                    TPM_RIGHTBUTTON | TPM_RETURNCMD,
+                    pt.x,
+                    pt.y,
+                    messageHwnd_ ? messageHwnd_ : nullptr,
+                    nullptr
+                );
+
+                DestroyMenu(menu);
+
+                // Ensure menu closes properly
+                if (messageHwnd_) {
+                    PostMessageW(messageHwnd_, WM_NULL, 0, 0);
+                }
+
+                if (cmd == kMenuIdCompleteNow) {
+                    // End current pomodoro immediately -> triggers existing overlay flow via onTimerFinished callback.
+                    timer_.finishNow();
+                } else if (cmd == kMenuIdSettings) {
+                    if (messageHwnd_) {
+                        PostMessageW(messageHwnd_, WM_OPEN_SETTINGS, 0, 0);
+                    }
+                }
             }
             break;
+        }
         default:
             break;
         }

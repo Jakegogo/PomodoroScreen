@@ -2,6 +2,8 @@
 
 #include <windows.h>
 
+#include "PomodoroTimer.h"
+
 namespace pomodoro {
     class BackgroundSettingsWin32;
     class SettingsWindowWin32;
@@ -14,6 +16,8 @@ namespace pomodoro {
 extern const wchar_t* kMainWindowClassName;
 extern pomodoro::BackgroundSettingsWin32* g_backgroundSettings;
 extern pomodoro::SettingsWindowWin32* g_settingsWindow;
+extern pomodoro::PomodoroTimer* g_pomodoroTimer;
+extern pomodoro::PomodoroTimer::Settings* g_pomodoroTimerSettings;
 
 // 主窗口窗口过程：负责托盘消息转发以及打开设置窗口
 LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);

@@ -11,6 +11,40 @@
 #include "TrayIconWin32.h"
 #include "MainWindowWin32.h"
 
+namespace {
+    void EnablePerMonitorDpiAwareness() {
+        // Root-cause fix for “UI looks blurry” on Windows:
+        // If the process is not DPI-aware, Windows bitmap-scales the entire UI.
+        // We opt into Per-Monitor V2 awareness early, before creating any windows.
+#ifndef DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+#define DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 ((DPI_AWARENESS_CONTEXT)-4)
+#endif
+#ifndef DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE
+#define DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE ((DPI_AWARENESS_CONTEXT)-3)
+#endif
+
+        HMODULE user32 = GetModuleHandleW(L"user32.dll");
+        if (user32) {
+            using SetDpiAwarenessContextFn = BOOL(WINAPI*)(DPI_AWARENESS_CONTEXT);
+            auto setCtx = reinterpret_cast<SetDpiAwarenessContextFn>(
+                GetProcAddress(user32, "SetProcessDpiAwarenessContext"));
+            if (setCtx) {
+                if (setCtx(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)) {
+                    return;
+                }
+                setCtx(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE);
+                return;
+            }
+
+            using SetDpiAwareFn = BOOL(WINAPI*)();
+            auto setOld = reinterpret_cast<SetDpiAwareFn>(GetProcAddress(user32, "SetProcessDPIAware"));
+            if (setOld) {
+                setOld();
+            }
+        }
+    }
+} // namespace
+
 // NOTE:
 // Windows 端临时前端：
 // - 单线程主循环 + Win32 消息泵
@@ -24,6 +58,8 @@ int main() {
     using pomodoro::BackgroundSettingsWin32;
     using pomodoro::SettingsWindowWin32;
     using pomodoro::TrayIconWin32;
+
+    EnablePerMonitorDpiAwareness();
 
     // 获取当前进程实例句柄，用于创建 Win32 窗口
     HINSTANCE hInstance = GetModuleHandleW(nullptr);
@@ -54,11 +90,13 @@ int main() {
     RegisterClassExW(&wc);
 
     PomodoroTimer::Settings settings;
-    settings.pomodoroMinutes = 1;  // 便于测试，设为 1 分钟
-    settings.breakMinutes = 1;
-    settings.longBreakMinutes = 2;
-    settings.longBreakCycle = 2;
+    settings.pomodoroMinutes = backgroundSettings.pomodoroMinutes();
+    settings.autoStartNextPomodoroAfterRest = backgroundSettings.autoStartNextPomodoroAfterRest();
     timer.updateSettings(settings);
+
+    // 让 MainWndProc（托盘打开设置窗口的路径）也能同步更新 timer 的设置
+    g_pomodoroTimer = &timer;
+    g_pomodoroTimerSettings = &settings;
 
     // 创建隐藏主窗口和托盘图标
     TrayIconWin32* trayIcon = nullptr;
@@ -91,8 +129,8 @@ int main() {
             trayIcon->updateTime(text, isRest, isForced, isRunning);
         }
 
-        // 如果当前不在休息期且仍有遮罩显示，根据设置决定是否自动隐藏遮罩层
-        if (backgroundSettings.autoHideOverlayAfterRest()) {
+        // 休息结束后：根据设置决定是否自动隐藏遮罩层并进入下一轮番茄
+        if (backgroundSettings.autoStartNextPomodoroAfterRest()) {
             if (!timer.isInRestPeriod() && !timer.isRestTimerRunning()) {
                 if (overlayManager.hasOverlays()) {
                     overlayManager.hideAllOverlays();
@@ -151,6 +189,14 @@ int main() {
             } else if (ch == 'c' || ch == 'C') {
                 if (!g_settingsWindow) {
                     g_settingsWindow = new SettingsWindowWin32(hInstance, backgroundSettings);
+                    g_settingsWindow->setPomodoroMinutesChangedHandler([&timer, &settings](int minutes) {
+                        settings.pomodoroMinutes = minutes;
+                        timer.updateSettings(settings);
+                    });
+                    g_settingsWindow->setAutoStartNextPomodoroAfterRestChangedHandler([&timer, &settings](bool enabled) {
+                        settings.autoStartNextPomodoroAfterRest = enabled;
+                        timer.updateSettings(settings);
+                    });
                 }
                 g_settingsWindow->show();
             }

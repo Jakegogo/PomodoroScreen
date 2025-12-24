@@ -38,14 +38,21 @@ namespace pomodoro {
         LRESULT handleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
         void paint();
+        void applyDpiLayout(UINT dpi, const RECT* suggestedWindowRect);
+        void renderLayered();
+        void updateHitTestRects();
+        bool hitTest(const RECT& rc, int x, int y) const;
 
         HINSTANCE hInstance_{ nullptr };
         HWND hwnd_{ nullptr };
 
-        // 控件句柄
-        HWND btnStart_{ nullptr };   // 作为“启动 / 暂停”切换按钮使用
-        HWND btnReset_{ nullptr };
-        HWND btnSettings_{ nullptr };
+        // Custom-drawn “buttons” (hit-test rects)
+        RECT rcStart_{};
+        RECT rcReset_{};
+        RECT rcSettings_{};
+        bool pressedStart_{ false };
+        bool pressedReset_{ false };
+        bool pressedSettings_{ false };
 
         std::wstring statusText_;
         std::wstring timeText_;
@@ -58,6 +65,9 @@ namespace pomodoro {
         std::function<void()> onPauseClicked_;
         std::function<void()> onResetClicked_;
         std::function<void()> onSettingsClicked_;
+
+        UINT dpi_{ 96 };
+        SIZE windowSize_{ 0, 0 };
     };
 
 } // namespace pomodoro

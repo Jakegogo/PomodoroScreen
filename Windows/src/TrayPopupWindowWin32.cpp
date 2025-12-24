@@ -1,17 +1,36 @@
 #include "TrayPopupWindowWin32.h"
+#include "DpiUtilsWin32.h"
 
 #include <gdiplus.h>
 #include <shellapi.h>
-#include <windowsx.h> // for GET_X_LPARAM / GET_Y_LPARAM
+#include <windowsx.h> // GET_X_LPARAM / GET_Y_LPARAM
+
+#pragma comment(lib, "gdiplus.lib")
 
 namespace {
 
     const wchar_t* kTrayPopupWindowClassName = L"PomodoroTrayPopupWindowClass";
 
-    // 控件 ID（仅在弹窗内部使用）
-    constexpr int kIdStartButton = 3001;   // 作为“启动 / 暂停”切换按钮
-    constexpr int kIdResetButton = 3003;
-    constexpr int kIdSettingsButton = 3004; // 右上角“设置”图标按钮
+    // Per-pixel alpha layered popup (single window):
+    // - Background is semi-transparent (alpha)
+    // - Text/buttons are drawn fully opaque on top
+    constexpr BYTE kPopupBgAlpha = 209; // ~82% opaque
+    constexpr BYTE kPopupBgR = 32;
+    constexpr BYTE kPopupBgG = 32;
+    constexpr BYTE kPopupBgB = 40;
+    constexpr BYTE kPopupBorderR = 80;
+    constexpr BYTE kPopupBorderG = 80;
+    constexpr BYTE kPopupBorderB = 96;
+
+    // GDI+ init (local, per-process)
+    ULONG_PTR g_gdiplusToken = 0;
+    void EnsureGdiplusStarted() {
+        if (g_gdiplusToken != 0) return;
+        Gdiplus::GdiplusStartupInput input;
+        if (Gdiplus::GdiplusStartup(&g_gdiplusToken, &input, nullptr) != Gdiplus::Ok) {
+            g_gdiplusToken = 0;
+        }
+    }
 
     enum class TaskbarEdge {
         Bottom,
@@ -50,7 +69,7 @@ namespace {
         wc.hInstance = hInstance;
         wc.hIcon = nullptr;
         wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-        wc.hbrBackground = nullptr; // 自绘
+        wc.hbrBackground = nullptr; // layered: we draw ourselves
         wc.lpszMenuName = nullptr;
         wc.lpszClassName = kTrayPopupWindowClassName;
         wc.hIconSm = nullptr;
@@ -77,108 +96,92 @@ namespace pomodoro {
 
     bool TrayPopupWindowWin32::create(HINSTANCE hInstance) {
         hInstance_ = hInstance;
+        EnsureGdiplusStarted();
 
         if (!RegisterTrayPopupWindowClass(hInstance_)) {
             return false;
         }
 
-        // 先创建一个隐藏窗口，稍后在 showNearCursor 中定位
         hwnd_ = CreateWindowExW(
-            WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
+            WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_LAYERED,
             kTrayPopupWindowClassName,
             L"Pomodoro Popup",
             WS_POPUP,
             CW_USEDEFAULT,
             CW_USEDEFAULT,
             260,
-            160, // 为按钮预留高度
+            160,
             nullptr,
             nullptr,
             hInstance_,
             this
         );
 
-        return hwnd_ != nullptr;
+        if (!hwnd_) return false;
+
+        dpi_ = pomodoro::win32::GetDpiForHwnd(hwnd_);
+        applyDpiLayout(dpi_, nullptr);
+        return true;
     }
 
     void TrayPopupWindowWin32::showNearCursor() {
         if (!hwnd_) return;
 
+        dpi_ = pomodoro::win32::GetDpiForHwnd(hwnd_);
+        applyDpiLayout(dpi_, nullptr);
+
         POINT pt{};
         GetCursorPos(&pt);
 
-        RECT rc{};
-        GetWindowRect(hwnd_, &rc);
-        int width = rc.right - rc.left;
-        int height = rc.bottom - rc.top;
+        const int width = pomodoro::win32::Scale(260, dpi_);
+        const int height = pomodoro::win32::Scale(160, dpi_);
 
-        // 根据任务栏位置决定弹窗的相对位置
         TaskbarEdge edge = GetTaskbarEdge();
 
         int x = pt.x - width / 2;
-        int y = pt.y - height - 10; // 默认认为任务栏在下方，弹窗在上方
+        int y = pt.y - height - pomodoro::win32::Scale(10, dpi_);
 
         switch (edge) {
         case TaskbarEdge::Bottom:
-            // 任务栏在底部：弹窗显示在鼠标上方
             x = pt.x - width / 2;
-            y = pt.y - height - 10;
+            y = pt.y - height - pomodoro::win32::Scale(10, dpi_);
             break;
         case TaskbarEdge::Top:
-            // 任务栏在顶部：弹窗显示在鼠标下方
             x = pt.x - width / 2;
-            y = pt.y + 10;
+            y = pt.y + pomodoro::win32::Scale(10, dpi_);
             break;
         case TaskbarEdge::Left:
-            // 任务栏在左侧：弹窗显示在鼠标右侧
-            x = pt.x + 10;
+            x = pt.x + pomodoro::win32::Scale(10, dpi_);
             y = pt.y - height / 2;
             break;
         case TaskbarEdge::Right:
-            // 任务栏在右侧：弹窗显示在鼠标左侧
-            x = pt.x - width - 10;
+            x = pt.x - width - pomodoro::win32::Scale(10, dpi_);
             y = pt.y - height / 2;
             break;
         case TaskbarEdge::Unknown:
         default:
-            // 回退到默认行为（假设任务栏在底部）
             x = pt.x - width / 2;
-            y = pt.y - height - 10;
+            y = pt.y - height - pomodoro::win32::Scale(10, dpi_);
             break;
         }
 
-        // 将弹窗限制在当前显示器工作区域内，避免超出屏幕
+        // Clamp into work area
         HMONITOR monitor = MonitorFromPoint(pt, MONITOR_DEFAULTTONEAREST);
         MONITORINFO mi{};
         mi.cbSize = sizeof(mi);
         if (GetMonitorInfoW(monitor, &mi)) {
             RECT work = mi.rcWork;
-            if (x + width > work.right) {
-                x = work.right - width - 2;
-            }
-            if (x < work.left) {
-                x = work.left + 2;
-            }
-            if (y + height > work.bottom) {
-                y = work.bottom - height - 2;
-            }
-            if (y < work.top) {
-                y = work.top + 2;
-            }
+            if (x + width > work.right) x = work.right - width - 2;
+            if (x < work.left) x = work.left + 2;
+            if (y + height > work.bottom) y = work.bottom - height - 2;
+            if (y < work.top) y = work.top + 2;
         }
 
-        SetWindowPos(
-            hwnd_,
-            HWND_TOPMOST,
-            x,
-            y,
-            0,
-            0,
-            SWP_NOSIZE | SWP_NOACTIVATE
-        );
-
+        SetWindowPos(hwnd_, HWND_TOPMOST, x, y, width, height, SWP_NOACTIVATE);
         ShowWindow(hwnd_, SW_SHOWNOACTIVATE);
-        UpdateWindow(hwnd_);
+
+        // Render immediately (layered windows don't always repaint via WM_PAINT timing)
+        renderLayered();
     }
 
     void TrayPopupWindowWin32::hide() {
@@ -190,7 +193,7 @@ namespace pomodoro {
         statusText_ = statusText;
         timeText_ = timeText;
         if (hwnd_ && IsWindowVisible(hwnd_)) {
-            InvalidateRect(hwnd_, nullptr, FALSE);
+            renderLayered();
         }
     }
 
@@ -214,156 +217,79 @@ namespace pomodoro {
 
     LRESULT TrayPopupWindowWin32::handleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         switch (msg) {
-        case WM_CREATE: {
-            // 创建按钮控件：启动/暂停（单个切换按钮）+ 重置 + 设置
-            RECT client{};
-            GetClientRect(hwnd, &client);
-
-            const int btnWidth = 80;
-            const int btnHeight = 24;
-            const int btnSpacing = 16;
-
-            int totalWidth = btnWidth * 2 + btnSpacing;
-            int startX = (client.right - client.left - totalWidth) / 2;
-            int y = (client.bottom - client.top) - btnHeight - 14;
-
-            const wchar_t* startText = isRunning_ ? L"\u6682\u505c" : L"\u542f\u52a8"; // "暂停" / "启动"
-
-            btnStart_ = CreateWindowExW(
-                0,
-                L"BUTTON",
-                startText,
-                WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-                startX,
-                y,
-                btnWidth,
-                btnHeight,
-                hwnd,
-                reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdStartButton)),
-                hInstance_,
-                nullptr
-            );
-
-            btnReset_ = CreateWindowExW(
-                0,
-                L"BUTTON",
-                L"\u91cd\u7f6e", // "重置"
-                WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-                startX + btnWidth + btnSpacing,
-                y,
-                btnWidth,
-                btnHeight,
-                hwnd,
-                reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdResetButton)),
-                hInstance_,
-                nullptr
-            );
-
-            // 右上角“设置”按钮
-            const int settingsWidth = 60;
-            const int settingsHeight = 22;
-            btnSettings_ = CreateWindowExW(
-                0,
-                L"BUTTON",
-                L"", // 文本由自绘图标代替
-                WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-                client.right - settingsWidth - 10,
-                8,
-                settingsWidth,
-                settingsHeight,
-                hwnd,
-                reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdSettingsButton)),
-                hInstance_,
-                nullptr
-            );
-
+        case WM_CREATE:
+            dpi_ = pomodoro::win32::GetDpiForHwnd(hwnd);
+            applyDpiLayout(dpi_, nullptr);
+            return 0;
+        case WM_DPICHANGED: {
+            const UINT newDpi = HIWORD(wParam);
+            auto* suggested = reinterpret_cast<RECT*>(lParam);
+            applyDpiLayout(newDpi, suggested);
+            renderLayered();
             return 0;
         }
-
-        case WM_LBUTTONDOWN:
-        case WM_RBUTTONDOWN: {
-            // 仅在点击空白区域时关闭弹窗；点击按钮时让按钮接收消息
+        case WM_SIZE:
+            updateHitTestRects();
+            renderLayered();
+            return 0;
+        case WM_ERASEBKGND:
+            return 1;
+        case WM_PAINT: {
+            PAINTSTRUCT ps;
+            BeginPaint(hwnd_, &ps);
+            EndPaint(hwnd_, &ps);
+            renderLayered();
+            return 0;
+        }
+        case WM_LBUTTONDOWN: {
             POINT pt{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-            HWND child = ChildWindowFromPoint(hwnd, pt);
-            if (child == hwnd) {
+            pressedStart_ = hitTest(rcStart_, pt.x, pt.y);
+            pressedReset_ = hitTest(rcReset_, pt.x, pt.y);
+            pressedSettings_ = hitTest(rcSettings_, pt.x, pt.y);
+
+            if (!pressedStart_ && !pressedReset_ && !pressedSettings_) {
                 hide();
                 return 0;
             }
-            break;
+            SetCapture(hwnd_);
+            renderLayered();
+            return 0;
         }
+        case WM_LBUTTONUP: {
+            if (GetCapture() == hwnd_) {
+                ReleaseCapture();
+            }
+            POINT pt{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+            const bool clickStart = pressedStart_ && hitTest(rcStart_, pt.x, pt.y);
+            const bool clickReset = pressedReset_ && hitTest(rcReset_, pt.x, pt.y);
+            const bool clickSettings = pressedSettings_ && hitTest(rcSettings_, pt.x, pt.y);
 
-        case WM_COMMAND: {
-            const int id = LOWORD(wParam);
-            const int code = HIWORD(wParam);
-            if (code == BN_CLICKED) {
-                switch (id) {
-                case kIdStartButton:
-                    // 根据当前运行状态分派到启动/暂停逻辑
-                    if (isRunning_) {
-                        if (onPauseClicked_) onPauseClicked_();
-                    } else {
-                        if (onStartClicked_) onStartClicked_();
-                    }
-                    break;
-                case kIdResetButton:
-                    if (onResetClicked_) onResetClicked_();
-                    break;
-                case kIdSettingsButton:
-                    if (onSettingsClicked_) onSettingsClicked_();
-                    break;
-                default:
-                    break;
+            pressedStart_ = false;
+            pressedReset_ = false;
+            pressedSettings_ = false;
+            renderLayered();
+
+            if (clickStart) {
+                if (isRunning_) {
+                    if (onPauseClicked_) onPauseClicked_();
+                } else {
+                    if (onStartClicked_) onStartClicked_();
                 }
+                return 0;
+            }
+            if (clickReset) {
+                if (onResetClicked_) onResetClicked_();
+                return 0;
+            }
+            if (clickSettings) {
+                if (onSettingsClicked_) onSettingsClicked_();
+                return 0;
             }
             return 0;
         }
-
-        case WM_PAINT:
-            paint();
+        case WM_RBUTTONDOWN:
+            hide();
             return 0;
-
-        case WM_DRAWITEM: {
-            auto* dis = reinterpret_cast<LPDRAWITEMSTRUCT>(lParam);
-            if (!dis) break;
-
-            if (dis->CtlID == kIdSettingsButton) {
-                HDC hdc = dis->hDC;
-                RECT rc = dis->rcItem;
-
-                const bool isPressed = (dis->itemState & ODS_SELECTED) != 0;
-
-                // 背景与弹窗一致（无额外边框，仅深色背景上绘制齿轮）
-                HBRUSH bgBrush = CreateSolidBrush(RGB(32, 32, 40));
-                FillRect(hdc, &rc, bgBrush);
-                DeleteObject(bgBrush);
-
-                // 绘制“齿轮”图标（使用 Segoe UI Symbol 字体的 U+2699）
-                SetBkMode(hdc, TRANSPARENT);
-                SetTextColor(hdc, isPressed ? RGB(230, 230, 240) : RGB(200, 200, 216));
-
-                LOGFONTW lf{};
-                lf.lfHeight = -14;
-                lf.lfWeight = FW_NORMAL;
-                wcscpy_s(lf.lfFaceName, L"Segoe UI Symbol");
-                HFONT font = CreateFontIndirectW(&lf);
-                HFONT oldFont = static_cast<HFONT>(SelectObject(hdc, font));
-
-                RECT textRc = rc;
-                const wchar_t* gear = L"\u2699"; // ⚙
-                DrawTextW(hdc, gear, -1, &textRc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
-                SelectObject(hdc, oldFont);
-                DeleteObject(font);
-
-                return TRUE;
-            }
-            break;
-        }
-
-        case WM_ERASEBKGND:
-            // 由 WM_PAINT 完成绘制
-            return 1;
-
         default:
             break;
         }
@@ -372,68 +298,232 @@ namespace pomodoro {
     }
 
     void TrayPopupWindowWin32::paint() {
+        renderLayered();
+    }
+
+    void TrayPopupWindowWin32::applyDpiLayout(UINT dpi, const RECT* suggestedWindowRect) {
+        dpi_ = dpi ? dpi : 96;
         if (!hwnd_) return;
 
-        PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hwnd_, &ps);
-        if (!hdc) return;
+        auto S = [&](int v) { return pomodoro::win32::Scale(v, dpi_); };
 
-        RECT client{};
-        GetClientRect(hwnd_, &client);
+        if (suggestedWindowRect) {
+            SetWindowPos(
+                hwnd_,
+                nullptr,
+                suggestedWindowRect->left,
+                suggestedWindowRect->top,
+                suggestedWindowRect->right - suggestedWindowRect->left,
+                suggestedWindowRect->bottom - suggestedWindowRect->top,
+                SWP_NOZORDER | SWP_NOACTIVATE
+            );
+        } else {
+            SetWindowPos(hwnd_, nullptr, 0, 0, S(260), S(160), SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+        }
 
-        // 背景：深灰色矩形，圆角感由内容决定（简单实现为矩形）
-        HBRUSH bgBrush = CreateSolidBrush(RGB(32, 32, 40));
-        FillRect(hdc, &client, bgBrush);
-        DeleteObject(bgBrush);
-
-        // 边框
-        HPEN borderPen = CreatePen(PS_SOLID, 1, RGB(80, 80, 96));
-        HGDIOBJ oldPen = SelectObject(hdc, borderPen);
-        HGDIOBJ oldBrush = SelectObject(hdc, GetStockObject(HOLLOW_BRUSH));
-        Rectangle(hdc, client.left, client.top, client.right - 1, client.bottom - 1);
-        SelectObject(hdc, oldPen);
-        SelectObject(hdc, oldBrush);
-        DeleteObject(borderPen);
-
-        // 标题：状态文本
-        SetBkMode(hdc, TRANSPARENT);
-        SetTextColor(hdc, RGB(255, 255, 255));
-
-        RECT statusRect = client;
-        statusRect.left += 16;
-        statusRect.top += 12;
-        statusRect.bottom = statusRect.top + 24;
-
-        DrawTextW(hdc, statusText_.c_str(), -1, &statusRect, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-
-        // 倒计时：大号字体，居中显示，预留底部按钮区域
-        LOGFONTW lf{};
-        lf.lfHeight = -28;
-        lf.lfWeight = FW_SEMIBOLD;
-        wcscpy_s(lf.lfFaceName, L"Segoe UI");
-        HFONT font = CreateFontIndirectW(&lf);
-        HFONT oldFont = static_cast<HFONT>(SelectObject(hdc, font));
-
-        RECT timeRect = client;
-        timeRect.top = statusRect.bottom + 8;
-        timeRect.bottom = timeRect.bottom - 56; // 预留按钮区域高度
-        DrawTextW(hdc, timeText_.c_str(), -1, &timeRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
-        SelectObject(hdc, oldFont);
-        DeleteObject(font);
-
-        EndPaint(hwnd_, &ps);
+        windowSize_.cx = S(260);
+        windowSize_.cy = S(160);
+        updateHitTestRects();
     }
 
     void TrayPopupWindowWin32::setRunningState(bool running) {
         isRunning_ = running;
-        if (btnStart_) {
-            const wchar_t* text = isRunning_ ? L"\u6682\u505c" : L"\u542f\u52a8"; // "暂停" / "启动"
-            SetWindowTextW(btnStart_, text);
+        if (hwnd_ && IsWindowVisible(hwnd_)) {
+            renderLayered();
         }
     }
 
-} // namespace pomodoro
+    bool TrayPopupWindowWin32::hitTest(const RECT& rc, int x, int y) const {
+        return x >= rc.left && x < rc.right && y >= rc.top && y < rc.bottom;
+    }
 
+    void TrayPopupWindowWin32::updateHitTestRects() {
+        if (!hwnd_) return;
+        RECT client{};
+        GetClientRect(hwnd_, &client);
+
+        auto S = [&](int v) { return pomodoro::win32::Scale(v, dpi_); };
+
+        const int btnW = S(90);
+        const int btnH = S(28);
+        const int gap = S(16);
+        const int totalW = btnW * 2 + gap;
+        const int startX = (client.right - client.left - totalW) / 2;
+        const int y = (client.bottom - client.top) - btnH - S(14);
+
+        rcStart_ = RECT{ startX, y, startX + btnW, y + btnH };
+        rcReset_ = RECT{ startX + btnW + gap, y, startX + btnW + gap + btnW, y + btnH };
+
+        const int pad = S(10);
+        const int w = S(60);
+        const int h = S(24);
+        rcSettings_ = RECT{ client.right - w - pad, S(8), client.right - pad, S(8) + h };
+    }
+
+    void TrayPopupWindowWin32::renderLayered() {
+        if (!hwnd_) return;
+        EnsureGdiplusStarted();
+        if (g_gdiplusToken == 0) return;
+
+        RECT wndRc{};
+        GetWindowRect(hwnd_, &wndRc);
+        const int width = wndRc.right - wndRc.left;
+        const int height = wndRc.bottom - wndRc.top;
+        if (width <= 0 || height <= 0) return;
+
+        HDC screenDC = GetDC(nullptr);
+        HDC memDC = CreateCompatibleDC(screenDC);
+
+        BITMAPINFO bmi{};
+        bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bmi.bmiHeader.biWidth = width;
+        bmi.bmiHeader.biHeight = -height; // top-down DIB
+        bmi.bmiHeader.biPlanes = 1;
+        bmi.bmiHeader.biBitCount = 32;
+        bmi.bmiHeader.biCompression = BI_RGB;
+
+        void* bits = nullptr;
+        HBITMAP dib = CreateDIBSection(screenDC, &bmi, DIB_RGB_COLORS, &bits, nullptr, 0);
+        if (!dib || !bits) {
+            if (dib) DeleteObject(dib);
+            DeleteDC(memDC);
+            ReleaseDC(nullptr, screenDC);
+            return;
+        }
+
+        HGDIOBJ oldBmp = SelectObject(memDC, dib);
+
+        const int stride = width * 4;
+        Gdiplus::Bitmap bmp(width, height, stride, PixelFormat32bppPARGB, static_cast<BYTE*>(bits));
+        Gdiplus::Graphics g(&bmp);
+        g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+        g.SetPixelOffsetMode(Gdiplus::PixelOffsetModeHighQuality);
+        g.SetCompositingQuality(Gdiplus::CompositingQualityHighQuality);
+        // ClearType can fringe on transparent backgrounds; use grayscale AA (still anti-aliased, no color fringing)
+        g.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAliasGridFit);
+
+        auto S = [&](int v) { return pomodoro::win32::Scale(v, dpi_); };
+
+        // Background (semi-transparent)
+        Gdiplus::SolidBrush bg(Gdiplus::Color(kPopupBgAlpha, kPopupBgR, kPopupBgG, kPopupBgB));
+        g.FillRectangle(&bg, 0, 0, width, height);
+
+        // Border (opaque)
+        Gdiplus::Pen border(Gdiplus::Color(255, kPopupBorderR, kPopupBorderG, kPopupBorderB), 1.0f);
+        g.DrawRectangle(&border, 0.5f, 0.5f, static_cast<Gdiplus::REAL>(width - 1), static_cast<Gdiplus::REAL>(height - 1));
+
+        // Status text
+        const int statusX = S(16);
+        const int statusY = S(10);
+        const int statusH = S(24);
+        const int statusBottom = statusY + statusH;
+        {
+            Gdiplus::FontFamily family(L"Segoe UI");
+            Gdiplus::Font font(&family, static_cast<Gdiplus::REAL>(S(14)), Gdiplus::FontStyleRegular, Gdiplus::UnitPixel);
+            Gdiplus::SolidBrush white(Gdiplus::Color(255, 255, 255, 255));
+            Gdiplus::RectF rc(
+                static_cast<Gdiplus::REAL>(statusX),
+                static_cast<Gdiplus::REAL>(statusY),
+                static_cast<Gdiplus::REAL>(width - statusX - S(16)),
+                static_cast<Gdiplus::REAL>(statusH)
+            );
+            Gdiplus::StringFormat fmt;
+            fmt.SetAlignment(Gdiplus::StringAlignmentNear);
+            fmt.SetLineAlignment(Gdiplus::StringAlignmentCenter);
+            g.DrawString(statusText_.c_str(), -1, &font, rc, &fmt, &white);
+        }
+
+        // Time text (bigger + vertically centered between status and bottom buttons)
+        {
+            const int top = statusBottom + S(10);
+            const int bottom = rcStart_.top - S(10);
+            const int availableH = (bottom > top) ? (bottom - top) : S(60);
+
+            Gdiplus::FontFamily family(L"Segoe UI");
+            Gdiplus::Font font(&family, static_cast<Gdiplus::REAL>(S(34)), Gdiplus::FontStyleBold, Gdiplus::UnitPixel);
+            Gdiplus::SolidBrush white(Gdiplus::Color(255, 255, 255, 255));
+
+            Gdiplus::RectF rc(
+                0.0f,
+                static_cast<Gdiplus::REAL>(top),
+                static_cast<Gdiplus::REAL>(width),
+                static_cast<Gdiplus::REAL>(availableH)
+            );
+            Gdiplus::StringFormat fmt;
+            fmt.SetAlignment(Gdiplus::StringAlignmentCenter);
+            fmt.SetLineAlignment(Gdiplus::StringAlignmentCenter);
+            g.DrawString(timeText_.c_str(), -1, &font, rc, &fmt, &white);
+        }
+
+        // Buttons
+        auto drawButton = [&](const RECT& rc, const wchar_t* text, bool pressed) {
+            const int pad = S(2);
+            Gdiplus::RectF rcf(
+                static_cast<Gdiplus::REAL>(rc.left + pad),
+                static_cast<Gdiplus::REAL>(rc.top + pad),
+                static_cast<Gdiplus::REAL>((rc.right - rc.left) - pad * 2),
+                static_cast<Gdiplus::REAL>((rc.bottom - rc.top) - pad * 2)
+            );
+            Gdiplus::Color fill = pressed ? Gdiplus::Color(255, 255, 255, 255) : Gdiplus::Color(255, 50, 50, 60);
+            Gdiplus::Color textColor = pressed ? Gdiplus::Color(255, 0, 0, 0) : Gdiplus::Color(255, 255, 255, 255);
+            Gdiplus::SolidBrush fb(fill);
+            g.FillRectangle(&fb, rcf);
+            Gdiplus::Pen bp(Gdiplus::Color(255, 90, 90, 110), 1.0f);
+            g.DrawRectangle(&bp, rcf);
+
+            Gdiplus::FontFamily family(L"Segoe UI");
+            Gdiplus::Font font(&family, static_cast<Gdiplus::REAL>(S(14)), Gdiplus::FontStyleRegular, Gdiplus::UnitPixel);
+            Gdiplus::SolidBrush tb(textColor);
+            Gdiplus::StringFormat fmt;
+            fmt.SetAlignment(Gdiplus::StringAlignmentCenter);
+            fmt.SetLineAlignment(Gdiplus::StringAlignmentCenter);
+            g.DrawString(text, -1, &font, rcf, &fmt, &tb);
+        };
+
+        const wchar_t* startText = isRunning_ ? L"\u6682\u505c" : L"\u542f\u52a8"; // "暂停"/"启动"
+        drawButton(rcStart_, startText, pressedStart_);
+        drawButton(rcReset_, L"\u91cd\u7f6e", pressedReset_); // "重置"
+
+        // Settings button (gear): no border / no background, icon only
+        {
+            Gdiplus::RectF rcf(
+                static_cast<Gdiplus::REAL>(rcSettings_.left),
+                static_cast<Gdiplus::REAL>(rcSettings_.top),
+                static_cast<Gdiplus::REAL>(rcSettings_.right - rcSettings_.left),
+                static_cast<Gdiplus::REAL>(rcSettings_.bottom - rcSettings_.top)
+            );
+
+            // Press feedback: slightly brighter when pressed, still no background/border
+            Gdiplus::Color fg = pressedSettings_
+                ? Gdiplus::Color(255, 245, 245, 255)
+                : Gdiplus::Color(255, 220, 220, 240);
+
+            Gdiplus::FontFamily family(L"Segoe UI Symbol");
+            Gdiplus::Font font(&family, static_cast<Gdiplus::REAL>(S(16)), Gdiplus::FontStyleRegular, Gdiplus::UnitPixel);
+            Gdiplus::SolidBrush tb(fg);
+            Gdiplus::StringFormat fmt;
+            fmt.SetAlignment(Gdiplus::StringAlignmentCenter);
+            fmt.SetLineAlignment(Gdiplus::StringAlignmentCenter);
+            const wchar_t* gear = L"\u2699";
+            g.DrawString(gear, -1, &font, rcf, &fmt, &tb);
+        }
+
+        POINT ptPos{ wndRc.left, wndRc.top };
+        SIZE sizeWnd{ width, height };
+        POINT ptSrc{ 0, 0 };
+        BLENDFUNCTION bf{};
+        bf.BlendOp = AC_SRC_OVER;
+        bf.SourceConstantAlpha = 255;
+        bf.AlphaFormat = AC_SRC_ALPHA;
+
+        UpdateLayeredWindow(hwnd_, screenDC, &ptPos, &sizeWnd, memDC, &ptSrc, 0, &bf, ULW_ALPHA);
+
+        SelectObject(memDC, oldBmp);
+        DeleteObject(dib);
+        DeleteDC(memDC);
+        ReleaseDC(nullptr, screenDC);
+    }
+
+} // namespace pomodoro
 
 

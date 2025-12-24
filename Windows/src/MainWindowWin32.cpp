@@ -2,11 +2,14 @@
 #include "BackgroundSettingsWin32.h"
 #include "SettingsWindowWin32.h"
 #include "TrayIconWin32.h"
+#include "PomodoroTimer.h"
 
 // 全局符号定义（原先位于 main.cpp 顶部的匿名命名空间中）
 const wchar_t* kMainWindowClassName = L"PomodoroMainWindowClass";
 pomodoro::BackgroundSettingsWin32* g_backgroundSettings = nullptr;
 pomodoro::SettingsWindowWin32* g_settingsWindow = nullptr;
+pomodoro::PomodoroTimer* g_pomodoroTimer = nullptr;
+pomodoro::PomodoroTimer::Settings* g_pomodoroTimerSettings = nullptr;
 
 // 主窗口窗口过程：负责托盘消息转发以及打开设置窗口
 LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -37,6 +40,19 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                     GetModuleHandleW(nullptr),
                     *g_backgroundSettings
                 );
+            }
+
+            // 关键：从托盘打开设置窗口时也要把设置变更同步到 PomodoroTimer，
+            // 否则“重置”仍会用默认 25 分钟。
+            if (g_pomodoroTimer && g_pomodoroTimerSettings) {
+                g_settingsWindow->setPomodoroMinutesChangedHandler([](int minutes) {
+                    g_pomodoroTimerSettings->pomodoroMinutes = minutes;
+                    g_pomodoroTimer->updateSettings(*g_pomodoroTimerSettings);
+                });
+                g_settingsWindow->setAutoStartNextPomodoroAfterRestChangedHandler([](bool enabled) {
+                    g_pomodoroTimerSettings->autoStartNextPomodoroAfterRest = enabled;
+                    g_pomodoroTimer->updateSettings(*g_pomodoroTimerSettings);
+                });
             }
             g_settingsWindow->show();
         }

@@ -1,6 +1,12 @@
 #include "SettingsWindowWin32.h"
+#include "DpiUtilsWin32.h"
 
+#include <commctrl.h>
 #include <commdlg.h>
+#include <vector>
+#include <algorithm>
+
+#pragma comment(lib, "Comctl32.lib")
 
 namespace {
 
@@ -13,9 +19,44 @@ namespace {
     constexpr int kIdRemoveButton = 1004;
     constexpr int kIdMoveUpButton = 1005;
     constexpr int kIdMoveDownButton = 1006;
-    constexpr int kIdAutoHideCheckbox = 1007;
+    constexpr int kIdAutoStartNextPomodoroAfterRestCheckbox = 1007;
+    constexpr int kIdPomodoroSlider = 1008;
     constexpr int kIdTabBehavior = 1101;
     constexpr int kIdTabBackground = 1102;
+
+    std::vector<int> BuildPomodoroMinuteOptions() {
+        std::vector<int> out;
+        out.reserve(64);
+
+        for (int m = 5; m <= 30; ++m) {
+            out.push_back(m);
+        }
+        for (int m = 35; m <= 120; m += 5) {
+            out.push_back(m);
+        }
+        return out;
+    }
+
+    int FindNearestOptionIndex(const std::vector<int>& options, int minutes) {
+        if (options.empty()) return 0;
+
+        // 选择“最接近”的值；同距时取更小的（更保守）
+        int bestIdx = 0;
+        int bestDist = abs(options[0] - minutes);
+        for (int i = 1; i < static_cast<int>(options.size()); ++i) {
+            const int dist = abs(options[i] - minutes);
+            if (dist < bestDist || (dist == bestDist && options[i] < options[bestIdx])) {
+                bestIdx = i;
+                bestDist = dist;
+            }
+        }
+        return bestIdx;
+    }
+
+    std::wstring PomodoroMinutesLabelText(int minutes) {
+        // "番茄时长：XX 分钟"
+        return L"\u756a\u8304\u65f6\u957f\uff1a" + std::to_wstring(minutes) + L" \u5206\u949f";
+    }
 
     ATOM RegisterSettingsWindowClass(HINSTANCE hInstance) {
         static ATOM s_atom = 0;
@@ -75,6 +116,12 @@ namespace pomodoro {
                 hInstance_,
                 this // lpParam -> WM_NCCREATE
             );
+
+            // 保险：窗口创建完成后再强制应用一次 DPI 布局（包含窗口尺寸与控件缩放）。
+            // 这样即使 WM_CREATE 路径中尺寸未生效，也能在显示前纠正。
+            if (hwnd_) {
+                applyDpiLayout(pomodoro::win32::GetDpiForHwnd(hwnd_), nullptr);
+            }
         }
 
         if (!hwnd_) return;
@@ -111,6 +158,22 @@ namespace pomodoro {
         case WM_CREATE:
             onCreate(hwnd);
             return 0;
+        case WM_DPICHANGED: {
+            const UINT newDpi = HIWORD(wParam);
+            auto* suggested = reinterpret_cast<RECT*>(lParam);
+            applyDpiLayout(newDpi, suggested);
+            return 0;
+        }
+        case WM_HSCROLL: {
+            if (reinterpret_cast<HWND>(lParam) == pomodoroSlider_) {
+                // 拖动时实时刷新文字；松开时 commit
+                const int code = LOWORD(wParam);
+                const bool commit = (code == TB_ENDTRACK) || (code == TB_THUMBPOSITION);
+                onPomodoroSliderChanged(commit);
+                return 0;
+            }
+            break;
+        }
         case WM_COMMAND: {
             const int id = LOWORD(wParam);
             const int code = HIWORD(wParam);
@@ -131,8 +194,8 @@ namespace pomodoro {
                 case kIdMoveDownButton:
                     onMoveDown();
                     break;
-                case kIdAutoHideCheckbox:
-                    onAutoHideChanged();
+                case kIdAutoStartNextPomodoroAfterRestCheckbox:
+                    onAutoStartNextPomodoroAfterRestChanged();
                     break;
                 case kIdTabBehavior:
                     switchToTab(0);
@@ -160,6 +223,24 @@ namespace pomodoro {
     }
 
     void SettingsWindowWin32::onCreate(HWND hwnd) {
+        dpi_ = pomodoro::win32::GetDpiForHwnd(hwnd);
+        if (uiFont_) {
+            DeleteObject(uiFont_);
+            uiFont_ = nullptr;
+        }
+        if (bigFont_) {
+            DeleteObject(bigFont_);
+            bigFont_ = nullptr;
+        }
+        uiFont_ = pomodoro::win32::CreateUiFontPx(14, FW_NORMAL, L"Segoe UI", dpi_);
+        bigFont_ = pomodoro::win32::CreateUiFontPx(16, FW_SEMIBOLD, L"Segoe UI", dpi_);
+
+        // Trackbar 等通用控件初始化（多次调用安全）
+        INITCOMMONCONTROLSEX icc{};
+        icc.dwSize = sizeof(icc);
+        icc.dwICC = ICC_BAR_CLASSES;
+        InitCommonControlsEx(&icc);
+
         // 顶部“标签”按钮（行为 / 背景）
         behaviorTabButton_ = CreateWindowExW(
             0,
@@ -297,7 +378,7 @@ namespace pomodoro {
         const int groupX = 20;
         const int groupY = 50;
         const int groupWidth = 500;
-        const int groupHeight = 110;
+        const int groupHeight = 160;
 
         behaviorGroupBox_ = CreateWindowExW(
             0,
@@ -325,7 +406,7 @@ namespace pomodoro {
             groupWidth - 30,
             18,
             hwnd,
-            reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdAutoHideCheckbox)),
+            reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdAutoStartNextPomodoroAfterRestCheckbox)),
             hInstance_,
             nullptr
         );
@@ -333,9 +414,57 @@ namespace pomodoro {
         SendMessageW(
             autoHideCheckbox_,
             BM_SETCHECK,
-            settings_.autoHideOverlayAfterRest() ? BST_CHECKED : BST_UNCHECKED,
+            settings_.autoStartNextPomodoroAfterRest() ? BST_CHECKED : BST_UNCHECKED,
             0
         );
+
+        // 番茄钟时长：拖动条 + 文本
+        const int sliderX = groupX + 15;
+        const int sliderY = groupY + 48;
+        const int sliderWidth = groupWidth - 30;
+
+        pomodoroMinutesLabel_ = CreateWindowExW(
+            0,
+            L"STATIC",
+            PomodoroMinutesLabelText(settings_.pomodoroMinutes()).c_str(),
+            WS_CHILD | WS_VISIBLE,
+            sliderX,
+            sliderY,
+            sliderWidth,
+            18,
+            hwnd,
+            nullptr,
+            hInstance_,
+            nullptr
+        );
+
+        pomodoroSlider_ = CreateWindowExW(
+            0,
+            TRACKBAR_CLASSW,
+            L"",
+            WS_CHILD | WS_VISIBLE | TBS_HORZ,
+            sliderX,
+            sliderY + 22,
+            sliderWidth,
+            32,
+            hwnd,
+            reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdPomodoroSlider)),
+            hInstance_,
+            nullptr
+        );
+
+        const auto options = BuildPomodoroMinuteOptions();
+        const int maxPos = static_cast<int>(options.size()) - 1;
+        SendMessageW(pomodoroSlider_, TBM_SETRANGE, TRUE, MAKELONG(0, maxPos));
+        SendMessageW(pomodoroSlider_, TBM_SETPAGESIZE, 0, 1);
+        SendMessageW(pomodoroSlider_, TBM_SETTICFREQ, 4, 0);
+
+        const int initialIndex = FindNearestOptionIndex(options, settings_.pomodoroMinutes());
+        SendMessageW(pomodoroSlider_, TBM_SETPOS, TRUE, initialIndex);
+        onPomodoroSliderChanged(false);
+
+        // Apply DPI-based layout + fonts
+        applyDpiLayout(dpi_, nullptr);
 
         // 默认切换到“行为设置”标签页
         switchToTab(0);
@@ -345,6 +474,148 @@ namespace pomodoro {
 
     void SettingsWindowWin32::onDestroy() {
         // 这里暂时不做额外清理，配置持久化交由调用方在适当时机执行
+        if (uiFont_) {
+            DeleteObject(uiFont_);
+            uiFont_ = nullptr;
+        }
+        if (bigFont_) {
+            DeleteObject(bigFont_);
+            bigFont_ = nullptr;
+        }
+    }
+
+    void SettingsWindowWin32::applyDpiLayout(UINT dpi, const RECT* suggestedWindowRect) {
+        dpi_ = dpi ? dpi : 96;
+
+        // Update window size if Windows suggests a rect (Per-Monitor DPI change)
+        if (suggestedWindowRect && hwnd_) {
+            SetWindowPos(
+                hwnd_,
+                nullptr,
+                suggestedWindowRect->left,
+                suggestedWindowRect->top,
+                suggestedWindowRect->right - suggestedWindowRect->left,
+                suggestedWindowRect->bottom - suggestedWindowRect->top,
+                SWP_NOZORDER | SWP_NOACTIVATE
+            );
+        }
+
+        // Refresh fonts at new DPI
+        if (uiFont_) {
+            DeleteObject(uiFont_);
+            uiFont_ = nullptr;
+        }
+        if (bigFont_) {
+            DeleteObject(bigFont_);
+            bigFont_ = nullptr;
+        }
+        uiFont_ = pomodoro::win32::CreateUiFontPx(14, FW_NORMAL, L"Segoe UI", dpi_);
+        bigFont_ = pomodoro::win32::CreateUiFontPx(16, FW_SEMIBOLD, L"Segoe UI", dpi_);
+
+        auto S = [&](int v) { return pomodoro::win32::Scale(v, dpi_); };
+
+        // Layout constants (96 DPI baseline)
+        // DPI 感知生效后，原 540x420 在高分屏上会显得“偏小”，这里同步放大基础窗口尺寸。
+        // 这里的 winW / winH 作为“目标 client 区域尺寸”（用于下面布局计算）。
+        // 但真正设置窗口大小时，需要考虑标题栏/边框（non-client），否则 client 会变小导致内容显示不全。
+        const int winW = S(680);
+        const int winH = S(520);
+        if (!suggestedWindowRect && hwnd_) {
+            RECT wr{ 0, 0, winW, winH };
+            const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(hwnd_, GWL_STYLE));
+            const DWORD exStyle = static_cast<DWORD>(GetWindowLongPtrW(hwnd_, GWL_EXSTYLE));
+            AdjustWindowRectEx(&wr, style, FALSE, exStyle);
+            const int actualW = wr.right - wr.left;
+            const int actualH = wr.bottom - wr.top;
+            SetWindowPos(
+                hwnd_,
+                nullptr,
+                0,
+                0,
+                actualW,
+                actualH,
+                SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED
+            );
+        }
+
+        // Compute a synthetic client size from our target window size (good enough for layout;
+        // we are not doing pixel-perfect non-client calculations in this lightweight UI).
+        const int clientW = winW;
+        const int clientH = winH;
+
+        const int margin = S(20);
+        const int topTabsY = S(10);
+        const int tabsH = S(28);
+        const int contentTop = S(50);
+        const int bottomMargin = S(30);
+        const int gap = S(20);
+
+        // Tabs
+        if (behaviorTabButton_) {
+            SetWindowPos(behaviorTabButton_, nullptr, margin, topTabsY, S(140), tabsH, SWP_NOZORDER | SWP_NOACTIVATE);
+            pomodoro::win32::SetControlFont(behaviorTabButton_, uiFont_);
+        }
+        if (backgroundTabButton_) {
+            SetWindowPos(backgroundTabButton_, nullptr, margin + S(150), topTabsY, S(140), tabsH, SWP_NOZORDER | SWP_NOACTIVATE);
+            pomodoro::win32::SetControlFont(backgroundTabButton_, uiFont_);
+        }
+
+        // Background tab
+        const int rightPanelW = S(140);
+        const int rightPanelX = clientW - margin - rightPanelW;
+        const int listX = margin;
+        const int listY = contentTop;
+        const int listW = max(S(260), rightPanelX - gap - listX);
+        const int listH = max(S(220), clientH - listY - bottomMargin);
+
+        if (listBox_) {
+            SetWindowPos(listBox_, nullptr, listX, listY, listW, listH, SWP_NOZORDER | SWP_NOACTIVATE);
+            pomodoro::win32::SetControlFont(listBox_, uiFont_);
+        }
+
+        const int btnX = rightPanelX;
+        int btnY = listY + S(20);
+        const int btnW = rightPanelW;
+        const int btnH = S(32);
+        const int btnGap = S(12);
+
+        auto placeBtn = [&](HWND h) {
+            if (!h) return;
+            SetWindowPos(h, nullptr, btnX, btnY, btnW, btnH, SWP_NOZORDER | SWP_NOACTIVATE);
+            pomodoro::win32::SetControlFont(h, uiFont_);
+            btnY += btnH + btnGap;
+        };
+
+        placeBtn(addImageButton_);
+        placeBtn(addVideoButton_);
+        placeBtn(removeButton_);
+        placeBtn(moveUpButton_);
+        placeBtn(moveDownButton_);
+
+        // Behavior tab
+        const int groupX = margin;
+        const int groupY = contentTop;
+        const int groupW = clientW - margin * 2;
+        const int groupH = S(240);
+
+        if (behaviorGroupBox_) {
+            SetWindowPos(behaviorGroupBox_, nullptr, groupX, groupY, groupW, groupH, SWP_NOZORDER | SWP_NOACTIVATE);
+            pomodoro::win32::SetControlFont(behaviorGroupBox_, uiFont_);
+        }
+        if (autoHideCheckbox_) {
+            SetWindowPos(autoHideCheckbox_, nullptr, groupX + S(15), groupY + S(18), groupW - S(30), S(22), SWP_NOZORDER | SWP_NOACTIVATE);
+            pomodoro::win32::SetControlFont(autoHideCheckbox_, uiFont_);
+        }
+        if (pomodoroMinutesLabel_) {
+            SetWindowPos(pomodoroMinutesLabel_, nullptr, groupX + S(15), groupY + S(52), groupW - S(30), S(20), SWP_NOZORDER | SWP_NOACTIVATE);
+            pomodoro::win32::SetControlFont(pomodoroMinutesLabel_, uiFont_);
+        }
+        if (pomodoroSlider_) {
+            SetWindowPos(pomodoroSlider_, nullptr, groupX + S(15), groupY + S(78), groupW - S(30), S(36), SWP_NOZORDER | SWP_NOACTIVATE);
+            pomodoro::win32::SetControlFont(pomodoroSlider_, uiFont_);
+        }
+
+        InvalidateRect(hwnd_, nullptr, TRUE);
     }
 
     void SettingsWindowWin32::refreshList() {
@@ -424,12 +695,44 @@ namespace pomodoro {
         settings_.saveToFile(BackgroundSettingsWin32::DefaultConfigPath());
     }
 
-    void SettingsWindowWin32::onAutoHideChanged() {
+    void SettingsWindowWin32::onAutoStartNextPomodoroAfterRestChanged() {
         if (!autoHideCheckbox_) return;
         LRESULT state = SendMessageW(autoHideCheckbox_, BM_GETCHECK, 0, 0);
         bool enabled = (state == BST_CHECKED);
-        settings_.setAutoHideOverlayAfterRest(enabled);
+        settings_.setAutoStartNextPomodoroAfterRest(enabled);
         settings_.saveToFile(BackgroundSettingsWin32::DefaultConfigPath());
+        if (onAutoStartNextPomodoroAfterRestChanged_) {
+            onAutoStartNextPomodoroAfterRestChanged_(enabled);
+        }
+    }
+
+    void SettingsWindowWin32::onPomodoroSliderChanged(bool commit) {
+        if (!pomodoroSlider_) return;
+
+        const auto options = BuildPomodoroMinuteOptions();
+        if (options.empty()) return;
+
+        const LRESULT pos = SendMessageW(pomodoroSlider_, TBM_GETPOS, 0, 0);
+        int index = static_cast<int>(pos);
+        if (index < 0) index = 0;
+        if (index >= static_cast<int>(options.size())) index = static_cast<int>(options.size()) - 1;
+
+        const int minutes = options[index];
+
+        if (pomodoroMinutesLabel_) {
+            const std::wstring text = PomodoroMinutesLabelText(minutes);
+            SetWindowTextW(pomodoroMinutesLabel_, text.c_str());
+        }
+
+        // 仅当值变化时写入配置；commit 时也会触发回调（供主程序更新计时器设置）
+        if (settings_.pomodoroMinutes() != minutes) {
+            settings_.setPomodoroMinutes(minutes);
+            settings_.saveToFile(BackgroundSettingsWin32::DefaultConfigPath());
+        }
+
+        if (commit && onPomodoroMinutesChanged_) {
+            onPomodoroMinutesChanged_(minutes);
+        }
     }
 
     void SettingsWindowWin32::switchToTab(int index) {
@@ -452,6 +755,12 @@ namespace pomodoro {
         }
         if (autoHideCheckbox_) {
             ShowWindow(autoHideCheckbox_, showBehavior ? SW_SHOW : SW_HIDE);
+        }
+        if (pomodoroMinutesLabel_) {
+            ShowWindow(pomodoroMinutesLabel_, showBehavior ? SW_SHOW : SW_HIDE);
+        }
+        if (pomodoroSlider_) {
+            ShowWindow(pomodoroSlider_, showBehavior ? SW_SHOW : SW_HIDE);
         }
 
         // 背景设置页控件

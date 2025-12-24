@@ -115,6 +115,32 @@ namespace {
         return true;
     }
 
+    // 在 JSON 文本中提取形如 "key": 123 的整数值（非严格解析，满足本项目配置文件结构即可）
+    bool ExtractJsonIntFieldFromRoot(const std::wstring& json, const std::wstring& key, int& outValue) {
+        std::wstring pattern = L"\"" + key + L"\"";
+        auto keyPos = json.find(pattern);
+        if (keyPos == std::wstring::npos) return false;
+
+        auto colonPos = json.find(L':', keyPos + pattern.size());
+        if (colonPos == std::wstring::npos) return false;
+
+        auto start = json.find_first_of(L"-0123456789", colonPos + 1);
+        if (start == std::wstring::npos) return false;
+
+        auto end = start;
+        while (end < json.size() && iswdigit(json[end])) {
+            ++end;
+        }
+
+        std::wstring numStr = json.substr(start, end - start);
+        wchar_t* endPtr = nullptr;
+        long value = std::wcstol(numStr.c_str(), &endPtr, 10);
+        if (endPtr == numStr.c_str()) return false;
+
+        outValue = static_cast<int>(value);
+        return true;
+    }
+
 } // namespace
 
 namespace pomodoro {
@@ -191,21 +217,34 @@ namespace pomodoro {
             files_.push_back(BackgroundFileWin32{ path, type, name, rate });
         }
 
-        // 解析可选的 autoHideOverlayAfterRest 字段
-        std::wstring boolKey = L"\"autoHideOverlayAfterRest\"";
-        auto boolPos = json.find(boolKey);
-        if (boolPos != std::wstring::npos) {
+        // 解析可选的 autoStartNextPomodoroAfterRest 字段
+        auto parseBoolField = [&](const std::wstring& key, bool& outValue) {
+            std::wstring boolKey = L"\"" + key + L"\"";
+            auto boolPos = json.find(boolKey);
+            if (boolPos == std::wstring::npos) return false;
             auto colonPos = json.find(L':', boolPos + boolKey.size());
-            if (colonPos != std::wstring::npos) {
-                auto valueStart = json.find_first_not_of(L" \t\r\n", colonPos + 1);
-                if (valueStart != std::wstring::npos) {
-                    if (json.compare(valueStart, 4, L"true") == 0) {
-                        autoHideOverlayAfterRest_ = true;
-                    } else if (json.compare(valueStart, 5, L"false") == 0) {
-                        autoHideOverlayAfterRest_ = false;
-                    }
-                }
+            if (colonPos == std::wstring::npos) return false;
+            auto valueStart = json.find_first_not_of(L" \t\r\n", colonPos + 1);
+            if (valueStart == std::wstring::npos) return false;
+            if (json.compare(valueStart, 4, L"true") == 0) {
+                outValue = true;
+                return true;
             }
+            if (json.compare(valueStart, 5, L"false") == 0) {
+                outValue = false;
+                return true;
+            }
+            return false;
+        };
+
+        parseBoolField(L"autoStartNextPomodoroAfterRest", autoStartNextPomodoroAfterRest_);
+
+        // 解析可选的 pomodoroMinutes 字段
+        int pomodoroMinutes = pomodoroMinutes_;
+        if (ExtractJsonIntFieldFromRoot(json, L"pomodoroMinutes", pomodoroMinutes)) {
+            if (pomodoroMinutes < 5) pomodoroMinutes = 5;
+            if (pomodoroMinutes > 120) pomodoroMinutes = 120;
+            pomodoroMinutes_ = pomodoroMinutes;
         }
 
         return true;
@@ -238,7 +277,8 @@ namespace pomodoro {
         }
 
         out << L"  ],\n";
-        out << L"  \"autoHideOverlayAfterRest\": " << (autoHideOverlayAfterRest_ ? L"true" : L"false") << L"\n";
+        out << L"  \"pomodoroMinutes\": " << pomodoroMinutes_ << L",\n";
+        out << L"  \"autoStartNextPomodoroAfterRest\": " << (autoStartNextPomodoroAfterRest_ ? L"true" : L"false") << L"\n";
         out << L"}\n";
 
         return true;
