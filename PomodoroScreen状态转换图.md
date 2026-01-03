@@ -96,11 +96,11 @@ stateDiagram-v2
         UpdateHealthRings --> ShowTimerControls : 更新健康环数据
         ShowTimerControls --> ShowRoundIndicator : 显示控制按钮
         ShowRoundIndicator --> ShowMeetingModeSwitch : 显示轮数指示器
-        ShowMeetingModeSwitch --> PopupReady : 显示会议模式开关
+        ShowMeetingModeSwitch --> PopupReady : 显示专注模式开关
         
         PopupReady --> TimerControlAction : 点击控制按钮 / start()或pause()或resume()
         PopupReady --> ResetAction : 点击重置按钮 / reset()
-        PopupReady --> MeetingModeToggle : 切换会议模式 / handleMeetingModeSwitchChanged()
+        PopupReady --> MeetingModeToggle : 切换专注模式 / handleMeetingModeSwitchChanged()
         PopupReady --> HealthRingsClick : 点击健康环 / showTodayReport()
         
         TimerControlAction --> PopupReady : 执行操作完成
@@ -109,9 +109,9 @@ stateDiagram-v2
         HealthRingsClick --> [*] : 跳转到报告页面
     }
     
-    %% 会议模式特殊状态
-    PopupHidden --> MeetingModeRestIndicator : 会议模式休息开始 / showMeetingModeRestIndicator()
-    MeetingModeRestIndicator --> PopupHidden : 会议模式休息结束 / hideMeetingModeRestIndicator()
+    %% 专注模式特殊状态
+    PopupHidden --> MeetingModeRestIndicator : 专注模式休息开始 / showMeetingModeRestIndicator()
+    MeetingModeRestIndicator --> PopupHidden : 专注模式休息结束 / hideMeetingModeRestIndicator()
 ```
 
 ## 遮罩层状态机 (OverlayWindow)
@@ -121,10 +121,10 @@ stateDiagram-v2
     [*] --> OverlayHidden : 初始状态
     
     OverlayHidden --> CheckMeetingMode : 计时器完成触发 / onTimerFinished()
-    CheckMeetingMode --> MeetingModeRest : 会议模式开启 / showMeetingModeRestIndicator()
-    CheckMeetingMode --> CreateOverlay : 会议模式关闭 / showOverlay()
+    CheckMeetingMode --> MeetingModeRest : 专注模式开启 / showMeetingModeRestIndicator()
+    CheckMeetingMode --> CreateOverlay : 专注模式关闭 / showOverlay()
     
-    %% 会议模式静默休息
+    %% 专注模式静默休息
     MeetingModeRest --> OverlayHidden : 休息时间结束 / hideMeetingModeRestIndicator()
     
     %% 正常遮罩层流程
@@ -216,11 +216,11 @@ stateDiagram-v2
         CheckAutoDetection --> EnableMeetingMode : 自动检测开启 / shouldAutoEnableMeetingMode()
         CheckAutoDetection --> IgnoreChange : 自动检测关闭
         
-        EnableMeetingMode --> AutoMeetingModeOn : 自动启用会议模式 / enableMeetingModeAutomatically()
+        EnableMeetingMode --> AutoMeetingModeOn : 自动启用专注模式 / enableMeetingModeAutomatically()
         SingleScreen --> CheckAutoDisable : 屏幕断开 / handleScreenConfigurationChanged()
         CheckAutoDisable --> DisableMeetingMode : 是自动启用的 / wasAutoEnabled()
         CheckAutoDisable --> IgnoreChange : 手动启用的
-        DisableMeetingMode --> AutoMeetingModeOff : 自动关闭会议模式 / disableMeetingModeAutomatically()
+        DisableMeetingMode --> AutoMeetingModeOff : 自动关闭专注模式 / disableMeetingModeAutomatically()
         
         AutoMeetingModeOn --> MultipleScreens : 状态已更新
         AutoMeetingModeOff --> SingleScreen : 状态已更新
@@ -340,7 +340,7 @@ graph LR
 - **stayUpTimeEntered**: 进入熬夜时间（状态机监控）
 - **stayUpTimeExited**: 退出熬夜时间（状态机监控）
 - **screenConfigurationChanged**: 屏幕配置变化
-- **meetingModeToggled**: 会议模式切换
+- **meetingModeToggled**: 专注模式切换
 
 ## 状态持久化
 
@@ -350,7 +350,7 @@ graph LR
 - 计划设置：长休息周期、累积时间等
 - 背景设置：背景文件列表和播放参数
 - 熬夜限制：启用状态和时间设置（通过状态机管理）
-- 会议模式：启用状态和自动检测设置
+- 专注模式：启用状态和自动检测设置
 - 界面设置：状态栏文字显示、开机自启动等
 
 ### 运行时状态

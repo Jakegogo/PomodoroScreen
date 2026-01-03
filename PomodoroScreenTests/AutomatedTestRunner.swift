@@ -35,7 +35,7 @@ class AutomatedTestRunner: XCTestCase {
         // 执行所有测试场景
         let testScenarios: [(String, () -> Bool)] = [
             ("基础屏幕检测", runBasicScreenDetectionTests),
-            ("会议模式自动切换", runMeetingModeAutoSwitchTests),
+            ("专注模式自动切换", runMeetingModeAutoSwitchTests),
             ("边界条件处理", runEdgeCaseTests),
             ("性能基准测试", runPerformanceTests),
             ("集成测试场景", runIntegrationTests)
@@ -120,7 +120,7 @@ class AutomatedTestRunner: XCTestCase {
     }
     
     private func runMeetingModeAutoSwitchTests() -> Bool {
-        print("🔄 测试会议模式自动切换...")
+        print("🔄 测试专注模式自动切换...")
         
         let mockScreenDetection = MockScreenDetectionManager()
         let mockAppDelegate = MeetingModeAutoSwitchTests.MockAppDelegate(screenDetectionManager: mockScreenDetection)
@@ -141,10 +141,10 @@ class AutomatedTestRunner: XCTestCase {
                               UserDefaults.standard.bool(forKey: "MeetingModeAutoEnabled")
         
         if !autoEnableResult {
-            print("❌ 自动启用会议模式失败")
+            print("❌ 自动启用专注模式失败")
             allPassed = false
         } else {
-            print("✓ 自动启用会议模式通过")
+            print("✓ 自动启用专注模式通过")
         }
         
         // 测试自动关闭
@@ -154,10 +154,10 @@ class AutomatedTestRunner: XCTestCase {
                                !UserDefaults.standard.bool(forKey: "MeetingModeAutoEnabled")
         
         if !autoDisableResult {
-            print("❌ 自动关闭会议模式失败")
+            print("❌ 自动关闭专注模式失败")
             allPassed = false
         } else {
-            print("✓ 自动关闭会议模式通过")
+            print("✓ 自动关闭专注模式通过")
         }
         
         return allPassed
@@ -321,7 +321,7 @@ class AutomatedTestRunner: XCTestCase {
         
         print("\n功能覆盖:")
         print("  ✓ 屏幕检测基础功能")
-        print("  ✓ 会议模式自动切换")
+        print("  ✓ 专注模式自动切换")
         print("  ✓ 边界条件处理")
         print("  ✓ 性能基准测试")
         print("  ✓ 端到端集成测试")
@@ -363,7 +363,7 @@ class AutomatedTestRunner: XCTestCase {
         ## 功能覆盖
         
         - [x] 屏幕检测基础功能
-        - [x] 会议模式自动切换
+        - [x] 专注模式自动切换
         - [x] 边界条件处理
         - [x] 性能基准测试
         - [x] 端到端集成测试
@@ -376,7 +376,7 @@ class AutomatedTestRunner: XCTestCase {
         - 投屏状态检测
         - 常见投屏分辨率识别
         
-        ### 会议模式自动切换
+        ### 专注模式自动切换
         - 检测到外部屏幕时自动启用
         - 断开外部屏幕时自动关闭
         - 手动设置优先级处理

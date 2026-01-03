@@ -135,7 +135,7 @@ class StatusBarController {
         return statusItem.button?.image
     }
     
-    /// 显示会议模式休息提示
+    /// 显示专注模式休息提示
     func showMeetingModeRestIndicator() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -150,8 +150,8 @@ class StatusBarController {
             // 仅在确实处于休息期间时显示“休息时间”，否则恢复正常显示
             if self.pomodoroTimer.isInRestPeriod {
                 self.statusItem.button?.title = "休息时间"
-                self.statusItem.button?.toolTip = "会议模式：静默休息中"
-                print("🔇 会议模式：显示休息时间提示")
+                self.statusItem.button?.toolTip = "专注模式：休息静默进行"
+                print("🔇 专注模式：显示休息时间提示")
             } else {
                 let timeString = self.pomodoroTimer.getRemainingTimeString()
                 self.updateTime(timeString)
@@ -159,7 +159,7 @@ class StatusBarController {
         }
     }
     
-    /// 隐藏会议模式休息提示
+    /// 隐藏专注模式休息提示
     func hideMeetingModeRestIndicator() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -168,20 +168,20 @@ class StatusBarController {
             let timeString = self.pomodoroTimer.getRemainingTimeString()
             self.updateTime(timeString)
             
-            print("🔇 会议模式：隐藏休息时间提示")
+            print("🔇 专注模式：隐藏休息时间提示")
         }
     }
     
     private func handleMeetingModeChanged(_ isEnabled: Bool) {
-        print("🔇 会议模式状态变更：\(isEnabled ? "开启" : "关闭")")
+        print("🔇 专注模式状态变更：\(isEnabled ? "开启" : "关闭")")
         
         // 这里可以添加其他需要的逻辑，比如立即更新计时器设置
-        // 目前会议模式的状态已经保存到 UserDefaults，
+        // 目前专注模式的状态已经保存到 UserDefaults，
         // 立即应用到计时器（无需等待完整设置刷新）
         pomodoroTimer.setMeetingMode(isEnabled)
     }
     
-    /// 刷新会议模式状态（用于屏幕检测自动切换）
+    /// 刷新专注模式状态（用于屏幕检测自动切换）
     func refreshMeetingModeStatus() {
         DispatchQueue.main.async { [weak self] in
             // 更新弹窗中的开关状态
@@ -242,7 +242,7 @@ class StatusBarController {
             self?.showTodayReport()
         }
         
-        // 设置会议模式变更事件
+        // 设置专注模式变更事件
         popupWindow?.setMeetingModeChangedAction { [weak self] isEnabled in
             self?.handleMeetingModeChanged(isEnabled)
         }
@@ -613,7 +613,7 @@ class StatusBarController {
             )
             
             settingsWindow?.onSettingsChanged = { [weak self] autoStart, pomodoroTime, breakTime, idleRestart, idleTime, idleActionIsRestart, screenLockRestart, screenLockActionIsRestart, screensaverRestart, screensaverActionIsRestart, showCancelRestButton, longBreakCycle, longBreakTimeMinutes, showLongBreakCancelButton, accumulateRestTime, backgroundFiles, stayUpLimitEnabled, stayUpLimitHour, stayUpLimitMinute, showStatusBarText in
-                // 从 SettingsStore 获取会议模式设置
+                // 从 SettingsStore 获取专注模式设置
                 let meetingModeEnabled = SettingsStore.meetingModeEnabled
                 self?.applySettings(autoStart: autoStart, pomodoroTime: pomodoroTime, breakTime: breakTime, idleRestart: idleRestart, idleTime: idleTime, idleActionIsRestart: idleActionIsRestart, screenLockRestart: screenLockRestart, screenLockActionIsRestart: screenLockActionIsRestart, screensaverRestart: screensaverRestart, screensaverActionIsRestart: screensaverActionIsRestart, showCancelRestButton: showCancelRestButton, longBreakCycle: longBreakCycle, longBreakTimeMinutes: longBreakTimeMinutes, showLongBreakCancelButton: showLongBreakCancelButton, accumulateRestTime: accumulateRestTime, backgroundFiles: backgroundFiles, stayUpLimitEnabled: stayUpLimitEnabled, stayUpLimitHour: stayUpLimitHour, stayUpLimitMinute: stayUpLimitMinute, showStatusBarText: showStatusBarText, meetingMode: meetingModeEnabled)
             }

@@ -149,7 +149,7 @@ class MockScreenDetectionManager {
             }
         }
         
-        return true // 有外部屏幕就认为可能需要会议模式
+        return true // 有外部屏幕就认为可能需要专注模式
     }
     
     func shouldAutoEnableMeetingMode() -> Bool {

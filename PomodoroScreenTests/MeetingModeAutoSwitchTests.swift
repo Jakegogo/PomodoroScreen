@@ -3,7 +3,7 @@
 //  PomodoroScreenTests
 //
 //  Created by Assistant on 2025-09-23.
-//  会议模式自动切换功能的专项测试
+//  专注模式自动切换功能的专项测试
 //
 
 import XCTest
@@ -48,13 +48,13 @@ class MeetingModeAutoSwitchTests: XCTestCase {
         
         private func enableMeetingModeAutomatically() {
             guard screenDetectionManager.isAutoDetectionEnabled else {
-                print("📺 [Mock] 自动检测已禁用，跳过自动启用会议模式")
+                print("📺 [Mock] 自动检测已禁用，跳过自动启用专注模式")
                 return
             }
             
             let currentMeetingMode = UserDefaults.standard.bool(forKey: "MeetingModeEnabled")
             if !currentMeetingMode {
-                print("📺 [Mock] 检测到投屏/外接显示器，自动启用会议模式")
+                print("📺 [Mock] 检测到投屏/外接显示器，自动启用专注模式")
                 UserDefaults.standard.set(true, forKey: "MeetingModeEnabled")
                 UserDefaults.standard.set(true, forKey: "MeetingModeAutoEnabled")
                 
@@ -69,7 +69,7 @@ class MeetingModeAutoSwitchTests: XCTestCase {
             let currentMeetingMode = UserDefaults.standard.bool(forKey: "MeetingModeEnabled")
             
             if currentMeetingMode && wasAutoEnabled {
-                print("📺 [Mock] 投屏/外接显示器已断开，自动关闭会议模式")
+                print("📺 [Mock] 投屏/外接显示器已断开，自动关闭专注模式")
                 UserDefaults.standard.set(false, forKey: "MeetingModeEnabled")
                 UserDefaults.standard.set(false, forKey: "MeetingModeAutoEnabled")
                 
@@ -92,7 +92,7 @@ class MeetingModeAutoSwitchTests: XCTestCase {
         UserDefaults.standard.removeObject(forKey: "MeetingModeAutoEnabled")
         UserDefaults.standard.removeObject(forKey: "AutoDetectScreencastEnabled")
         
-        print("🧪 会议模式测试环境初始化完成")
+        print("🧪 专注模式测试环境初始化完成")
     }
     
     override func tearDown() {
@@ -104,14 +104,14 @@ class MeetingModeAutoSwitchTests: XCTestCase {
         UserDefaults.standard.removeObject(forKey: "MeetingModeAutoEnabled")
         UserDefaults.standard.removeObject(forKey: "AutoDetectScreencastEnabled")
         
-        print("🧪 会议模式测试环境清理完成")
+        print("🧪 专注模式测试环境清理完成")
         super.tearDown()
     }
     
-    // MARK: - 自动启用会议模式测试
+    // MARK: - 自动启用专注模式测试
     
     func testAutoEnable_OnExternalMonitorConnect() {
-        // Given: 初始状态 - 单屏，会议模式关闭
+        // Given: 初始状态 - 单屏，专注模式关闭
         mockScreenDetection.simulateResetToSingleScreen()
         UserDefaults.standard.set(false, forKey: "MeetingModeEnabled")
         mockScreenDetection.isAutoDetectionEnabled = true
@@ -119,9 +119,9 @@ class MeetingModeAutoSwitchTests: XCTestCase {
         // When: 连接外部显示器
         mockScreenDetection.simulateExternalScreenConnected(width: 2560, height: 1440)
         
-        // Then: 应该自动启用会议模式
-        XCTAssertEqual(mockAppDelegate.enableMeetingModeCallCount, 1, "应该调用一次启用会议模式")
-        XCTAssertTrue(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "会议模式应该被启用")
+        // Then: 应该自动启用专注模式
+        XCTAssertEqual(mockAppDelegate.enableMeetingModeCallCount, 1, "应该调用一次启用专注模式")
+        XCTAssertTrue(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "专注模式应该被启用")
         XCTAssertTrue(UserDefaults.standard.bool(forKey: "MeetingModeAutoEnabled"), "应该标记为自动启用")
         XCTAssertTrue(mockAppDelegate.lastMeetingModeState, "最后状态应该为启用")
         
@@ -129,7 +129,7 @@ class MeetingModeAutoSwitchTests: XCTestCase {
     }
     
     func testAutoEnable_OnScreencastConnect() {
-        // Given: 初始状态 - 单屏，会议模式关闭
+        // Given: 初始状态 - 单屏，专注模式关闭
         mockScreenDetection.simulateResetToSingleScreen()
         UserDefaults.standard.set(false, forKey: "MeetingModeEnabled")
         mockScreenDetection.isAutoDetectionEnabled = true
@@ -137,16 +137,16 @@ class MeetingModeAutoSwitchTests: XCTestCase {
         // When: 开始投屏
         mockScreenDetection.simulateScreencasting(mirrorResolution: true)
         
-        // Then: 应该自动启用会议模式
-        XCTAssertEqual(mockAppDelegate.enableMeetingModeCallCount, 1, "应该调用一次启用会议模式")
-        XCTAssertTrue(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "会议模式应该被启用")
+        // Then: 应该自动启用专注模式
+        XCTAssertEqual(mockAppDelegate.enableMeetingModeCallCount, 1, "应该调用一次启用专注模式")
+        XCTAssertTrue(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "专注模式应该被启用")
         XCTAssertTrue(UserDefaults.standard.bool(forKey: "MeetingModeAutoEnabled"), "应该标记为自动启用")
         
         print("✅ testAutoEnable_OnScreencastConnect 通过")
     }
     
     func testAutoEnable_SkipWhenAlreadyEnabled() {
-        // Given: 会议模式已经手动启用
+        // Given: 专注模式已经手动启用
         UserDefaults.standard.set(true, forKey: "MeetingModeEnabled")
         UserDefaults.standard.set(false, forKey: "MeetingModeAutoEnabled") // 手动启用
         mockScreenDetection.isAutoDetectionEnabled = true
@@ -155,8 +155,8 @@ class MeetingModeAutoSwitchTests: XCTestCase {
         mockScreenDetection.simulateExternalScreenConnected()
         
         // Then: 不应该重复启用
-        XCTAssertEqual(mockAppDelegate.enableMeetingModeCallCount, 0, "不应该重复启用会议模式")
-        XCTAssertTrue(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "会议模式应该保持启用")
+        XCTAssertEqual(mockAppDelegate.enableMeetingModeCallCount, 0, "不应该重复启用专注模式")
+        XCTAssertTrue(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "专注模式应该保持启用")
         XCTAssertFalse(UserDefaults.standard.bool(forKey: "MeetingModeAutoEnabled"), "应该保持手动启用标记")
         
         print("✅ testAutoEnable_SkipWhenAlreadyEnabled 通过")
@@ -171,16 +171,16 @@ class MeetingModeAutoSwitchTests: XCTestCase {
         mockScreenDetection.simulateExternalScreenConnected()
         
         // Then: 不应该自动启用
-        XCTAssertEqual(mockAppDelegate.enableMeetingModeCallCount, 0, "禁用自动检测时不应该启用会议模式")
-        XCTAssertFalse(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "会议模式应该保持关闭")
+        XCTAssertEqual(mockAppDelegate.enableMeetingModeCallCount, 0, "禁用自动检测时不应该启用专注模式")
+        XCTAssertFalse(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "专注模式应该保持关闭")
         
         print("✅ testAutoEnable_SkipWhenAutoDetectionDisabled 通过")
     }
     
-    // MARK: - 自动关闭会议模式测试
+    // MARK: - 自动关闭专注模式测试
     
     func testAutoDisable_OnExternalScreenDisconnect() {
-        // Given: 外部屏幕已连接，会议模式自动启用
+        // Given: 外部屏幕已连接，专注模式自动启用
         mockScreenDetection.simulateExternalScreenConnected()
         UserDefaults.standard.set(true, forKey: "MeetingModeEnabled")
         UserDefaults.standard.set(true, forKey: "MeetingModeAutoEnabled")
@@ -188,9 +188,9 @@ class MeetingModeAutoSwitchTests: XCTestCase {
         // When: 断开外部屏幕
         mockScreenDetection.simulateExternalScreenDisconnected()
         
-        // Then: 应该自动关闭会议模式
-        XCTAssertEqual(mockAppDelegate.disableMeetingModeCallCount, 1, "应该调用一次关闭会议模式")
-        XCTAssertFalse(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "会议模式应该被关闭")
+        // Then: 应该自动关闭专注模式
+        XCTAssertEqual(mockAppDelegate.disableMeetingModeCallCount, 1, "应该调用一次关闭专注模式")
+        XCTAssertFalse(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "专注模式应该被关闭")
         XCTAssertFalse(UserDefaults.standard.bool(forKey: "MeetingModeAutoEnabled"), "自动启用标记应该被清除")
         XCTAssertFalse(mockAppDelegate.lastMeetingModeState, "最后状态应该为关闭")
         
@@ -198,7 +198,7 @@ class MeetingModeAutoSwitchTests: XCTestCase {
     }
     
     func testAutoDisable_SkipWhenManuallyEnabled() {
-        // Given: 外部屏幕已连接，会议模式手动启用
+        // Given: 外部屏幕已连接，专注模式手动启用
         mockScreenDetection.simulateExternalScreenConnected()
         UserDefaults.standard.set(true, forKey: "MeetingModeEnabled")
         UserDefaults.standard.set(false, forKey: "MeetingModeAutoEnabled") // 手动启用
@@ -207,8 +207,8 @@ class MeetingModeAutoSwitchTests: XCTestCase {
         mockScreenDetection.simulateExternalScreenDisconnected()
         
         // Then: 不应该自动关闭
-        XCTAssertEqual(mockAppDelegate.disableMeetingModeCallCount, 0, "手动启用的会议模式不应该自动关闭")
-        XCTAssertTrue(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "会议模式应该保持启用")
+        XCTAssertEqual(mockAppDelegate.disableMeetingModeCallCount, 0, "手动启用的专注模式不应该自动关闭")
+        XCTAssertTrue(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "专注模式应该保持启用")
         
         print("✅ testAutoDisable_SkipWhenManuallyEnabled 通过")
     }
@@ -226,38 +226,38 @@ class MeetingModeAutoSwitchTests: XCTestCase {
         // Step 1: 连接外部显示器
         print("🎬 步骤1: 连接外部显示器")
         mockScreenDetection.simulateExternalScreenConnected()
-        XCTAssertTrue(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "步骤1: 会议模式应该启用")
+        XCTAssertTrue(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "步骤1: 专注模式应该启用")
         XCTAssertEqual(mockAppDelegate.enableMeetingModeCallCount, 1, "步骤1: 启用次数应该为1")
         
         // Step 2: 断开外部显示器
         print("🎬 步骤2: 断开外部显示器")
         mockScreenDetection.simulateExternalScreenDisconnected()
-        XCTAssertFalse(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "步骤2: 会议模式应该关闭")
+        XCTAssertFalse(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "步骤2: 专注模式应该关闭")
         XCTAssertEqual(mockAppDelegate.disableMeetingModeCallCount, 1, "步骤2: 关闭次数应该为1")
         
         // Step 3: 连接投屏
         print("🎬 步骤3: 连接投屏")
         mockScreenDetection.simulateScreencasting()
-        XCTAssertTrue(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "步骤3: 会议模式应该再次启用")
+        XCTAssertTrue(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "步骤3: 专注模式应该再次启用")
         XCTAssertEqual(mockAppDelegate.enableMeetingModeCallCount, 2, "步骤3: 启用次数应该为2")
         
         // Step 4: 断开投屏
         print("🎬 步骤4: 断开投屏")
         mockScreenDetection.simulateResetToSingleScreen()
-        XCTAssertFalse(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "步骤4: 会议模式应该最终关闭")
+        XCTAssertFalse(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "步骤4: 专注模式应该最终关闭")
         XCTAssertEqual(mockAppDelegate.disableMeetingModeCallCount, 2, "步骤4: 关闭次数应该为2")
         
         print("✅ testComplexScenario_MultipleConnectDisconnect 通过")
     }
     
     func testComplexScenario_ManualOverrideAutomatic() {
-        // Given: 自动启用会议模式
+        // Given: 自动启用专注模式
         mockScreenDetection.simulateExternalScreenConnected()
-        XCTAssertTrue(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "前置条件: 会议模式应该自动启用")
+        XCTAssertTrue(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "前置条件: 专注模式应该自动启用")
         XCTAssertTrue(UserDefaults.standard.bool(forKey: "MeetingModeAutoEnabled"), "前置条件: 应该标记为自动启用")
         
-        // When: 用户手动关闭会议模式（模拟用户在UI中关闭）
-        print("🎬 用户手动关闭会议模式")
+        // When: 用户手动关闭专注模式（模拟用户在UI中关闭）
+        print("🎬 用户手动关闭专注模式")
         UserDefaults.standard.set(false, forKey: "MeetingModeEnabled")
         UserDefaults.standard.set(false, forKey: "MeetingModeAutoEnabled") // 清除自动启用标记
         
@@ -267,7 +267,7 @@ class MeetingModeAutoSwitchTests: XCTestCase {
         mockScreenDetection.simulateExternalScreenDisconnected()
         
         XCTAssertEqual(mockAppDelegate.disableMeetingModeCallCount, initialDisableCount, "手动关闭后不应该再次调用自动关闭")
-        XCTAssertFalse(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "会议模式应该保持关闭")
+        XCTAssertFalse(UserDefaults.standard.bool(forKey: "MeetingModeEnabled"), "专注模式应该保持关闭")
         
         print("✅ testComplexScenario_ManualOverrideAutomatic 通过")
     }
@@ -293,12 +293,12 @@ class MeetingModeAutoSwitchTests: XCTestCase {
             let hasExternalScreen = mockScreenDetection.hasExternalScreen
             
             if mockScreenDetection.isAutoDetectionEnabled && hasExternalScreen {
-                XCTAssertTrue(meetingModeEnabled, "\(description): 有外部屏幕时会议模式应该启用")
+                XCTAssertTrue(meetingModeEnabled, "\(description): 有外部屏幕时专注模式应该启用")
             } else {
                 // 注意：如果是手动启用的，断开屏幕时不会自动关闭
                 let wasAutoEnabled = UserDefaults.standard.bool(forKey: "MeetingModeAutoEnabled")
                 if !hasExternalScreen && wasAutoEnabled {
-                    XCTAssertFalse(meetingModeEnabled, "\(description): 无外部屏幕且为自动启用时会议模式应该关闭")
+                    XCTAssertFalse(meetingModeEnabled, "\(description): 无外部屏幕且为自动启用时专注模式应该关闭")
                 }
             }
         }

@@ -21,15 +21,15 @@ class StatusBarPopupWindow: NSWindow {
     private var titleLabel: NSTextField!
     private var backgroundView: NSVisualEffectView!
     private var roundIndicatorView: RoundIndicatorView!  // 轮数指示器
-    private var meetingModeSwitch: IOSSwitchButton!  // 会议模式开关
-    private var meetingModeLabel: NSTextField!  // 会议模式标签
+    private var meetingModeSwitch: IOSSwitchButton!  // 专注模式开关
+    private var meetingModeLabel: NSTextField!  // 专注模式标签
     
     // MARK: - Callbacks
     private var onMenuButtonClicked: (() -> Void)?
     private var onControlButtonClicked: (() -> Void)?  // 控制按钮回调
     private var onResetButtonClicked: (() -> Void)?    // 重置按钮回调
     private var onHealthRingsClicked: (() -> Void)?    // 健康环点击回调
-    private var onMeetingModeChanged: ((Bool) -> Void)?  // 会议模式变更回调
+    private var onMeetingModeChanged: ((Bool) -> Void)?  // 专注模式变更回调
     
     // MARK: - Constants
     private static let legendItems: [(String, NSColor)] = [
@@ -97,10 +97,10 @@ class StatusBarPopupWindow: NSWindow {
         var roundIndicatorHeight: CGFloat { 16 }  // 指示器总高度
         var roundIndicatorWidth: CGFloat { 80 }   // 指示器总宽度
         
-        // 会议模式开关相关尺寸（iOS风格）
+        // 专注模式开关相关尺寸（iOS风格）
         var meetingModeSwitchHeight: CGFloat { IOSSwitchButton.recommendedSize.height }  // 开关高度
         var meetingModeSwitchWidth: CGFloat { IOSSwitchButton.recommendedSize.width }   // 开关宽度
-        var meetingModeLabelWidth: CGFloat { 60 }  // 固定标签宽度，足够显示"会议模式"
+        var meetingModeLabelWidth: CGFloat { 60 }  // 固定标签宽度，足够显示"专注模式"
         
         // 优化的位置计算（自适应、可读性更强）
         // 顶部区域：标题与右上角菜单按钮
@@ -124,7 +124,7 @@ class StatusBarPopupWindow: NSWindow {
         private var contentAreaBottomY: CGFloat { verticalPadding }
         private var contentAreaHeight: CGFloat { contentAreaTopY - contentAreaBottomY }
 
-        // 内容块（健康环 + 指示器 + 按钮 + 图例 + 会议模式开关）的总高度
+        // 内容块（健康环 + 指示器 + 按钮 + 图例 + 专注模式开关）的总高度
         private var contentBlockHeight: CGFloat {
             return healthRingSize + spacingRingToButtons + roundIndicatorHeight + spacingIndicatorToButtons + buttonHeight + spacingButtonsToLegend + legendTotalHeight + verticalSpacing + meetingModeSwitchHeight
         }
@@ -139,7 +139,7 @@ class StatusBarPopupWindow: NSWindow {
         // 健康环水平居中
         var healthRingX: CGFloat { (windowWidth - healthRingSize) / 2 }
 
-        // 会议模式开关位置（在最底部，标签和开关作为整体靠右）
+        // 专注模式开关位置（在最底部，标签和开关作为整体靠右）
         var meetingModeSwitchY: CGFloat { 
             contentBaseY - meetingModeSwitchHeight - verticalSpacing
         }
@@ -279,7 +279,7 @@ class StatusBarPopupWindow: NSWindow {
         // 添加控制按钮
         setupControlButtons(in: contentView)
         
-        // 添加会议模式开关
+        // 添加专注模式开关
         setupMeetingModeSwitch(in: contentView)
         
         // 添加图例
@@ -325,7 +325,7 @@ class StatusBarPopupWindow: NSWindow {
     }
     
     private func setupMeetingModeSwitch(in contentView: NSView) {
-        // 创建iOS风格会议模式开关
+        // 创建iOS风格专注模式开关
         meetingModeSwitch = IOSSwitchButton()
         meetingModeSwitch.frame = NSRect(
             x: layoutConfig.meetingModeSwitchX,
@@ -340,10 +340,10 @@ class StatusBarPopupWindow: NSWindow {
         }
         
         // 设置tooltip提示
-        meetingModeSwitch.toolTip = "开启后休息时间将静默显示，不会弹出遮罩层和右上角提示"
+        meetingModeSwitch.toolTip = "开启后，休息将静默进行，不打断你的工作，也不会遮挡屏幕。"
         
-        // 创建会议模式标签
-        meetingModeLabel = NSTextField(labelWithString: "会议模式")
+        // 创建专注模式标签
+        meetingModeLabel = NSTextField(labelWithString: "专注模式")
         meetingModeLabel.frame = NSRect(
             x: layoutConfig.meetingModeLabelX,
             y: layoutConfig.meetingModeSwitchY + (IOSSwitchButton.recommendedSize.height - 16) / 2, // 垂直居中对齐
@@ -355,7 +355,7 @@ class StatusBarPopupWindow: NSWindow {
         meetingModeLabel.alignment = .left // 左对齐，文字在左侧
         
         // 为标签也设置tooltip提示
-        meetingModeLabel.toolTip = "开启后休息时间将静默显示，不会弹出遮罩层和右上角提示"
+        meetingModeLabel.toolTip = "开启后，休息将静默进行，不打断你的工作，也不会遮挡屏幕。"
         
         contentView.addSubview(meetingModeSwitch)
         contentView.addSubview(meetingModeLabel)
@@ -462,7 +462,7 @@ class StatusBarPopupWindow: NSWindow {
             height: layoutConfig.buttonHeight
         )
         
-        // 更新会议模式开关位置
+        // 更新专注模式开关位置
         meetingModeSwitch.frame = NSRect(
             x: layoutConfig.meetingModeSwitchX,
             y: layoutConfig.meetingModeSwitchY,
@@ -537,7 +537,7 @@ class StatusBarPopupWindow: NSWindow {
         // 保存设置到 UserDefaults
         SettingsStore.meetingModeEnabled = isEnabled
         
-        print("🔇 会议模式开关：\(isEnabled ? "开启" : "关闭")")
+        print("🔇 专注模式开关：\(isEnabled ? "开启" : "关闭")")
         
         // 通知外部需要更新计时器设置
         onMeetingModeChanged?(isEnabled)
@@ -608,7 +608,7 @@ class StatusBarPopupWindow: NSWindow {
         meetingModeSwitch.setOn(isEnabled, animated: false)
     }
     
-    /// 刷新会议模式开关状态（外部调用）
+    /// 刷新专注模式开关状态（外部调用）
     func refreshMeetingModeSwitch() {
         let isEnabled = SettingsStore.meetingModeEnabled
         meetingModeSwitch.setOn(isEnabled, animated: true) // 有动画效果
@@ -616,7 +616,7 @@ class StatusBarPopupWindow: NSWindow {
         // 检查是否是自动启用的
         let wasAutoEnabled = SettingsStore.meetingModeAutoEnabled
         if wasAutoEnabled {
-            print("🔇 会议模式开关状态已自动更新: \(isEnabled ? "开启" : "关闭")")
+            print("🔇 专注模式开关状态已自动更新: \(isEnabled ? "开启" : "关闭")")
         }
     }
     

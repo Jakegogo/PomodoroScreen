@@ -52,7 +52,7 @@ class PomodoroTimer: ObservableObject {
     private var autoRestartStateMachine: AutoRestartStateMachine
     private var idleTimeMinutes: Int = 10
     private var showCancelRestButton: Bool = true // 是否显示取消休息按钮
-    private var meetingMode: Bool = false // 会议模式：静默休息，不显示遮罩层
+    private var meetingMode: Bool = false // 专注模式：静默休息，不显示遮罩层
     
     // 事件监听器引用
     private var globalEventMonitor: Any?
@@ -173,6 +173,14 @@ class PomodoroTimer: ObservableObject {
         // 设置倒计时警告回调
         autoRestartStateMachine.onCountdownWarning = { [weak self] minutesRemaining in
             self?.showCountdownWarning(minutesRemaining: minutesRemaining)
+        }
+        
+        // 设置系统唤醒回调，用于刷新状态栏
+        autoRestartStateMachine.onSystemWakeup = { [weak self] in
+            guard let self = self else { return }
+            AppLogger.shared.logStateMachine("SystemWakeup -> 强制刷新状态栏", tag: "SLEEP")
+            // 强制触发一次计时器更新，刷新状态栏图标
+            self.updateTimeDisplay()
         }
     }
     
@@ -382,7 +390,7 @@ class PomodoroTimer: ObservableObject {
         return meetingMode
     }
     
-    // 即时生效：更新会议模式
+    // 即时生效：更新专注模式
     public func setMeetingMode(_ isEnabled: Bool) {
         meetingMode = isEnabled
     }

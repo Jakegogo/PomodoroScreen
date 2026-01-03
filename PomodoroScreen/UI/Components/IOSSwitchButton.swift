@@ -275,11 +275,11 @@ class IOSSwitchButton: NSView {
     }
     
     override func accessibilityLabel() -> String? {
-        return "会议模式开关"
+        return "专注模式开关"
     }
     
     override func accessibilityHelp() -> String? {
-        return isOn ? "会议模式已开启" : "会议模式已关闭"
+        return isOn ? "专注模式已开启" : "专注模式已关闭"
     }
     
     override func accessibilityPerformPress() -> Bool {
