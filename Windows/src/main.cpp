@@ -3,6 +3,8 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <objbase.h>
+
 
 #include "PomodoroTimer.h"
 #include "MultiScreenOverlayManagerWin32.h"
@@ -60,6 +62,9 @@ int main() {
     using pomodoro::TrayIconWin32;
 
     EnablePerMonitorDpiAwareness();
+
+    const HRESULT comHr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    const bool comInitialized = SUCCEEDED(comHr);
 
     // 获取当前进程实例句柄，用于创建 Win32 窗口
     HINSTANCE hInstance = GetModuleHandleW(nullptr);
@@ -223,5 +228,8 @@ int main() {
     g_settingsWindow = nullptr;
 
     std::cout << "\nExiting...\n";
+    if (comInitialized) {
+        CoUninitialize();
+    }
     return 0;
 }
