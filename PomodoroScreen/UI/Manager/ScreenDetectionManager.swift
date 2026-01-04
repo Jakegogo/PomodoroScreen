@@ -21,7 +21,7 @@ class ScreenDetectionManager {
     /// 当前是否检测到外部屏幕
     private(set) var hasExternalScreen: Bool = false
     
-    /// 是否启用自动检测投屏进入会议模式
+    /// 是否启用自动检测投屏进入专注模式
     var isAutoDetectionEnabled: Bool {
         get { SettingsStore.autoDetectScreencastEnabled }
         set { SettingsStore.autoDetectScreencastEnabled = newValue }
@@ -94,7 +94,7 @@ class ScreenDetectionManager {
             }
         }
         
-        // 如果有外部屏幕但不是明显的投屏，仍然认为可能需要会议模式
+        // 如果有外部屏幕但不是明显的投屏，仍然认为可能需要专注模式
         return true
     }
     
@@ -188,7 +188,7 @@ extension ScreenDetectionManager {
         return info
     }
     
-    /// 检查是否应该自动启用会议模式
+    /// 检查是否应该自动启用专注模式
     func shouldAutoEnableMeetingMode() -> Bool {
         return isAutoDetectionEnabled && (hasExternalScreen || isScreencasting())
     }

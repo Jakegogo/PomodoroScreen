@@ -1,4 +1,5 @@
 import Foundation
+import AppKit // 用于 NSWorkspace 睡眠通知
 
 // MARK: - State Machine for Auto Restart Logic
 
@@ -74,6 +75,7 @@ class AutoRestartStateMachine {
     private var isStayUpTime: Bool = false // 当前是否处于熬夜时间
     private var stayUpMonitoringTimer: Timer? // 熬夜监控定时器
     private var lastStayUpLoggedSlot: Date? // 上一次记录的半小时槽起始时间
+    private var isSystemSleeping: Bool = false // 系统是否处于睡眠状态
     
     struct AutoRestartSettings {
         let idleEnabled: Bool
@@ -91,6 +93,70 @@ class AutoRestartStateMachine {
     
     init(settings: AutoRestartSettings) {
         self.settings = settings
+        setupSleepNotifications()
+    }
+    
+    deinit {
+        removeSleepNotifications()
+    }
+    
+    /// 设置系统睡眠/唤醒通知监听
+    private func setupSleepNotifications() {
+        // 监听系统睡眠通知
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(systemWillSleep),
+            name: NSWorkspace.willSleepNotification,
+            object: nil
+        )
+        
+        // 监听系统唤醒通知
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(systemDidWake),
+            name: NSWorkspace.didWakeNotification,
+            object: nil
+        )
+        
+        print("🛌 系统睡眠/唤醒监听已启动")
+    }
+    
+    /// 移除系统睡眠/唤醒通知监听
+    private func removeSleepNotifications() {
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
+        print("🛌 系统睡眠/唤醒监听已停止")
+    }
+    
+    /// 系统即将进入睡眠
+    @objc private func systemWillSleep() {
+        print("🛌 系统即将睡眠，停止记录熬夜活动")
+        isSystemSleeping = true
+    }
+    
+    /// 系统已从睡眠中唤醒
+    @objc private func systemDidWake() {
+        print("🛌 系统已唤醒，恢复记录熬夜活动")
+        isSystemSleeping = false
+        // 唤醒后重置上次记录的槽，确保新的槽能够被记录
+        lastStayUpLoggedSlot = nil
+        
+        // 记录唤醒前的熬夜状态
+        let wasStayUpBeforeSleep = isStayUpTime
+        
+        // 立即检查熬夜状态
+        updateStayUpStatus()
+        
+        // 如果唤醒后熬夜状态发生了变化（比如睡眠前是熬夜时段，唤醒后已经是第二天早上）
+        // 需要强制触发回调来刷新状态栏图标
+        if wasStayUpBeforeSleep && !isStayUpTime {
+            print("🛌 唤醒后熬夜时段已结束，强制刷新状态栏")
+            // 触发强制睡眠结束事件，即使当前不在强制睡眠状态
+            onStayUpTimeChanged?(false)
+        }
+        
+        // 无论熬夜状态是否变化，都触发系统唤醒回调，确保UI刷新
+        print("🛌 触发系统唤醒UI刷新回调")
+        onSystemWakeup?()
     }
     
     func updateSettings(_ newSettings: AutoRestartSettings) {
@@ -521,6 +587,12 @@ class AutoRestartStateMachine {
 
     /// 在当前熬夜时段内，如果到达新的半小时槽则记录一次熬夜活动
     private func maybeLogStayUpActivity() {
+        // 如果系统处于睡眠状态，不记录熬夜活动
+        guard !isSystemSleeping else {
+            print("🛌 系统处于睡眠状态，跳过记录熬夜活动")
+            return
+        }
+        
         let now = Date()
         let calendar = Calendar.current
         let hour = calendar.component(.hour, from: now)
@@ -533,6 +605,7 @@ class AutoRestartStateMachine {
         // 记录一次熬夜活动
         StatisticsManager.shared.recordStayUpLateActivity()
         lastStayUpLoggedSlot = slotStart
+        print("🟡 记录熬夜活动 - 时间槽: \(hour):\(String(format: "%02d", slotMinute))")
     }
     
     /// 检查是否需要显示强制睡眠倒计时警告
@@ -578,12 +651,15 @@ class AutoRestartStateMachine {
     /// 倒计时警告回调 (参数为剩余分钟数)
     var onCountdownWarning: ((Int) -> Void)?
     
+    /// 系统唤醒后需要刷新UI的回调
+    var onSystemWakeup: (() -> Void)?
+    
     /// 获取熬夜限制设置信息（用于统计和显示）
     func getStayUpLimitInfo() -> (enabled: Bool, hour: Int, minute: Int) {
         return (settings.stayUpLimitEnabled, settings.stayUpLimitHour, settings.stayUpLimitMinute)
     }
     
-    /// 根据当前状态与会议模式，推导状态栏图标类型
+    /// 根据当前状态与专注模式，推导状态栏图标类型
     /// 说明：不改变状态机现有逻辑，仅根据 currentState 派生 UI 层图标类型
     func deriveStatusBarIconType(meetingMode: Bool) -> StatusBarIconType {
         // 熬夜期间优先显示熬夜图标
@@ -593,15 +669,13 @@ class AutoRestartStateMachine {
         
         switch currentState {
         case .restPeriod, .restTimerRunning, .restTimerPausedByUser, .restTimerPausedBySystem:
-            // 休息相关一律显示热水杯（会议模式只影响遮罩层，不影响图标样式）
+            // 休息相关一律显示热水杯（专注模式只影响遮罩层，不影响图标样式）
             return .restCup
         case .timerRunning:
             return .runningClock
         case .timerPausedByUser, .timerPausedByIdle, .timerPausedBySystem,
              .forcedSleep, .awaitingRestart, .idle:
             // 非运行态统一显示暂停双竖线（与原有 UI 逻辑一致：未运行或暂停 -> 显示暂停图标）
-            return .pausedBars
-        default:
             return .pausedBars
         }
     }

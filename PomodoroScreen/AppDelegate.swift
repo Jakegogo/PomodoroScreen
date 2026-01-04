@@ -31,7 +31,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         pomodoroTimer.onTimerFinished = { [weak self] in
             guard let self = self else { return }
             
-            // 如果是会议模式且处于休息期间，隐藏休息提示
+            // 如果是专注模式且处于休息期间，隐藏休息提示
             if self.pomodoroTimer.isMeetingMode() && self.pomodoroTimer.isInRestPeriod {
                 self.statusBarController.hideMeetingModeRestIndicator()
             }
@@ -122,7 +122,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let stayUpHour = SettingsStore.stayUpLimitHour
         let stayUpLimitMinute = SettingsStore.stayUpLimitMinute
         
-        // 加载会议模式设置
+        // 加载专注模式设置
         let meetingModeEnabled = SettingsStore.meetingModeEnabled
         
         // 应用设置到计时器
@@ -138,9 +138,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
-            // 检查是否为会议模式（静默休息，不弹出遮罩层）
+            // 检查是否为专注模式（静默休息，不弹出遮罩层）
             if self.pomodoroTimer.isMeetingMode() {
-                print("🔇 会议模式：跳过遮罩层显示，进行静默休息")
+                print("🔇 专注模式：跳过遮罩层显示，进行静默休息")
                 // 在状态栏显示"休息时间"提示
                 self.statusBarController.showMeetingModeRestIndicator()
                 return
@@ -199,7 +199,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         pomodoroTimer.triggerFinish()
     }
 
-    // 测试钩子：从 UserDefaults 重新加载并应用设置（用于切换会议模式等）
+    // 测试钩子：从 UserDefaults 重新加载并应用设置（用于切换专注模式等）
     @objc func reloadSettingsForTesting() {
         loadAndApplySettings()
     }
@@ -214,7 +214,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 
-    // 测试辅助：输出关键状态（会议模式/是否休息期/休息计时是否在运行）
+    // 测试辅助：输出关键状态（专注模式/是否休息期/休息计时是否在运行）
     @objc func dumpTimerStateForTesting() -> String {
         let meeting = pomodoroTimer.isMeetingMode()
         let inRest = pomodoroTimer.isInRestPeriod
@@ -264,7 +264,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func handleScreenConfigurationChanged(_ hasExternalScreen: Bool) {
         print("📺 屏幕配置变化: 外部屏幕 = \(hasExternalScreen)")
         
-        // 检查是否应该自动启用/关闭会议模式
+        // 检查是否应该自动启用/关闭专注模式
         if screenDetectionManager.shouldAutoEnableMeetingMode() {
             enableMeetingModeAutomatically()
         } else {
@@ -287,32 +287,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     private func enableMeetingModeAutomatically() {
         guard screenDetectionManager.isAutoDetectionEnabled else {
-            print("📺 自动检测已禁用，跳过自动启用会议模式")
+            print("📺 自动检测已禁用，跳过自动启用专注模式")
             return
         }
         
         let currentMeetingMode = SettingsStore.meetingModeEnabled
         if !currentMeetingMode {
-            print("📺 检测到投屏/外接显示器，自动启用会议模式")
+            print("📺 检测到投屏/外接显示器，自动启用专注模式")
             SettingsStore.meetingModeEnabled = true
             SettingsStore.meetingModeAutoEnabled = true
             
-            // 通知状态栏更新会议模式状态
+            // 通知状态栏更新专注模式状态
             statusBarController.refreshMeetingModeStatus()
         }
     }
     
     private func disableMeetingModeAutomatically() {
-        // 只有当会议模式是自动启用的时候才自动关闭
+        // 只有当专注模式是自动启用的时候才自动关闭
         let wasAutoEnabled = SettingsStore.meetingModeAutoEnabled
         let currentMeetingMode = SettingsStore.meetingModeEnabled
         
         if currentMeetingMode && wasAutoEnabled {
-            print("📺 投屏/外接显示器已断开，自动关闭会议模式")
+            print("📺 投屏/外接显示器已断开，自动关闭专注模式")
             SettingsStore.meetingModeEnabled = false
             SettingsStore.meetingModeAutoEnabled = false
             
-            // 通知状态栏更新会议模式状态
+            // 通知状态栏更新专注模式状态
             statusBarController.refreshMeetingModeStatus()
         }
     }

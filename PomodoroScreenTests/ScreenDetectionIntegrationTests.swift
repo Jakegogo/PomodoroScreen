@@ -87,7 +87,7 @@ class ScreenDetectionIntegrationTests: XCTestCase {
         print("✅ testScreenDetection_Screencasting 通过")
     }
     
-    // MARK: - 会议模式自动切换测试
+    // MARK: - 专注模式自动切换测试
     
     func testAutoMeetingMode_EnabledOnScreencast() {
         // Given: 启用自动检测，初始状态为单屏
@@ -110,7 +110,7 @@ class ScreenDetectionIntegrationTests: XCTestCase {
         wait(for: [testExpectation], timeout: 2.0)
         
         XCTAssertTrue(callbackReceived, "应该收到屏幕配置变化回调")
-        XCTAssertTrue(mockScreenDetection.shouldAutoEnableMeetingMode(), "应该自动启用会议模式")
+        XCTAssertTrue(mockScreenDetection.shouldAutoEnableMeetingMode(), "应该自动启用专注模式")
         
         print("✅ testAutoMeetingMode_EnabledOnScreencast 通过")
     }
@@ -122,8 +122,8 @@ class ScreenDetectionIntegrationTests: XCTestCase {
         // When: 模拟投屏连接
         mockScreenDetection.simulateScreencasting()
         
-        // Then: 不应该自动启用会议模式
-        XCTAssertFalse(mockScreenDetection.shouldAutoEnableMeetingMode(), "禁用自动检测时不应该自动启用会议模式")
+        // Then: 不应该自动启用专注模式
+        XCTAssertFalse(mockScreenDetection.shouldAutoEnableMeetingMode(), "禁用自动检测时不应该自动启用专注模式")
         
         print("✅ testAutoMeetingMode_DisabledWhenAutoDetectionOff 通过")
     }
@@ -152,7 +152,7 @@ class ScreenDetectionIntegrationTests: XCTestCase {
         // Then: 验证投屏连接
         XCTAssertEqual(screenChangeCount, 1, "应该收到1次屏幕变化通知")
         XCTAssertTrue(lastScreenStatus, "最后状态应该为有外部屏幕")
-        XCTAssertTrue(mockScreenDetection.shouldAutoEnableMeetingMode(), "应该自动启用会议模式")
+        XCTAssertTrue(mockScreenDetection.shouldAutoEnableMeetingMode(), "应该自动启用专注模式")
         
         // When: 断开投屏
         print("🎬 步骤2: 断开投屏")
@@ -161,7 +161,7 @@ class ScreenDetectionIntegrationTests: XCTestCase {
         // Then: 验证投屏断开
         XCTAssertEqual(screenChangeCount, 2, "应该收到2次屏幕变化通知")
         XCTAssertFalse(lastScreenStatus, "最后状态应该为无外部屏幕")
-        XCTAssertFalse(mockScreenDetection.shouldAutoEnableMeetingMode(), "应该不再自动启用会议模式")
+        XCTAssertFalse(mockScreenDetection.shouldAutoEnableMeetingMode(), "应该不再自动启用专注模式")
         
         print("✅ testFullIntegration_ConnectAndDisconnectScreencast 通过")
     }

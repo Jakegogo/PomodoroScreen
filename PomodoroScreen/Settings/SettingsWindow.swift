@@ -99,7 +99,7 @@ class SettingsWindow: NSWindow {
     var showStatusBarText: Bool = false // 是否在状态栏显示倒计时文字
     
     // 自动检测投屏设置值
-    var autoDetectScreencastEnabled: Bool = false // 是否启用自动检测投屏进入会议模式
+    var autoDetectScreencastEnabled: Bool = false // 是否启用自动检测投屏进入专注模式
     
     // 回调
     var onSettingsChanged: ((Bool, Int, Int, Bool, Int, Bool, Bool, Bool, Bool, Bool, Bool, Int, Int, Bool, Bool, [BackgroundFile], Bool, Int, Int, Bool) -> Void)?
@@ -287,7 +287,7 @@ class SettingsWindow: NSWindow {
         yPosition -= 60
         
         // 自动检测投屏设置
-        autoDetectScreencastCheckbox = NSButton(checkboxWithTitle: "检测到投屏/外接显示器时自动启用会议模式", target: self, action: #selector(autoDetectScreencastChanged))
+        autoDetectScreencastCheckbox = NSButton(checkboxWithTitle: "检测到投屏/外接显示器时自动启用专注模式", target: self, action: #selector(autoDetectScreencastChanged))
         autoDetectScreencastCheckbox.frame = NSRect(x: 20, y: yPosition, width: 380, height: 25)
         autoDetectScreencastCheckbox.state = autoDetectScreencastEnabled ? .on : .off
         autoView.addSubview(autoDetectScreencastCheckbox)

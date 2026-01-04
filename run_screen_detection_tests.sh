@@ -81,7 +81,7 @@ xcodebuild \
 
 SCREEN_DETECTION_RESULT=$?
 
-print_info "运行会议模式自动切换测试..."
+print_info "运行专注模式自动切换测试..."
 xcodebuild \
     -scheme "$SCHEME_NAME" \
     -configuration Debug \
@@ -123,7 +123,7 @@ cat > "$REPORT_FILE" << EOF
 | 测试套件 | 结果 | 日志文件 |
 |---------|------|----------|
 | 屏幕检测基础功能 | $([ $SCREEN_DETECTION_RESULT -eq 0 ] && echo "✅ 通过" || echo "❌ 失败") | screen_detection_tests.log |
-| 会议模式自动切换 | $([ $MEETING_MODE_RESULT -eq 0 ] && echo "✅ 通过" || echo "❌ 失败") | meeting_mode_tests.log |
+| 专注模式自动切换 | $([ $MEETING_MODE_RESULT -eq 0 ] && echo "✅ 通过" || echo "❌ 失败") | meeting_mode_tests.log |
 | 完整自动化套件 | $([ $FULL_SUITE_RESULT -eq 0 ] && echo "✅ 通过" || echo "❌ 失败") | full_suite_tests.log |
 
 ## 测试覆盖功能
@@ -135,7 +135,7 @@ cat > "$REPORT_FILE" << EOF
 - [x] 常见投屏分辨率识别
 - [x] 快速连接/断开处理
 
-### 会议模式自动切换
+### 专注模式自动切换
 - [x] 检测到外部屏幕时自动启用
 - [x] 断开外部屏幕时自动关闭
 - [x] 手动设置优先级处理
@@ -166,7 +166,7 @@ cat > "$REPORT_FILE" << EOF
 详细的测试执行日志请查看对应的日志文件：
 - 构建日志: \`build.log\`
 - 屏幕检测测试: \`screen_detection_tests.log\`
-- 会议模式测试: \`meeting_mode_tests.log\`
+- 专注模式测试: \`meeting_mode_tests.log\`
 - 完整套件测试: \`full_suite_tests.log\`
 
 ---
@@ -188,9 +188,9 @@ else
 fi
 
 if [ $MEETING_MODE_RESULT -eq 0 ]; then
-    print_success "会议模式自动切换测试: 通过"
+    print_success "专注模式自动切换测试: 通过"
 else
-    print_error "会议模式自动切换测试: 失败"
+    print_error "专注模式自动切换测试: 失败"
 fi
 
 if [ $FULL_SUITE_RESULT -eq 0 ]; then
