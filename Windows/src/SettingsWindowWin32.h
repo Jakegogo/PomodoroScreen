@@ -19,6 +19,7 @@ namespace pomodoro {
         bool isOpen() const { return hwnd_ != nullptr; }
 
         void setPomodoroMinutesChangedHandler(std::function<void(int)> handler) { onPomodoroMinutesChanged_ = std::move(handler); }
+        void setBreakMinutesChangedHandler(std::function<void(int)> handler) { onBreakMinutesChanged_ = std::move(handler); }
         void setAutoStartNextPomodoroAfterRestChangedHandler(std::function<void(bool)> handler) { onAutoStartNextPomodoroAfterRestChanged_ = std::move(handler); }
 
         // 全局窗口过程需要从窗口类注册函数中访问，因此放在 public 区域
@@ -38,6 +39,7 @@ namespace pomodoro {
         void onMoveDown();
         void onAutoStartNextPomodoroAfterRestChanged();
         void onPomodoroSliderChanged(bool commit);
+        void onBreakSliderChanged(bool commit);
         void switchToTab(int index);
 
         void refreshList();
@@ -48,6 +50,8 @@ namespace pomodoro {
         HWND autoHideCheckbox_{ nullptr };
         HWND pomodoroMinutesLabel_{ nullptr };
         HWND pomodoroSlider_{ nullptr };
+        HWND breakMinutesLabel_{ nullptr };
+        HWND breakSlider_{ nullptr };
         HWND behaviorTabButton_{ nullptr };
         HWND backgroundTabButton_{ nullptr };
         HWND behaviorGroupBox_{ nullptr };
@@ -61,6 +65,7 @@ namespace pomodoro {
         int activeTabIndex_{ 0 };
         BackgroundSettingsWin32& settings_;
         std::function<void(int)> onPomodoroMinutesChanged_{};
+        std::function<void(int)> onBreakMinutesChanged_{};
         std::function<void(bool)> onAutoStartNextPomodoroAfterRestChanged_{};
 
         UINT dpi_{ 96 };

@@ -21,6 +21,7 @@ namespace {
     constexpr int kIdMoveDownButton = 1006;
     constexpr int kIdAutoStartNextPomodoroAfterRestCheckbox = 1007;
     constexpr int kIdPomodoroSlider = 1008;
+    constexpr int kIdBreakSlider = 1009;
     constexpr int kIdTabBehavior = 1101;
     constexpr int kIdTabBackground = 1102;
     constexpr int kIdOverlayMessageEdit = 1201;
@@ -57,6 +58,16 @@ namespace {
     std::wstring PomodoroMinutesLabelText(int minutes) {
         // "番茄时长：XX 分钟"
         return L"\u756a\u8304\u65f6\u957f\uff1a" + std::to_wstring(minutes) + L" \u5206\u949f";
+    }
+
+    std::vector<int> BuildBreakMinuteOptions() {
+        // 1..10, 15, 20, 30
+        return { 1,2,3,4,5,6,7,8,9,10,15,20,30 };
+    }
+
+    std::wstring BreakMinutesLabelText(int minutes) {
+        // "休息时长：XX 分钟"
+        return L"\u4f11\u606f\u65f6\u957f\uff1a" + std::to_wstring(minutes) + L" \u5206\u949f";
     }
 
     ATOM RegisterSettingsWindowClass(HINSTANCE hInstance) {
@@ -173,6 +184,12 @@ namespace pomodoro {
                 onPomodoroSliderChanged(commit);
                 return 0;
             }
+            if (reinterpret_cast<HWND>(lParam) == breakSlider_) {
+                const int code = LOWORD(wParam);
+                const bool commit = (code == TB_ENDTRACK) || (code == TB_THUMBPOSITION);
+                onBreakSliderChanged(commit);
+                return 0;
+            }
             break;
         }
         case WM_COMMAND: {
@@ -215,7 +232,8 @@ namespace pomodoro {
                     std::wstring text;
                     if (len > 0) {
                         text.resize(static_cast<std::size_t>(len));
-                        GetWindowTextW(overlayMessageEdit_, text.data(), len + 1);
+                        // Use writable buffer for older STL implementations where wstring::data() is const.
+                        GetWindowTextW(overlayMessageEdit_, &text[0], len + 1);
                     }
                     if (text != settings_.overlayMessage()) {
                         settings_.setOverlayMessage(std::move(text));
@@ -509,6 +527,45 @@ namespace pomodoro {
         SendMessageW(pomodoroSlider_, TBM_SETPOS, TRUE, initialIndex);
         onPomodoroSliderChanged(false);
 
+        // 休息时长（短休息）：离散选项拖动条 + 文本
+        const int breakLabelY = sliderY + 78 + 36; // below pomodoro slider
+        breakMinutesLabel_ = CreateWindowExW(
+            0,
+            L"STATIC",
+            BreakMinutesLabelText(settings_.breakMinutes()).c_str(),
+            WS_CHILD | WS_VISIBLE,
+            sliderX,
+            breakLabelY,
+            sliderWidth,
+            18,
+            hwnd,
+            nullptr,
+            hInstance_,
+            nullptr
+        );
+        breakSlider_ = CreateWindowExW(
+            0,
+            TRACKBAR_CLASSW,
+            L"",
+            WS_CHILD | WS_VISIBLE | TBS_HORZ,
+            sliderX,
+            breakLabelY + 22,
+            sliderWidth,
+            32,
+            hwnd,
+            reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdBreakSlider)),
+            hInstance_,
+            nullptr
+        );
+        const auto breakOptions = BuildBreakMinuteOptions();
+        const int breakMaxPos = static_cast<int>(breakOptions.size()) - 1;
+        SendMessageW(breakSlider_, TBM_SETRANGE, TRUE, MAKELONG(0, breakMaxPos));
+        SendMessageW(breakSlider_, TBM_SETPAGESIZE, 0, 1);
+        SendMessageW(breakSlider_, TBM_SETTICFREQ, 1, 0);
+        const int breakInitialIndex = FindNearestOptionIndex(breakOptions, settings_.breakMinutes());
+        SendMessageW(breakSlider_, TBM_SETPOS, TRUE, breakInitialIndex);
+        onBreakSliderChanged(false);
+
         // Apply DPI-based layout + fonts
         applyDpiLayout(dpi_, nullptr);
 
@@ -656,7 +713,7 @@ namespace pomodoro {
         const int groupX = margin;
         const int groupY = contentTop;
         const int groupW = clientW - margin * 2;
-        const int groupH = S(240);
+        const int groupH = S(320);
 
         if (behaviorGroupBox_) {
             SetWindowPos(behaviorGroupBox_, nullptr, groupX, groupY, groupW, groupH, SWP_NOZORDER | SWP_NOACTIVATE);
@@ -673,6 +730,14 @@ namespace pomodoro {
         if (pomodoroSlider_) {
             SetWindowPos(pomodoroSlider_, nullptr, groupX + S(15), groupY + S(78), groupW - S(30), S(36), SWP_NOZORDER | SWP_NOACTIVATE);
             pomodoro::win32::SetControlFont(pomodoroSlider_, uiFont_);
+        }
+        if (breakMinutesLabel_) {
+            SetWindowPos(breakMinutesLabel_, nullptr, groupX + S(15), groupY + S(130), groupW - S(30), S(20), SWP_NOZORDER | SWP_NOACTIVATE);
+            pomodoro::win32::SetControlFont(breakMinutesLabel_, uiFont_);
+        }
+        if (breakSlider_) {
+            SetWindowPos(breakSlider_, nullptr, groupX + S(15), groupY + S(156), groupW - S(30), S(36), SWP_NOZORDER | SWP_NOACTIVATE);
+            pomodoro::win32::SetControlFont(breakSlider_, uiFont_);
         }
 
         InvalidateRect(hwnd_, nullptr, TRUE);
@@ -795,6 +860,34 @@ namespace pomodoro {
         }
     }
 
+    void SettingsWindowWin32::onBreakSliderChanged(bool commit) {
+        if (!breakSlider_) return;
+
+        const auto options = BuildBreakMinuteOptions();
+        if (options.empty()) return;
+
+        const LRESULT pos = SendMessageW(breakSlider_, TBM_GETPOS, 0, 0);
+        int index = static_cast<int>(pos);
+        if (index < 0) index = 0;
+        if (index >= static_cast<int>(options.size())) index = static_cast<int>(options.size()) - 1;
+
+        const int minutes = options[index];
+
+        if (breakMinutesLabel_) {
+            const std::wstring text = BreakMinutesLabelText(minutes);
+            SetWindowTextW(breakMinutesLabel_, text.c_str());
+        }
+
+        if (settings_.breakMinutes() != minutes) {
+            settings_.setBreakMinutes(minutes);
+            settings_.saveToFile(BackgroundSettingsWin32::DefaultConfigPath());
+        }
+
+        if (commit && onBreakMinutesChanged_) {
+            onBreakMinutesChanged_(minutes);
+        }
+    }
+
     void SettingsWindowWin32::switchToTab(int index) {
         activeTabIndex_ = index;
 
@@ -821,6 +914,12 @@ namespace pomodoro {
         }
         if (pomodoroSlider_) {
             ShowWindow(pomodoroSlider_, showBehavior ? SW_SHOW : SW_HIDE);
+        }
+        if (breakMinutesLabel_) {
+            ShowWindow(breakMinutesLabel_, showBehavior ? SW_SHOW : SW_HIDE);
+        }
+        if (breakSlider_) {
+            ShowWindow(breakSlider_, showBehavior ? SW_SHOW : SW_HIDE);
         }
 
         // 背景设置页控件

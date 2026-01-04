@@ -49,6 +49,10 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                     g_pomodoroTimerSettings->pomodoroMinutes = minutes;
                     g_pomodoroTimer->updateSettings(*g_pomodoroTimerSettings);
                 });
+                g_settingsWindow->setBreakMinutesChangedHandler([](int minutes) {
+                    g_pomodoroTimerSettings->breakMinutes = minutes;
+                    g_pomodoroTimer->updateSettings(*g_pomodoroTimerSettings);
+                });
                 g_settingsWindow->setAutoStartNextPomodoroAfterRestChangedHandler([](bool enabled) {
                     g_pomodoroTimerSettings->autoStartNextPomodoroAfterRest = enabled;
                     g_pomodoroTimer->updateSettings(*g_pomodoroTimerSettings);

@@ -28,7 +28,7 @@ namespace pomodoro {
 
         struct Settings {
             int pomodoroMinutes{ 25 };
-            int breakMinutes{ 3 };
+            int breakMinutes{ 1 };
             int longBreakCycle{ 4 };
             int longBreakMinutes{ 15 };
 

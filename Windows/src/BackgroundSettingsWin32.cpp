@@ -278,6 +278,14 @@ namespace pomodoro {
             pomodoroMinutes_ = pomodoroMinutes;
         }
 
+        // 解析可选的 breakMinutes 字段（短休息分钟）
+        int breakMinutes = breakMinutes_;
+        if (ExtractJsonIntFieldFromRoot(json, L"breakMinutes", breakMinutes)) {
+            if (breakMinutes < 1) breakMinutes = 1;
+            if (breakMinutes > 30) breakMinutes = 30;
+            breakMinutes_ = breakMinutes;
+        }
+
         // 解析可选的 overlayMessage 字段
         ExtractJsonStringFieldFromRoot(json, L"overlayMessage", overlayMessage_);
 
@@ -312,6 +320,7 @@ namespace pomodoro {
 
         out << L"  ],\n";
         out << L"  \"pomodoroMinutes\": " << pomodoroMinutes_ << L",\n";
+        out << L"  \"breakMinutes\": " << breakMinutes_ << L",\n";
         out << L"  \"autoStartNextPomodoroAfterRest\": " << (autoStartNextPomodoroAfterRest_ ? L"true" : L"false") << L",\n";
         out << L"  \"overlayMessage\": \"" << EscapeJsonString(overlayMessage_) << L"\"\n";
         out << L"}\n";

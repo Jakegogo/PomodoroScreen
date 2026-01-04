@@ -25,6 +25,9 @@ namespace {
     constexpr UINT_PTR kTimerRevealUiAfterPoster = 4;
     constexpr int kIdCancelButton = 3001;
 
+    // Posted from MFPlay callback thread to UI thread: show poster shield to cover loop gap.
+    constexpr UINT kMsgShowPosterForLoop = WM_APP + 10;
+
     // 全局 GDI+ 初始化
     ULONG_PTR g_gdiplusToken = 0;
 
@@ -444,9 +447,29 @@ namespace pomodoro {
         }
 
     private:
-        void onEvent(MFP_EVENT_HEADER*) {
-            // For the minimal implementation, we don't need to react to events.
+        void onEvent(MFP_EVENT_HEADER* e) {
+            // Keep layout in sync (MFPlay may recreate the internal video window).
             updateVideoWindowLayout();
+
+            // Loop playback: when playback ends, seek to 0 and play again.
+            if (!e || !player_) return;
+            if (e->eEventType != MFP_EVENT_TYPE_PLAYBACK_ENDED) return;
+
+            // Some decoders briefly tear down the video surface at loop boundary; show poster to cover.
+            // Must post to UI thread; MFPlay callback may come from a non-UI thread.
+            if (hwnd_) {
+                PostMessageW(hwnd_, kMsgShowPosterForLoop, 0, 0);
+            }
+
+            PROPVARIANT pv{};
+            PropVariantInit(&pv);
+            pv.vt = VT_I8;
+            pv.hVal.QuadPart = 0; // 0s in 100ns
+            player_->SetPosition(MFP_POSITIONTYPE_100NS, &pv);
+            PropVariantClear(&pv);
+
+            player_->Play();
+            player_->SetRate(static_cast<float>(playbackRate_));
         }
 
         void updateVideoWindowLayout() {
@@ -719,8 +742,17 @@ namespace pomodoro {
         if (!hwnd_) {
             return;
         }
-        ShowWindow(hwnd_, SW_SHOW);
-        UpdateWindow(hwnd_);
+        const bool isVideo = (g_preparedKind == PreparedKind::Video && !g_preparedVideoPath.empty());
+        const bool willShowPoster = isVideo && (g_videoPoster != nullptr);
+
+        // For video + poster mode, avoid showing the main window until the poster shield is visible.
+        // This prevents a brief black paint of the main window before the poster appears.
+        if (willShowPoster) {
+            ShowWindow(hwnd_, SW_HIDE);
+        } else {
+            ShowWindow(hwnd_, SW_SHOW);
+            UpdateWindow(hwnd_);
+        }
         isVisible_ = true;
 
         SetWindowPos(hwnd_, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
@@ -742,7 +774,7 @@ namespace pomodoro {
             ShowWindow(uiOverlayWindow_, SW_HIDE);
         }
 
-        if (g_preparedKind == PreparedKind::Video && !g_preparedVideoPath.empty()) {
+        if (isVideo) {
             if (!videoPlayer_) {
                 videoPlayer_ = std::make_unique<OverlayVideoPlayerWin32>();
             }
@@ -753,7 +785,6 @@ namespace pomodoro {
 
             if (posterShieldWindow_) {
                 if (posterVisible_) {
-                    renderPosterShield();
                     SetWindowPos(
                         posterShieldWindow_,
                         HWND_TOPMOST,
@@ -763,10 +794,19 @@ namespace pomodoro {
                         bounds_.bottom - bounds_.top,
                         SWP_NOACTIVATE | SWP_SHOWWINDOW
                     );
+                    // Render after the window is shown to avoid a one-frame blank layered surface.
+                    renderPosterShield();
                 } else {
                     ShowWindow(posterShieldWindow_, SW_HIDE);
                 }
             }
+
+            // Now that the poster is visible (covering the screen), show the video host window behind it.
+            if (willShowPoster) {
+                ShowWindow(hwnd_, SW_SHOW);
+                UpdateWindow(hwnd_);
+            }
+
             if (uiOverlayWindow_) {
                 // Reveal UI overlay after poster is visible (next tick).
                 if (revealUiAfterPosterTimerId_ != 0) {
@@ -880,6 +920,35 @@ namespace pomodoro {
 
     LRESULT OverlayWindowWin32::handleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         switch (msg) {
+        case kMsgShowPosterForLoop: {
+            // Re-show poster shield to mask any transient frame gap during loop restart.
+            if (posterShieldWindow_ && g_videoPoster) {
+                posterVisible_ = true;
+                posterShownTick_ = GetTickCount64();
+
+                SetWindowPos(
+                    posterShieldWindow_,
+                    HWND_TOPMOST,
+                    bounds_.left,
+                    bounds_.top,
+                    bounds_.right - bounds_.left,
+                    bounds_.bottom - bounds_.top,
+                    SWP_NOACTIVATE | SWP_SHOWWINDOW
+                );
+                renderPosterShield();
+
+                // Ensure z-order: poster below UI overlay.
+                if (uiOverlayWindow_) {
+                    SetWindowPos(uiOverlayWindow_, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                }
+
+                // Ensure hide timer is running to remove poster once video is rolling again.
+                if (posterTimerId_ == 0) {
+                    posterTimerId_ = SetTimer(hwnd_, kTimerHidePoster, 50, nullptr);
+                }
+            }
+            return 0;
+        }
         case WM_CREATE: {
             dpi_ = pomodoro::win32::GetDpiForHwnd(hwnd);
             // 创建“取消休息”按钮，位于窗口底部中间

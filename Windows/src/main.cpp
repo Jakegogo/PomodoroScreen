@@ -96,6 +96,7 @@ int main() {
 
     PomodoroTimer::Settings settings;
     settings.pomodoroMinutes = backgroundSettings.pomodoroMinutes();
+    settings.breakMinutes = backgroundSettings.breakMinutes();
     settings.autoStartNextPomodoroAfterRest = backgroundSettings.autoStartNextPomodoroAfterRest();
     timer.updateSettings(settings);
 
@@ -196,6 +197,10 @@ int main() {
                     g_settingsWindow = new SettingsWindowWin32(hInstance, backgroundSettings);
                     g_settingsWindow->setPomodoroMinutesChangedHandler([&timer, &settings](int minutes) {
                         settings.pomodoroMinutes = minutes;
+                        timer.updateSettings(settings);
+                    });
+                    g_settingsWindow->setBreakMinutesChangedHandler([&timer, &settings](int minutes) {
+                        settings.breakMinutes = minutes;
                         timer.updateSettings(settings);
                     });
                     g_settingsWindow->setAutoStartNextPomodoroAfterRestChangedHandler([&timer, &settings](bool enabled) {
