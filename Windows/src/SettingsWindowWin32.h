@@ -56,6 +56,8 @@ namespace pomodoro {
         HWND removeButton_{ nullptr };
         HWND moveUpButton_{ nullptr };
         HWND moveDownButton_{ nullptr };
+        HWND overlayMessageLabel_{ nullptr };
+        HWND overlayMessageEdit_{ nullptr };
         int activeTabIndex_{ 0 };
         BackgroundSettingsWin32& settings_;
         std::function<void(int)> onPomodoroMinutesChanged_{};

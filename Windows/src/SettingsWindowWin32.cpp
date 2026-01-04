@@ -23,6 +23,7 @@ namespace {
     constexpr int kIdPomodoroSlider = 1008;
     constexpr int kIdTabBehavior = 1101;
     constexpr int kIdTabBackground = 1102;
+    constexpr int kIdOverlayMessageEdit = 1201;
 
     std::vector<int> BuildPomodoroMinuteOptions() {
         std::vector<int> out;
@@ -207,6 +208,21 @@ namespace pomodoro {
                     break;
                 }
             }
+            if (id == kIdOverlayMessageEdit && code == EN_KILLFOCUS) {
+                // Save overlay message when the textbox loses focus.
+                if (overlayMessageEdit_) {
+                    const int len = GetWindowTextLengthW(overlayMessageEdit_);
+                    std::wstring text;
+                    if (len > 0) {
+                        text.resize(static_cast<std::size_t>(len));
+                        GetWindowTextW(overlayMessageEdit_, text.data(), len + 1);
+                    }
+                    if (text != settings_.overlayMessage()) {
+                        settings_.setOverlayMessage(std::move(text));
+                        settings_.saveToFile(BackgroundSettingsWin32::DefaultConfigPath());
+                    }
+                }
+            }
             return 0;
         }
         case WM_CLOSE:
@@ -284,6 +300,36 @@ namespace pomodoro {
             320,
             hwnd,
             reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdListBox)),
+            hInstance_,
+            nullptr
+        );
+
+        // 背景设置页控件：自定义遮罩提示文案（失焦保存到 JSON）
+        overlayMessageLabel_ = CreateWindowExW(
+            0,
+            L"STATIC",
+            L"\u906e\u7f69\u63d0\u793a\u6587\u6848\uff1a", // "遮罩提示文案："
+            WS_CHILD | WS_VISIBLE,
+            20,
+            50,
+            320,
+            18,
+            hwnd,
+            nullptr,
+            hInstance_,
+            nullptr
+        );
+        overlayMessageEdit_ = CreateWindowExW(
+            WS_EX_CLIENTEDGE,
+            L"EDIT",
+            settings_.overlayMessage().c_str(),
+            WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
+            20,
+            70,
+            320,
+            24,
+            hwnd,
+            reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdOverlayMessageEdit)),
             hInstance_,
             nullptr
         );
@@ -564,9 +610,23 @@ namespace pomodoro {
         const int rightPanelW = S(140);
         const int rightPanelX = clientW - margin - rightPanelW;
         const int listX = margin;
-        const int listY = contentTop;
+        const int msgLabelH = S(18);
+        const int msgEditH = S(30);
+        const int msgGap = S(6);
+        const int msgToListGap = S(12);
+        const int msgY = contentTop;
+        const int listY = msgY + msgLabelH + msgGap + msgEditH + msgToListGap;
         const int listW = max(S(260), rightPanelX - gap - listX);
         const int listH = max(S(220), clientH - listY - bottomMargin);
+
+        if (overlayMessageLabel_) {
+            SetWindowPos(overlayMessageLabel_, nullptr, listX, msgY, listW, msgLabelH, SWP_NOZORDER | SWP_NOACTIVATE);
+            pomodoro::win32::SetControlFont(overlayMessageLabel_, uiFont_);
+        }
+        if (overlayMessageEdit_) {
+            SetWindowPos(overlayMessageEdit_, nullptr, listX, msgY + msgLabelH + msgGap, listW, msgEditH, SWP_NOZORDER | SWP_NOACTIVATE);
+            pomodoro::win32::SetControlFont(overlayMessageEdit_, uiFont_);
+        }
 
         if (listBox_) {
             SetWindowPos(listBox_, nullptr, listX, listY, listW, listH, SWP_NOZORDER | SWP_NOACTIVATE);
@@ -764,6 +824,12 @@ namespace pomodoro {
         }
 
         // 背景设置页控件
+        if (overlayMessageLabel_) {
+            ShowWindow(overlayMessageLabel_, showBackground ? SW_SHOW : SW_HIDE);
+        }
+        if (overlayMessageEdit_) {
+            ShowWindow(overlayMessageEdit_, showBackground ? SW_SHOW : SW_HIDE);
+        }
         if (listBox_) {
             ShowWindow(listBox_, showBackground ? SW_SHOW : SW_HIDE);
         }

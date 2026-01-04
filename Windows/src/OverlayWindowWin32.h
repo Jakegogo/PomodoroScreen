@@ -73,6 +73,7 @@ namespace pomodoro {
         UINT_PTR startFadeTimerId_{ 0 };
         UINT_PTR fadeTimerId_{ 0 };
         UINT_PTR ensureTopmostTimerId_{ 0 };
+        UINT_PTR revealUiAfterPosterTimerId_{ 0 };
 
         // 取消休息按钮
         HWND cancelButton_{ nullptr };

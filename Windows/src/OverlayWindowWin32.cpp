@@ -22,6 +22,7 @@ namespace {
     constexpr UINT_PTR kTimerStartFadeText = 1;
     constexpr UINT_PTR kTimerHidePoster = 2;
     constexpr UINT_PTR kTimerEnsureTopmost = 3;
+    constexpr UINT_PTR kTimerRevealUiAfterPoster = 4;
     constexpr int kIdCancelButton = 3001;
 
     // 全局 GDI+ 初始化
@@ -49,6 +50,9 @@ namespace {
     std::unique_ptr<Gdiplus::Bitmap> g_videoPoster;
     std::wstring g_preparedVideoPath;
     double g_preparedVideoPlaybackRate = 1.0;
+    // Round-robin cursor for mixed image/video rotation. In-memory only (resets on app restart).
+    std::size_t g_backgroundRotateCursor = 0;
+    std::wstring g_overlayMessage;
 
     std::unique_ptr<Gdiplus::Image> TryLoadBackgroundImage(const std::wstring& path) {
         if (path.empty()) return nullptr;
@@ -98,12 +102,12 @@ namespace {
             type->Release();
         }
 
-        // Seek to ~1s to avoid black intro frames.
+        // Seek to ~0.5s to avoid black intro frames.
         {
             PROPVARIANT pv{};
             PropVariantInit(&pv);
             pv.vt = VT_I8;
-            pv.hVal.QuadPart = 10'000'000; // 1s in 100ns
+            pv.hVal.QuadPart = 5'000'000; // 0.5s in 100ns
             reader->SetCurrentPosition(GUID_NULL, pv);
             PropVariantClear(&pv);
         }
@@ -534,6 +538,7 @@ namespace pomodoro {
         g_videoPoster.reset();
         g_preparedVideoPath.clear();
         g_preparedVideoPlaybackRate = 1.0;
+        g_overlayMessage.clear();
 
         BackgroundSettingsWin32 settings;
         const std::wstring settingsPath = BackgroundSettingsWin32::DefaultConfigPath();
@@ -541,8 +546,24 @@ namespace pomodoro {
             return;
         }
 
-        for (const auto& f : settings.files()) {
+        g_overlayMessage = settings.overlayMessage();
+
+        const auto& files = settings.files();
+        if (files.empty()) return;
+
+        // Mixed rotation across image/video list.
+        // Each rest cycle advances to the next entry; invalid entries are skipped.
+        const std::size_t n = files.size();
+        std::size_t start = (g_backgroundRotateCursor >= n) ? 0 : g_backgroundRotateCursor;
+
+        for (std::size_t attempt = 0; attempt < n; ++attempt) {
+            const std::size_t idx = (start + attempt) % n;
+            const auto& f = files[idx];
             if (f.path.empty()) continue;
+
+            // Advance cursor so next rest cycle tries the following item first.
+            g_backgroundRotateCursor = (idx + 1) % n;
+
             if (f.type == BackgroundType::Image) {
                 auto img = TryLoadBackgroundImage(f.path);
                 if (img) {
@@ -574,6 +595,10 @@ namespace pomodoro {
         if (startFadeTimerId_ != 0 && hwnd_) {
             KillTimer(hwnd_, startFadeTimerId_);
             startFadeTimerId_ = 0;
+        }
+        if (revealUiAfterPosterTimerId_ != 0 && hwnd_) {
+            KillTimer(hwnd_, revealUiAfterPosterTimerId_);
+            revealUiAfterPosterTimerId_ = 0;
         }
         if (ensureTopmostTimerId_ != 0 && hwnd_) {
             KillTimer(hwnd_, ensureTopmostTimerId_);
@@ -711,11 +736,10 @@ namespace pomodoro {
         if (cancelButton_) {
             ShowWindow(cancelButton_, SW_HIDE);
         }
+        // For video mode, we will reveal the UI overlay only after the poster shield has been shown,
+        // to avoid showing text/button on top of a blank/black frame.
         if (uiOverlayWindow_) {
-            layoutUiOverlay();
-            renderUiOverlay();
-            ShowWindow(uiOverlayWindow_, SW_SHOWNOACTIVATE);
-            SetWindowPos(uiOverlayWindow_, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            ShowWindow(uiOverlayWindow_, SW_HIDE);
         }
 
         if (g_preparedKind == PreparedKind::Video && !g_preparedVideoPath.empty()) {
@@ -744,8 +768,20 @@ namespace pomodoro {
                 }
             }
             if (uiOverlayWindow_) {
-                // Keep UI overlay above the poster shield.
-                SetWindowPos(uiOverlayWindow_, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                // Reveal UI overlay after poster is visible (next tick).
+                if (revealUiAfterPosterTimerId_ != 0) {
+                    KillTimer(hwnd_, revealUiAfterPosterTimerId_);
+                    revealUiAfterPosterTimerId_ = 0;
+                }
+                if (posterVisible_) {
+                    revealUiAfterPosterTimerId_ = SetTimer(hwnd_, kTimerRevealUiAfterPoster, 16, nullptr);
+                } else {
+                    // No poster available -> show UI immediately.
+                    layoutUiOverlay();
+                    renderUiOverlay();
+                    ShowWindow(uiOverlayWindow_, SW_SHOWNOACTIVATE);
+                    SetWindowPos(uiOverlayWindow_, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                }
             }
 
             if (posterTimerId_ != 0) {
@@ -753,6 +789,14 @@ namespace pomodoro {
             }
             posterTimerId_ = SetTimer(hwnd_, kTimerHidePoster, 50, nullptr);
         } else {
+            // Non-video: show UI overlay immediately.
+            if (uiOverlayWindow_) {
+                layoutUiOverlay();
+                renderUiOverlay();
+                ShowWindow(uiOverlayWindow_, SW_SHOWNOACTIVATE);
+                SetWindowPos(uiOverlayWindow_, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            }
+
             // Non-video: stop any existing video player and poster.
             if (videoPlayer_) {
                 videoPlayer_->stop();
@@ -772,6 +816,10 @@ namespace pomodoro {
     void OverlayWindowWin32::hide() {
         if (!hwnd_) {
             return;
+        }
+        if (revealUiAfterPosterTimerId_ != 0) {
+            KillTimer(hwnd_, revealUiAfterPosterTimerId_);
+            revealUiAfterPosterTimerId_ = 0;
         }
         if (ensureTopmostTimerId_ != 0) {
             KillTimer(hwnd_, ensureTopmostTimerId_);
@@ -1025,6 +1073,19 @@ namespace pomodoro {
                 }
                 return 0;
             }
+            if (wParam == kTimerRevealUiAfterPoster) {
+                if (revealUiAfterPosterTimerId_ != 0) {
+                    KillTimer(hwnd_, revealUiAfterPosterTimerId_);
+                    revealUiAfterPosterTimerId_ = 0;
+                }
+                if (uiOverlayWindow_) {
+                    layoutUiOverlay();
+                    renderUiOverlay();
+                    ShowWindow(uiOverlayWindow_, SW_SHOWNOACTIVATE);
+                    SetWindowPos(uiOverlayWindow_, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                }
+                return 0;
+            }
             if (wParam == kTimerHidePoster) {
                 if (!posterVisible_) {
                     if (posterTimerId_ != 0) {
@@ -1037,7 +1098,7 @@ namespace pomodoro {
                 const ULONGLONG elapsed = (posterShownTick_ > 0) ? (now - posterShownTick_) : 0;
                 const LONGLONG pos100ns = videoPlayer_ ? videoPlayer_->currentPosition100ns() : 0;
 
-                const bool shouldHide = ((pos100ns > 10'000'000) && (elapsed > 300)) || (elapsed > 3000);
+                const bool shouldHide = ((pos100ns > 5'000'000) && (elapsed > 300)) || (elapsed > 3000);
                 if (shouldHide) {
                     posterVisible_ = false;
                     posterShownTick_ = 0;
@@ -1135,7 +1196,7 @@ namespace pomodoro {
             format.SetAlignment(Gdiplus::StringAlignmentCenter);
             format.SetLineAlignment(Gdiplus::StringAlignmentCenter);
 
-            const wchar_t* text = L"Rest Time - PomodoroScreen";
+            const wchar_t* text = (!g_overlayMessage.empty()) ? g_overlayMessage.c_str() : L"Rest Time - PomodoroScreen";
             Gdiplus::RectF rect(
                 static_cast<Gdiplus::REAL>(client.left),
                 static_cast<Gdiplus::REAL>(client.top - pomodoro::win32::Scale(80, dpi)), // 稍微上移，避免挡住按钮
@@ -1286,7 +1347,7 @@ namespace pomodoro {
             fmt.SetAlignment(Gdiplus::StringAlignmentCenter);
             fmt.SetLineAlignment(Gdiplus::StringAlignmentCenter);
 
-            const wchar_t* title = L"Rest Time - PomodoroScreen";
+            const wchar_t* title = (!g_overlayMessage.empty()) ? g_overlayMessage.c_str() : L"Rest Time - PomodoroScreen";
             Gdiplus::SolidBrush titleBrush(Gdiplus::Color(textAlpha_, 255, 255, 255));
             Gdiplus::RectF titleRect(
                 0.0f,
