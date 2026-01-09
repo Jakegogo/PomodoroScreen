@@ -133,7 +133,8 @@ class HealthRingsView: NSView {
     }
     
     private func preloadCustomFont() {
-        let fontSize: CGFloat = 24
+        // UI优化：弹窗中心倒计时更大更粗
+        let fontSize: CGFloat = 36
         
         // 尝试加载自定义字体，如果失败则使用系统字体作为备选
         if let customFont = NSFont(name: "BeautifulPoliceOfficer", size: fontSize) {
@@ -156,7 +157,7 @@ class HealthRingsView: NSView {
         
         // 如果自定义字体加载失败，使用系统字体作为备选
         if countdownFont == nil {
-            countdownFont = NSFont.monospacedDigitSystemFont(ofSize: fontSize, weight: .bold)
+            countdownFont = NSFont.monospacedDigitSystemFont(ofSize: fontSize, weight: .heavy)
         }
     }
     
@@ -1023,11 +1024,14 @@ class HealthRingsView: NSView {
         // 格式化倒计时时间
         let minutes = Int(countdownTime) / 60
         let seconds = Int(countdownTime) % 60
-        // 使用普通冒号，稍微增加字距来提升视觉宽度
-        let timeText = String(format: "%02d:%02d", minutes, seconds)
+        
+        // UI优化：分钟不补0（例如 08:53 -> 8:53），秒始终两位
+        let minutesText = String(minutes)
+        let secondsText = String(format: "%02d", seconds)
+        let timeText = "\(minutesText):\(secondsText)"
         
         // 使用预加载的自定义字体
-        let font = countdownFont ?? NSFont.monospacedDigitSystemFont(ofSize: 24, weight: .bold)
+        let font = countdownFont ?? NSFont.monospacedDigitSystemFont(ofSize: 30, weight: .heavy)
         
         // 闪烁冒号：基于当前秒的奇偶切换可见性
         let colonVisible = (max(0, Int(countdownTime)) % 2 == 0)
@@ -1039,11 +1043,14 @@ class HealthRingsView: NSView {
             .strokeWidth: 3.0
         ]
         let strokeMutable = NSMutableAttributedString(string: timeText, attributes: strokeAttributes)
-        // 冒号范围位于索引2（两位分钟后）
-        let colonRange = NSRange(location: 2, length: 1)
+        // 冒号位置与分钟位数相关，动态计算（避免假定两位分钟）
+        let colonIndex = minutesText.count
+        let colonRange = NSRange(location: colonIndex, length: 1)
         // 为冒号增加少量字距以稍微加宽
-        strokeMutable.addAttributes([.kern: 0.2], range: colonRange)
-        if !colonVisible, timeText.count >= 3 {
+        if timeText.count > colonIndex {
+            strokeMutable.addAttributes([.kern: 0.2], range: colonRange)
+        }
+        if !colonVisible, timeText.count > colonIndex {
             // 将冒号的描边颜色设为透明，保持占位但不显示
             strokeMutable.addAttributes([.strokeColor: NSColor.clear], range: colonRange)
         }
@@ -1064,8 +1071,10 @@ class HealthRingsView: NSView {
             .foregroundColor: NSColor.labelColor
         ]
         let fillMutable = NSMutableAttributedString(string: timeText, attributes: fillAttributes)
-        fillMutable.addAttributes([.kern: 0.2], range: colonRange)
-        if !colonVisible, timeText.count >= 3 {
+        if timeText.count > colonIndex {
+            fillMutable.addAttributes([.kern: 0.2], range: colonRange)
+        }
+        if !colonVisible, timeText.count > colonIndex {
             // 将冒号的填充颜色设为透明
             fillMutable.addAttributes([.foregroundColor: NSColor.clear], range: colonRange)
         }

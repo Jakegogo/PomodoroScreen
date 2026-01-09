@@ -39,6 +39,10 @@ class StatusBarPopupWindow: NSWindow {
         ("健康度", NSColor.healthLight)
     ]
     
+    // UI优化：图例右侧百分比展示
+    private var legendValueLabels: [NSTextField] = []
+    private var legendValuePercents: [Int] = [0, 0, 0, 0] // 对应 legendItems 的顺序
+    
     // MARK: - Layout Configuration
     private struct LayoutConfig {
         let windowWidth: CGFloat
@@ -139,14 +143,15 @@ class StatusBarPopupWindow: NSWindow {
         // 健康环水平居中
         var healthRingX: CGFloat { (windowWidth - healthRingSize) / 2 }
 
-        // 专注模式开关位置（在最底部，标签和开关作为整体靠右）
+        // 专注模式开关位置（在最底部，标签和开关作为整体居中）
         var meetingModeSwitchY: CGFloat { 
             contentBaseY - meetingModeSwitchHeight - verticalSpacing
         }
         // 计算标签和开关的总宽度
         private var meetingModeGroupWidth: CGFloat { meetingModeLabelWidth + 4 + meetingModeSwitchWidth }
-        // 整体靠右，标签在左，开关在右
-        var meetingModeSwitchX: CGFloat { windowWidth - horizontalPadding - meetingModeGroupWidth + 10 }
+        // 整体居中：以窗口中心为基准放置整个组件组
+        private var meetingModeGroupX: CGFloat { (windowWidth - meetingModeGroupWidth) / 2 }
+        var meetingModeSwitchX: CGFloat { meetingModeGroupX }
         var meetingModeLabelX: CGFloat { meetingModeSwitchX + meetingModeSwitchWidth + 4 }
         
         
@@ -168,7 +173,8 @@ class StatusBarPopupWindow: NSWindow {
         
         var legendX: CGFloat {
             // 动态计算图例宽度并居中
-            let legendWidth: CGFloat = 120 // 图例文字大概宽度
+            // UI优化：图例支持“左文字 + 右百分比”，需要更宽的布局
+            let legendWidth: CGFloat = 190
             return (windowWidth - legendWidth) / 2
         }
         
@@ -483,6 +489,11 @@ class StatusBarPopupWindow: NSWindow {
         let startX = layoutConfig.legendX
         let startY = layoutConfig.legendStartY
         let itemHeight = layoutConfig.legendItemHeight + layoutConfig.legendSpacing
+        let rowWidth: CGFloat = 190
+        let valueWidth: CGFloat = 56
+        
+        // 重新创建前先清空引用，避免累积
+        legendValueLabels.removeAll()
         
         for (index, item) in Self.legendItems.enumerated() {
             let y = startY - CGFloat(index) * itemHeight
@@ -497,9 +508,19 @@ class StatusBarPopupWindow: NSWindow {
             // 创建标签
             let label = createLegendLabel(
                 text: item.0,
-                frame: NSRect(x: startX + 20, y: y - 2, width: 180, height: 22)
+                frame: NSRect(x: startX + 20, y: y - 2, width: rowWidth - valueWidth - 20, height: 22)
             )
             contentView.addSubview(label)
+            
+            // 创建右侧百分比值（右对齐，留出更大的中间间距）
+            let percent = index < legendValuePercents.count ? legendValuePercents[index] : 0
+            let valueText = "\(percent)%"
+            let valueLabel = createLegendValueLabel(
+                text: valueText,
+                frame: NSRect(x: startX + rowWidth - valueWidth, y: y - 2, width: valueWidth, height: 22)
+            )
+            contentView.addSubview(valueLabel)
+            legendValueLabels.append(valueLabel)
         }
     }
     
@@ -518,6 +539,16 @@ class StatusBarPopupWindow: NSWindow {
         label.textColor = NSColor.secondaryLabelColor
         label.frame = frame
         label.identifier = NSUserInterfaceItemIdentifier("legend-label")
+        return label
+    }
+    
+    private func createLegendValueLabel(text: String, frame: NSRect) -> NSTextField {
+        let label = NSTextField(labelWithString: text)
+        label.font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium)
+        label.textColor = NSColor.secondaryLabelColor
+        label.alignment = .right
+        label.frame = frame
+        label.identifier = NSUserInterfaceItemIdentifier("legend-value")
         return label
     }
     
@@ -597,6 +628,23 @@ class StatusBarPopupWindow: NSWindow {
             focus: focus,
             health: health
         )
+        
+        // UI优化：同步更新底部图例右侧百分比（与 legendItems 顺序一致）
+        legendValuePercents = [
+            Int(restAdequacy * 100),
+            Int(workIntensity * 100),
+            Int(focus * 100),
+            Int(health * 100)
+        ]
+        updateLegendValueLabels()
+    }
+
+    private func updateLegendValueLabels() {
+        guard !legendValueLabels.isEmpty else { return }
+        let count = min(legendValueLabels.count, legendValuePercents.count)
+        for i in 0..<count {
+            legendValueLabels[i].stringValue = "\(legendValuePercents[i])%"
+        }
     }
     
     func updateCountdown(time: TimeInterval, title: String) {
@@ -715,7 +763,9 @@ class StatusBarPopupWindow: NSWindow {
     
     private func removeLegendElements(from contentView: NSView) {
         contentView.subviews.forEach { subview in
-            if subview.identifier?.rawValue == "legend-color" || subview.identifier?.rawValue == "legend-label" {
+            if subview.identifier?.rawValue == "legend-color"
+                || subview.identifier?.rawValue == "legend-label"
+                || subview.identifier?.rawValue == "legend-value" {
                 subview.removeFromSuperview()
             }
         }
