@@ -43,10 +43,21 @@ namespace pomodoro {
         int pomodoroMinutes() const { return pomodoroMinutes_; }
         void setPomodoroMinutes(int minutes) { pomodoroMinutes_ = minutes; }
 
+        // 休息时长（短休息，分钟）：允许值由 UI 控制（1..10,15,20,30），默认 1
+        int breakMinutes() const { return breakMinutes_; }
+        void setBreakMinutes(int minutes) { breakMinutes_ = minutes; }
+
+        // 遮罩层提示文案（例如 "休息一下吧!"）。
+        // 如果为空，UI 会使用默认文案。
+        const std::wstring& overlayMessage() const { return overlayMessage_; }
+        void setOverlayMessage(std::wstring value) { overlayMessage_ = std::move(value); }
+
     private:
         std::vector<BackgroundFileWin32> files_{};
         bool autoStartNextPomodoroAfterRest_{ true };
         int pomodoroMinutes_{ 25 };
+        int breakMinutes_{ 1 };
+        std::wstring overlayMessage_{};
     };
 
 } // namespace pomodoro

@@ -141,6 +141,36 @@ namespace {
         return true;
     }
 
+    // 在 JSON 文本中提取形如 "key": "value" 的字符串值（root 层）。
+    bool ExtractJsonStringFieldFromRoot(const std::wstring& json, const std::wstring& key, std::wstring& outValue) {
+        std::wstring pattern = L"\"" + key + L"\"";
+        auto keyPos = json.find(pattern);
+        if (keyPos == std::wstring::npos) return false;
+
+        auto colonPos = json.find(L':', keyPos + pattern.size());
+        if (colonPos == std::wstring::npos) return false;
+
+        auto quoteStart = json.find(L'"', colonPos);
+        if (quoteStart == std::wstring::npos) return false;
+
+        std::wstring raw;
+        for (std::size_t i = quoteStart + 1; i < json.size(); ++i) {
+            wchar_t ch = json[i];
+            if (ch == L'\\' && i + 1 < json.size()) {
+                raw.push_back(ch);
+                raw.push_back(json[i + 1]);
+                ++i;
+            } else if (ch == L'"') {
+                break;
+            } else {
+                raw.push_back(ch);
+            }
+        }
+
+        outValue = UnescapeJsonString(raw);
+        return true;
+    }
+
 } // namespace
 
 namespace pomodoro {
@@ -158,6 +188,7 @@ namespace pomodoro {
 
     bool BackgroundSettingsWin32::loadFromFile(const std::wstring& filePath) {
         files_.clear();
+        overlayMessage_.clear();
 
         std::wifstream in(filePath);
         if (!in.is_open()) {
@@ -247,6 +278,17 @@ namespace pomodoro {
             pomodoroMinutes_ = pomodoroMinutes;
         }
 
+        // 解析可选的 breakMinutes 字段（短休息分钟）
+        int breakMinutes = breakMinutes_;
+        if (ExtractJsonIntFieldFromRoot(json, L"breakMinutes", breakMinutes)) {
+            if (breakMinutes < 1) breakMinutes = 1;
+            if (breakMinutes > 30) breakMinutes = 30;
+            breakMinutes_ = breakMinutes;
+        }
+
+        // 解析可选的 overlayMessage 字段
+        ExtractJsonStringFieldFromRoot(json, L"overlayMessage", overlayMessage_);
+
         return true;
     }
 
@@ -278,7 +320,9 @@ namespace pomodoro {
 
         out << L"  ],\n";
         out << L"  \"pomodoroMinutes\": " << pomodoroMinutes_ << L",\n";
-        out << L"  \"autoStartNextPomodoroAfterRest\": " << (autoStartNextPomodoroAfterRest_ ? L"true" : L"false") << L"\n";
+        out << L"  \"breakMinutes\": " << breakMinutes_ << L",\n";
+        out << L"  \"autoStartNextPomodoroAfterRest\": " << (autoStartNextPomodoroAfterRest_ ? L"true" : L"false") << L",\n";
+        out << L"  \"overlayMessage\": \"" << EscapeJsonString(overlayMessage_) << L"\"\n";
         out << L"}\n";
 
         return true;

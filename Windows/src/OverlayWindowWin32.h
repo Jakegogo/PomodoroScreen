@@ -14,12 +14,21 @@
 
 #include <windows.h>
 #include <functional>
+#include <memory>
 
 namespace pomodoro {
+
+    struct OverlayVideoPlayerWin32;
+    LRESULT CALLBACK OverlayUiWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+    LRESULT CALLBACK OverlayPosterShieldWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
     class OverlayWindowWin32 {
     public:
         using DismissCallback = std::function<void()>;
+
+        // Called once per rest cycle (before creating per-monitor overlays).
+        // Picks the next background from settings and prepares shared resources (image/video/poster).
+        static void PrepareNextBackgroundForRest();
 
         OverlayWindowWin32();
         ~OverlayWindowWin32();
@@ -39,12 +48,18 @@ namespace pomodoro {
         static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
     private:
+        friend LRESULT CALLBACK OverlayUiWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+        friend LRESULT CALLBACK OverlayPosterShieldWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
         // 实例级别的消息处理（显式传入 hwnd，避免在 WM_NCCREATE 阶段 hwnd_ 仍为 null）
         LRESULT handleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
         void paint();
         void applyDpiLayout(UINT dpi, const RECT* suggestedWindowRect);
         void layoutCancelButton();
+        void layoutUiOverlay();
+        void renderUiOverlay();
+        void renderPosterShield();
 
     private:
         HWND hwnd_{ nullptr };
@@ -57,12 +72,27 @@ namespace pomodoro {
         BYTE textAlpha_{ 255 };
         UINT_PTR startFadeTimerId_{ 0 };
         UINT_PTR fadeTimerId_{ 0 };
+        UINT_PTR ensureTopmostTimerId_{ 0 };
+        UINT_PTR revealUiAfterPosterTimerId_{ 0 };
 
         // 取消休息按钮
         HWND cancelButton_{ nullptr };
         HFONT buttonFont_{ nullptr };
 
+        // Separate topmost UI overlay window (layered) to keep text/button above video.
+        HWND uiOverlayWindow_{ nullptr };
+        RECT uiCancelButtonRect_{};
+        bool uiCancelPressed_{ false };
+
+        // Poster shield window (non-layered) to cover transient black frames from video presenter.
+        HWND posterShieldWindow_{ nullptr };
+        bool posterVisible_{ false };
+        UINT_PTR posterTimerId_{ 0 };
+        ULONGLONG posterShownTick_{ 0 };
+
         UINT dpi_{ 96 };
+
+        std::unique_ptr<OverlayVideoPlayerWin32> videoPlayer_{};
     };
 
 } // namespace pomodoro

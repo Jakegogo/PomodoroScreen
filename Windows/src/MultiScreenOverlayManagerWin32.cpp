@@ -13,6 +13,9 @@ namespace pomodoro {
     void MultiScreenOverlayManagerWin32::showOverlaysOnAllScreens() {
         hideAllOverlays();
 
+        // Prepare one background (image or video) for this rest cycle and reuse it across all screens.
+        OverlayWindowWin32::PrepareNextBackgroundForRest();
+
         // 枚举所有显示器，为每个显示器创建一个遮罩窗口
         EnumDisplayMonitors(nullptr, nullptr, MonitorEnumProc, reinterpret_cast<LPARAM>(this));
 

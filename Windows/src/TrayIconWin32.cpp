@@ -10,6 +10,7 @@ namespace {
 
     constexpr UINT kMenuIdCompleteNow = 41001;
     constexpr UINT kMenuIdSettings = 41002;
+    constexpr UINT kMenuIdExit = 41003;
 
     // 统一的 'P' 字母图标，右下角用小圆点表示不同状态
     HICON CreateStateIcon(pomodoro::TrayIconState state) {
@@ -329,6 +330,8 @@ namespace pomodoro {
                 AppendMenuW(menu, MF_STRING, kMenuIdCompleteNow, L"\u7acb\u5373\u5b8c\u6210"); // "立即完成"
                 AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
                 AppendMenuW(menu, MF_STRING, kMenuIdSettings, L"\u8bbe\u7f6e"); // "设置"
+                AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+                AppendMenuW(menu, MF_STRING, kMenuIdExit, L"\u9000\u51fa"); // "退出"
 
                 POINT pt{};
                 GetCursorPos(&pt);
@@ -355,6 +358,11 @@ namespace pomodoro {
                 } else if (cmd == kMenuIdSettings) {
                     if (messageHwnd_) {
                         PostMessageW(messageHwnd_, WM_OPEN_SETTINGS, 0, 0);
+                    }
+                } else if (cmd == kMenuIdExit) {
+                    // Close the hidden main window -> WM_DESTROY posts WM_QUIT -> exits main loop.
+                    if (messageHwnd_) {
+                        PostMessageW(messageHwnd_, WM_CLOSE, 0, 0);
                     }
                 }
             }
