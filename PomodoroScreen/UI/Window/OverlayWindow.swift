@@ -1065,7 +1065,8 @@ class OverlayView: NSView {
         newButton.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             newButton.centerXAnchor.constraint(equalTo: centerXAnchor),
-            newButton.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -bounds.height * 0.2),
+            // 下移：将“距离底部”的边距减少 50%（原来是视图高度的 20%，现在是 10%）
+            newButton.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -bounds.height * 0.1),
             newButton.widthAnchor.constraint(equalToConstant: config.width),
             newButton.heightAnchor.constraint(equalToConstant: config.height)
         ])
