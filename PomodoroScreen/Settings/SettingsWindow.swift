@@ -15,6 +15,8 @@ class SettingsWindow: NSWindow {
     private var breakTimeSlider: NSSlider!
     private var breakTimeLabel: NSTextField!
     private var showCancelRestButtonCheckbox: NSButton!
+    private var overlayRestMessageTemplateTextView: NSTextView!
+    private var overlayStayUpMessageTemplateTextView: NSTextView!
     
     // 熬夜限制设置 UI 控件
     private var stayUpLimitCheckbox: NSButton!
@@ -60,6 +62,7 @@ class SettingsWindow: NSWindow {
     private var moveDownButton: NSButton!
     private var previewButton: NSButton!  // 预览按钮
     private var backgroundTypeLabel: NSTextField!
+    private var shuffleBackgroundsCheckbox: NSButton! // 随机播放复选框
     
     // 通用控件
     private var saveButton: NSButton!
@@ -77,6 +80,8 @@ class SettingsWindow: NSWindow {
     var screensaverRestartEnabled: Bool = true
     var screensaverActionIsRestart: Bool = false // true: 重新计时, false: 暂停计时
     var showCancelRestButton: Bool = true // 是否显示取消休息按钮
+    var overlayRestMessageTemplate: String = "" // 遮罩层提示文案模板
+    var overlayStayUpMessageTemplate: String = "" // 熬夜强制休息文案模板
     
     // 计划设置值
     var longBreakCycle: Int = 2 // 间隔N次后进行长休息
@@ -86,6 +91,7 @@ class SettingsWindow: NSWindow {
     
     // 背景设置值
     var backgroundFiles: [BackgroundFile] = [] // 背景文件列表
+    var shuffleBackgrounds: Bool = false // 是否随机播放背景
     
     // 熬夜限制设置值
     var stayUpLimitEnabled: Bool = false // 是否启用熬夜限制
@@ -102,7 +108,7 @@ class SettingsWindow: NSWindow {
     var autoDetectScreencastEnabled: Bool = false // 是否启用自动检测投屏进入专注模式
     
     // 回调
-    var onSettingsChanged: ((Bool, Int, Int, Bool, Int, Bool, Bool, Bool, Bool, Bool, Bool, Int, Int, Bool, Bool, [BackgroundFile], Bool, Int, Int, Bool) -> Void)?
+    var onSettingsChanged: ((Bool, Int, Int, Bool, Int, Bool, Bool, Bool, Bool, Bool, Bool, Int, Int, Bool, Bool, [BackgroundFile], Bool, Bool, Int, Int, Bool) -> Void)?
     
     override init(contentRect: NSRect, styleMask style: NSWindow.StyleMask, backing backingStoreType: NSWindow.BackingStoreType, defer flag: Bool) {
         super.init(contentRect: contentRect, styleMask: style, backing: backingStoreType, defer: flag)
@@ -130,11 +136,12 @@ class SettingsWindow: NSWindow {
         tabView = NSTabView(frame: NSRect(x: 20, y: 60, width: 440, height: 500))
         contentView.addSubview(tabView)
         
-        // 创建四个标签页
+        // 创建标签页（“文案”放到最后，避免打扰常用设置）
         setupBasicSettingsTab()
         setupAutoHandlingTab()
         setupPlanTab()
         setupBackgroundTab()
+        setupOverlayMessageTab()
         
         // 添加保存和取消按钮
         setupButtons(in: contentView)
@@ -218,6 +225,74 @@ class SettingsWindow: NSWindow {
         
         tabView.addTabViewItem(basicTabItem)
     }
+
+    private func setupOverlayMessageTab() {
+        let copyTabItem = NSTabViewItem(identifier: "copy")
+        copyTabItem.label = "文案"
+
+        let copyView = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 460))
+        copyTabItem.view = copyView
+
+        var yPosition = 400
+
+        // 普通休息/长休息提示文案（可自定义）
+        let overlayTemplateLabel = NSTextField(labelWithString: "遮罩层提示文案:")
+        overlayTemplateLabel.frame = NSRect(x: 20, y: yPosition, width: 200, height: 20)
+        copyView.addSubview(overlayTemplateLabel)
+        yPosition -= 22
+
+        let overlayTemplateHint = NSTextField(labelWithString: "支持占位符：{breakType}、{breakMinutes}")
+        overlayTemplateHint.frame = NSRect(x: 20, y: yPosition, width: 360, height: 14)
+        overlayTemplateHint.font = NSFont.systemFont(ofSize: 10)
+        overlayTemplateHint.textColor = NSColor.secondaryLabelColor
+        copyView.addSubview(overlayTemplateHint)
+        yPosition -= 18
+
+        // 两行高度
+        let overlayScrollView = NSScrollView(frame: NSRect(x: 20, y: yPosition, width: 380, height: 40))
+        overlayScrollView.hasVerticalScroller = true
+        overlayScrollView.borderType = .bezelBorder
+
+        let overlayTextView = NSTextView(frame: overlayScrollView.bounds)
+        overlayTextView.isRichText = false
+        overlayTextView.isEditable = true
+        overlayTextView.font = NSFont.systemFont(ofSize: 13)
+        overlayTextView.string = overlayRestMessageTemplate
+        overlayScrollView.documentView = overlayTextView
+        copyView.addSubview(overlayScrollView)
+        overlayRestMessageTemplateTextView = overlayTextView
+
+        yPosition -= 70
+
+        // 熬夜强制休息提示文案（可自定义）
+        let stayUpTemplateLabel = NSTextField(labelWithString: "熬夜强制休息提示文案:")
+        stayUpTemplateLabel.frame = NSRect(x: 20, y: yPosition, width: 240, height: 20)
+        copyView.addSubview(stayUpTemplateLabel)
+        yPosition -= 22
+
+        let stayUpTemplateHint = NSTextField(labelWithString: "（强制休息时显示，留空则使用默认文案）")
+        stayUpTemplateHint.frame = NSRect(x: 20, y: yPosition, width: 360, height: 14)
+        stayUpTemplateHint.font = NSFont.systemFont(ofSize: 10)
+        stayUpTemplateHint.textColor = NSColor.secondaryLabelColor
+        copyView.addSubview(stayUpTemplateHint)
+        yPosition -= 18
+
+        // 两行高度
+        let stayUpScrollView = NSScrollView(frame: NSRect(x: 20, y: yPosition, width: 380, height: 40))
+        stayUpScrollView.hasVerticalScroller = true
+        stayUpScrollView.borderType = .bezelBorder
+
+        let stayUpTextView = NSTextView(frame: stayUpScrollView.bounds)
+        stayUpTextView.isRichText = false
+        stayUpTextView.isEditable = true
+        stayUpTextView.font = NSFont.systemFont(ofSize: 13)
+        stayUpTextView.string = overlayStayUpMessageTemplate
+        stayUpScrollView.documentView = stayUpTextView
+        copyView.addSubview(stayUpScrollView)
+        overlayStayUpMessageTemplateTextView = stayUpTextView
+
+        tabView.addTabViewItem(copyTabItem)
+    }
     
     private func setupAutoHandlingTab() {
         let autoTabItem = NSTabViewItem(identifier: "auto")
@@ -246,7 +321,7 @@ class SettingsWindow: NSWindow {
         autoView.addSubview(idleLabel)
         
         idleTimeSlider = NSSlider(frame: NSRect(x: 150, y: yPosition, width: 160, height: 20))
-        idleTimeSlider.minValue = 5
+        idleTimeSlider.minValue = 1
         idleTimeSlider.maxValue = 30
         idleTimeSlider.integerValue = idleTimeMinutes
         idleTimeSlider.target = self
@@ -496,9 +571,14 @@ class SettingsWindow: NSWindow {
         previewButton.keyEquivalent = "p"  // 快捷键 Cmd+P
         backgroundView.addSubview(previewButton)
         
+        // 随机播放复选框（放在预览按钮下方）
+        shuffleBackgroundsCheckbox = NSButton(checkboxWithTitle: "随机播放", target: self, action: #selector(shuffleBackgroundsChanged))
+        shuffleBackgroundsCheckbox.frame = NSRect(x: 20, y: 120, width: 150, height: 20)
+        backgroundView.addSubview(shuffleBackgroundsCheckbox)
+        
         // 说明文字
-        let infoLabel = NSTextField(labelWithString: "支持图片格式：jpg, png, gif\n支持视频格式：mp4, mov, avi\n多个文件将按顺序轮播显示")
-        infoLabel.frame = NSRect(x: 20, y: 50, width: 380, height: 60)
+        let infoLabel = NSTextField(labelWithString: "支持图片格式：jpg, png, gif\n支持视频格式：mp4, mov, avi\n随机播放：每轮播放所有文件一次，但顺序随机")
+        infoLabel.frame = NSRect(x: 20, y: 20, width: 380, height: 80)
         infoLabel.font = NSFont.systemFont(ofSize: 11)
         infoLabel.textColor = NSColor.secondaryLabelColor
         backgroundView.addSubview(infoLabel)
@@ -837,6 +917,10 @@ class SettingsWindow: NSWindow {
         previewOverlay.showOverlay()
     }
     
+    @objc private func shuffleBackgroundsChanged() {
+        shuffleBackgrounds = shuffleBackgroundsCheckbox.state == .on
+    }
+    
     @objc private func saveSettings() {
         // 保存到 SettingsStore
         SettingsStore.autoStartEnabled = autoStartEnabled
@@ -850,6 +934,8 @@ class SettingsWindow: NSWindow {
         SettingsStore.screensaverRestartEnabled = screensaverRestartEnabled
         SettingsStore.screensaverActionIsRestart = screensaverActionIsRestart
         SettingsStore.showCancelRestButton = showCancelRestButton
+        SettingsStore.overlayRestMessageTemplate = overlayRestMessageTemplateTextView?.string ?? overlayRestMessageTemplate
+        SettingsStore.overlayStayUpMessageTemplate = overlayStayUpMessageTemplateTextView?.string ?? overlayStayUpMessageTemplate
         
         // 保存计划设置
         SettingsStore.longBreakCycle = longBreakCycle
@@ -863,6 +949,7 @@ class SettingsWindow: NSWindow {
         } else {
             SettingsStore.backgroundFilesData = nil
         }
+        SettingsStore.shuffleBackgrounds = shuffleBackgrounds
         
         // 保存熬夜限制设置
         SettingsStore.stayUpLimitEnabled = stayUpLimitEnabled
@@ -878,7 +965,7 @@ class SettingsWindow: NSWindow {
         LaunchAtLogin.shared.isEnabled = launchAtLoginEnabled
         
         // 通知回调
-        onSettingsChanged?(autoStartEnabled, pomodoroTimeMinutes, breakTimeMinutes, idleRestartEnabled, idleTimeMinutes, idleActionIsRestart, screenLockRestartEnabled, screenLockActionIsRestart, screensaverRestartEnabled, screensaverActionIsRestart, showCancelRestButton, longBreakCycle, longBreakTimeMinutes, showLongBreakCancelButton, accumulateRestTime, backgroundFiles, stayUpLimitEnabled, stayUpLimitHour, stayUpLimitMinute, showStatusBarText)
+        onSettingsChanged?(autoStartEnabled, pomodoroTimeMinutes, breakTimeMinutes, idleRestartEnabled, idleTimeMinutes, idleActionIsRestart, screenLockRestartEnabled, screenLockActionIsRestart, screensaverRestartEnabled, screensaverActionIsRestart, showCancelRestButton, longBreakCycle, longBreakTimeMinutes, showLongBreakCancelButton, accumulateRestTime, backgroundFiles, shuffleBackgrounds, stayUpLimitEnabled, stayUpLimitHour, stayUpLimitMinute, showStatusBarText)
         
         close()
     }
@@ -905,6 +992,8 @@ class SettingsWindow: NSWindow {
         screensaverActionIsRestart = SettingsStore.screensaverActionIsRestart
         
         showCancelRestButton = SettingsStore.showCancelRestButton
+        overlayRestMessageTemplate = SettingsStore.overlayRestMessageTemplate
+        overlayStayUpMessageTemplate = SettingsStore.overlayStayUpMessageTemplate
         
         // 加载计划设置
         longBreakCycle = SettingsStore.longBreakCycle
@@ -920,6 +1009,7 @@ class SettingsWindow: NSWindow {
         } else {
             backgroundFiles = [] // 默认为空数组
         }
+        shuffleBackgrounds = SettingsStore.shuffleBackgrounds
         
         // 加载熬夜限制设置
         stayUpLimitEnabled = SettingsStore.stayUpLimitEnabled
@@ -970,6 +1060,12 @@ class SettingsWindow: NSWindow {
         if showCancelRestButtonCheckbox != nil {
             showCancelRestButtonCheckbox.state = showCancelRestButton ? .on : .off
         }
+        if overlayRestMessageTemplateTextView != nil {
+            overlayRestMessageTemplateTextView.string = overlayRestMessageTemplate
+        }
+        if overlayStayUpMessageTemplateTextView != nil {
+            overlayStayUpMessageTemplateTextView.string = overlayStayUpMessageTemplate
+        }
         
         // 更新计划设置UI
         if longBreakCycleSlider != nil {
@@ -990,6 +1086,9 @@ class SettingsWindow: NSWindow {
         // 更新背景设置UI
         if backgroundFilesList != nil {
             backgroundFilesList.reloadData()
+        }
+        if shuffleBackgroundsCheckbox != nil {
+            shuffleBackgroundsCheckbox.state = shuffleBackgrounds ? .on : .off
         }
         
         // 更新熬夜限制设置UI

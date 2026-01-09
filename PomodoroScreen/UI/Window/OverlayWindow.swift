@@ -669,7 +669,7 @@ struct OverlayButtonConfig {
          borderWidth: CGFloat = 1.5,
          cornerRadius: CGFloat = 6,
          font: NSFont = NSFont.systemFont(ofSize: 14, weight: .regular),
-         fadeAlpha: CGFloat = 0.4,
+         fadeAlpha: CGFloat = 0.3,
          hoverAlpha: CGFloat = 1.0,
          action: Selector,
          keyEquivalent: String? = nil,
@@ -708,6 +708,9 @@ class OverlayView: NSView {
     private var timer: PomodoroTimer?
     private var isPreviewMode: Bool = false
     private var shutdownConfirmationWindow: ShutdownConfirmationWindow?  // 关机确认对话框
+    private var countdownTimer: Timer?  // 倒计时定时器
+    private var isHoveringCancelButton: Bool = false  // 是否鼠标悬停在取消按钮上
+    
     // MARK: - Test Detection
     private func isRunningUnitTests() -> Bool {
         return ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
@@ -717,12 +720,77 @@ class OverlayView: NSView {
     // MARK: - Button Configurations
     
     private var cancelButtonConfig: OverlayButtonConfig {
+        // 默认显示倒计时，而不是"取消休息"
+        let title = getCountdownString()
+        // 使用 SF Pro Rounded Heavy 字体 - 友好、圆润、不抢眼
+        let customFont = loadCustomFont(name: "SF-Pro-Rounded-Heavy", size: 36) ?? NSFont.systemFont(ofSize: 36, weight: .regular)
         return OverlayButtonConfig(
-            title: "取消休息",
-            width: 90,
-            height: 32,
+            title: title,
+            width: 120,  // 增加宽度以适应36pt大字体
+            height: 36,   // 增加高度以适应36pt大字体
+            borderColor: NSColor.clear,  // 默认边框透明
+            font: customFont,
+            fadeAlpha: 0.2,  // 10秒后淡化到低透明度（0.2）
             action: #selector(cancelButtonClicked)
         )
+    }
+    
+    // 获取倒计时字符串
+    private func getCountdownString() -> String {
+        guard let timer = timer else { return "0:00" }
+        let remainingTime = timer.getRemainingTime()
+        let minutes = Int(remainingTime) / 60
+        let seconds = Int(remainingTime) % 60
+        // 分钟不补0，秒数补0（例如：5:53 而不是 05:53）
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+    
+    // 加载自定义字体（参考 HealthRingsView 的实现）
+    private func loadCustomFont(name: String, size: CGFloat) -> NSFont? {
+        // 1. 尝试直接通过字体名称加载（可能已经注册过）
+        if let font = NSFont(name: name, size: size) {
+            print("✅ 直接加载自定义字体成功: \(name)")
+            return font
+        }
+        
+        // 2. 如果直接加载失败，尝试从 Bundle 加载字体文件
+        guard let fontURL = Bundle.main.url(forResource: name, withExtension: "ttf") else {
+            print("⚠️ 字体文件未找到: \(name).ttf")
+            return nil
+        }
+        
+        guard let fontData = NSData(contentsOf: fontURL) else {
+            print("⚠️ 无法读取字体文件: \(fontURL.path)")
+            return nil
+        }
+        
+        guard let provider = CGDataProvider(data: fontData) else {
+            print("⚠️ 无法创建字体数据提供者")
+            return nil
+        }
+        
+        guard let cgFont = CGFont(provider) else {
+            print("⚠️ 无法创建 CGFont")
+            return nil
+        }
+        
+        guard let fontName = cgFont.postScriptName else {
+            print("⚠️ 无法获取字体的 PostScript 名称")
+            return nil
+        }
+        
+        // 3. 注册字体到系统
+        CTFontManagerRegisterGraphicsFont(cgFont, nil)
+        print("✅ 已注册字体: \(fontName)")
+        
+        // 4. 使用 PostScript 名称创建字体
+        if let font = NSFont(name: String(fontName), size: size) {
+            print("✅ 成功创建自定义字体: \(fontName)")
+            return font
+        }
+        
+        print("⚠️ 字体注册成功但创建失败")
+        return nil
     }
     
     private var previewButtonConfig: OverlayButtonConfig {
@@ -806,9 +874,80 @@ class OverlayView: NSView {
                 let shouldShowButton = timer?.shouldShowCancelRestButton ?? true
                 if shouldShowButton {
                     setupButton(with: cancelButtonConfig, as: &cancelButton, buttonType: "cancel")
+                    // 启动倒计时定时器，每秒更新按钮文字
+                    startCountdownTimer()
                 }
             }
         }
+    }
+    
+    // MARK: - Countdown Timer
+    
+    /// 启动倒计时定时器，每秒更新按钮文字
+    private func startCountdownTimer() {
+        // 确保之前的定时器已停止
+        stopCountdownTimer()
+        
+        // 创建新的定时器，每秒触发一次
+        countdownTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.updateCancelButtonTitle()
+        }
+    }
+    
+    /// 停止倒计时定时器
+    private func stopCountdownTimer() {
+        countdownTimer?.invalidate()
+        countdownTimer = nil
+    }
+    
+    /// 更新取消按钮的标题和字体（带渐变动画）
+    private func updateCancelButtonTitle() {
+        guard let cancelButton = cancelButton else { return }
+        
+        let oldTitle = cancelButton.title
+        
+        // 如果鼠标悬停，显示"取消休息"并使用默认字体
+        if isHoveringCancelButton {
+            let newTitle = "取消休息"
+            // 切换为默认字体和大小
+            let newFont = NSFont.systemFont(ofSize: 14, weight: .regular)
+            
+            // 如果文字发生变化，使用渐变动画
+            if oldTitle != newTitle {
+                animateTitleChange(button: cancelButton, newTitle: newTitle, newFont: newFont)
+            }
+        } else {
+            let newTitle = getCountdownString()
+            // 切换为自定义字体和大小
+            let customFont = loadCustomFont(name: "SF-Pro-Rounded-Heavy", size: 36) 
+                ?? NSFont.systemFont(ofSize: 36, weight: .regular)
+            
+            // 如果文字发生变化，使用渐变动画
+            if oldTitle != newTitle {
+                animateTitleChange(button: cancelButton, newTitle: newTitle, newFont: customFont)
+            }
+        }
+    }
+    
+    /// 文字渐变切换动画（交叉淡入淡出，无闪烁）
+    private func animateTitleChange(button: NSButton, newTitle: String, newFont: NSFont) {
+        // 使用 CATransition 实现平滑过渡，旧文字淡出的同时新文字淡入
+        let transition = CATransition()
+        transition.duration = 0.3
+        transition.type = .fade
+        transition.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        
+        // 添加过渡动画到按钮的 layer
+        button.layer?.add(transition, forKey: "textTransition")
+        
+        // 立即更改文字和字体（在动画期间平滑过渡）
+        button.title = newTitle
+        button.font = newFont
+    }
+    
+    /// 清理资源
+    deinit {
+        stopCountdownTimer()
     }
     
     private func setupMessageLabel() {
@@ -820,13 +959,19 @@ class OverlayView: NSView {
         } else {
             // 正常模式根据是否为熬夜时间显示不同消息
             if let timer = timer, timer.isStayUpTime {
-                messageLabel.stringValue = "🌙 熬夜时间到了，该休息了！\n\n为了您的健康，请停止工作\n强制休息无法取消"
+                let template = SettingsStore.overlayStayUpMessageTemplate
+                messageLabel.stringValue = OverlayMessageTemplateRenderer.renderStayUpMessage(template: template)
             } else {
                 // 获取当前休息时间信息并显示
                 if let timer = timer {
                     let breakInfo = timer.getCurrentBreakInfo()
                     let breakType = breakInfo.isLongBreak ? "长休息" : "休息"
-                    messageLabel.stringValue = "番茄钟时间到！\n\n\(breakType)时间，\(breakInfo.breakMinutes)分钟后自动恢复"
+                    let template = SettingsStore.overlayRestMessageTemplate
+                    messageLabel.stringValue = OverlayMessageTemplateRenderer.renderRestMessage(
+                        template: template,
+                        breakType: breakType,
+                        breakMinutes: breakInfo.breakMinutes
+                    )
                 } else {
                     messageLabel.stringValue = "番茄钟时间到！\n\n休息时间"
                 }
@@ -927,9 +1072,12 @@ class OverlayView: NSView {
         
         // 赋值给inout参数
         button = newButton
+
+        // 立即启用 hover（不要等淡化动画结束；否则 10 秒内 hover 看起来会“失灵”）
+        enableButtonHoverEffect(for: newButton, buttonType: buttonType)
         
-        // 3秒后淡化按钮
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self, weak newButton] in
+        // 立即开始淡化按钮（在10秒内从1.0降到0.2）
+        DispatchQueue.main.async { [weak self, weak newButton] in
             guard let strongButton = newButton else { return }
             self?.fadeButton(strongButton, to: config.fadeAlpha, buttonType: buttonType)
         }
@@ -937,18 +1085,23 @@ class OverlayView: NSView {
     
     private func fadeButton(_ button: NSButton, to alpha: CGFloat, buttonType: String) {
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 1.0
+            context.duration = 10.0  // 10秒缓慢淡化
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
             button.animator().alphaValue = alpha
-        }, completionHandler: { [weak self] in
-            self?.enableButtonHoverEffect(for: button, buttonType: buttonType)
-        })
+        }, completionHandler: nil)
     }
     
     private func enableButtonHoverEffect(for button: NSButton, buttonType: String) {
+        // 避免重复添加 trackingArea
+        for area in button.trackingAreas {
+            button.removeTrackingArea(area)
+        }
+
+        // 注意：OverlayWindow 有时不会成为 key window，使用 activeInKeyWindow 会导致 hover “偶发失灵”
+        // 使用 inVisibleRect 让 trackingArea 自动跟随 bounds 更新
         let trackingArea = NSTrackingArea(
-            rect: button.bounds,
-            options: [.mouseEnteredAndExited, .activeInKeyWindow],
+            rect: .zero,
+            options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
             owner: self,
             userInfo: ["button": buttonType]
         )
@@ -984,8 +1137,25 @@ class OverlayView: NSView {
         switch buttonType {
         case "cancel":
             guard let cancelButton = cancelButton else { return }
-            let targetAlpha: CGFloat = isEntering ? 1.0 : 0.4
-            animateButtonAlpha(cancelButton, to: targetAlpha, duration: 0.2)
+            
+            // 更新悬停状态
+            isHoveringCancelButton = isEntering
+            
+            // 立即更新按钮文字
+            updateCancelButtonTitle()
+            
+            // hover 时：显示白色边框 + 透明度0.7
+            // 非 hover 时：隐藏边框 + 透明度0.2
+            let borderColor = isEntering ? NSColor.white.cgColor : NSColor.clear.cgColor
+            let targetAlpha: CGFloat = isEntering ? 0.7 : 0.2
+            
+            // 改变边框颜色和透明度
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 0.3
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                cancelButton.animator().alphaValue = targetAlpha
+                cancelButton.layer?.borderColor = borderColor
+            }, completionHandler: nil)
             
         case "shutdown":
             guard let shutdownButton = shutdownButton else { return }
@@ -1014,19 +1184,19 @@ class OverlayView: NSView {
         }, completionHandler: nil)
     }
     
-    @objc private func cancelButtonClicked() {
+    @objc func cancelButtonClicked() {
         if let window = self.window as? OverlayWindow {
             window.dismissOverlay(reason: window.isPreviewMode ? .preview : .user)
         }
     }
     
-    @objc private func previewButtonClicked() {
+    @objc func previewButtonClicked() {
         if let window = self.window as? OverlayWindow {
             window.dismissOverlay(reason: .preview)
         }
     }
     
-    @objc private func shutdownButtonClicked() {
+    @objc func shutdownButtonClicked() {
         print("🔴 用户点击关机按钮")
         
         // 创建并显示自定义确认对话框

@@ -39,8 +39,14 @@ class PomodoroTimer: ObservableObject {
     private var accumulateRestTime: Bool = false // 是否累加短休息中断时间
     private var accumulatedRestTime: TimeInterval = 0 // 累积的休息时间
     internal var isLongBreak: Bool = false // 当前是否为长休息
+    private var currentRestDuration: TimeInterval = 0 // 当前休息周期的总时长（包括累积时间）
     private var backgroundFiles: [BackgroundFile] = [] // 遮罩层背景文件列表
     private var currentBackgroundIndex: Int = -1 // 当前背景文件索引，从-1开始，第一次调用时变为0
+    
+    // 随机播放队列相关
+    private var shuffleEnabled: Bool = false // 是否启用随机播放
+    private var shuffledQueue: [Int] = [] // 随机顺序的索引队列
+    private var currentQueueIndex: Int = 0 // 当前在队列中的位置
     
     // 倒计时通知窗口
     private var countdownNotificationWindow: CountdownNotificationWindow?
@@ -156,6 +162,9 @@ class PomodoroTimer: ObservableObject {
             stayUpLimitHour: 23,
             stayUpLimitMinute: 0
         ))
+        
+        // 从 SettingsStore 加载随机播放设置
+        self.shuffleEnabled = SettingsStore.shuffleBackgrounds
         
         setupNotifications()
         startIdleMonitoring()
@@ -285,7 +294,7 @@ class PomodoroTimer: ObservableObject {
         updateTimeDisplay()
     }
     
-    func updateSettings(pomodoroMinutes: Int, breakMinutes: Int, idleRestart: Bool, idleTime: Int, idleActionIsRestart: Bool, screenLockRestart: Bool, screenLockActionIsRestart: Bool, screensaverRestart: Bool, screensaverActionIsRestart: Bool, showCancelRestButton: Bool, longBreakCycle: Int, longBreakTimeMinutes: Int, showLongBreakCancelButton: Bool, accumulateRestTime: Bool, backgroundFiles: [BackgroundFile], stayUpLimitEnabled: Bool, stayUpLimitHour: Int, stayUpLimitMinute: Int, meetingMode: Bool) {
+    func updateSettings(pomodoroMinutes: Int, breakMinutes: Int, idleRestart: Bool, idleTime: Int, idleActionIsRestart: Bool, screenLockRestart: Bool, screenLockActionIsRestart: Bool, screensaverRestart: Bool, screensaverActionIsRestart: Bool, showCancelRestButton: Bool, longBreakCycle: Int, longBreakTimeMinutes: Int, showLongBreakCancelButton: Bool, accumulateRestTime: Bool, backgroundFiles: [BackgroundFile], shuffleBackgrounds: Bool, stayUpLimitEnabled: Bool, stayUpLimitHour: Int, stayUpLimitMinute: Int, meetingMode: Bool) {
         let oldPomodoroTime = pomodoroTime
         
         pomodoroTime = TimeInterval(pomodoroMinutes * 60)
@@ -300,6 +309,21 @@ class PomodoroTimer: ObservableObject {
         self.showLongBreakCancelButton = showLongBreakCancelButton
         self.accumulateRestTime = accumulateRestTime
         self.backgroundFiles = backgroundFiles
+        
+        // 更新随机播放设置
+        let shuffleChanged = self.shuffleEnabled != shuffleBackgrounds
+        self.shuffleEnabled = shuffleBackgrounds
+        
+        // 如果随机播放设置发生变化，清空队列以便重新生成
+        if shuffleChanged {
+            shuffledQueue = []
+            currentQueueIndex = 0
+            if shuffleBackgrounds {
+                print("🎲 启用随机播放模式")
+            } else {
+                print("🔄 切换到顺序播放模式")
+            }
+        }
         
         // 更新状态机设置（包含熬夜限制设置）
         let newSettings = AutoRestartStateMachine.AutoRestartSettings(
@@ -396,7 +420,15 @@ class PomodoroTimer: ObservableObject {
     }
     
     /// 获取当前休息时间信息
+    /// - Returns: (isLongBreak: 是否长休息, breakMinutes: 总休息分钟数)
+    /// - Note: 返回实际的总休息时间，包括累积的未完成时间
     func getCurrentBreakInfo() -> (isLongBreak: Bool, breakMinutes: Int) {
+        // 如果当前正在休息期间，返回当前休息周期的总时长
+        if isInRestPeriod && currentRestDuration > 0 {
+            return (isLongBreak, Int(currentRestDuration / 60))
+        }
+        
+        // 如果不在休息期间，返回预计的休息时间
         if isLongBreak {
             // 长休息时间（包括累积时间）
             var totalLongBreakTime = longBreakTime
@@ -405,21 +437,59 @@ class PomodoroTimer: ObservableObject {
             }
             return (true, Int(totalLongBreakTime / 60))
         } else {
-            // 短休息时间
-            return (false, Int(breakTime / 60))
+            // 短休息时间（也需要包括累积时间）
+            var totalShortBreakTime = breakTime
+            if accumulateRestTime && accumulatedRestTime > 0 {
+                totalShortBreakTime += accumulatedRestTime
+            }
+            return (false, Int(totalShortBreakTime / 60))
         }
+    }
+    
+    /// 生成随机播放队列（使用 Fisher-Yates 洗牌算法）
+    private func generateShuffledQueue() {
+        guard !backgroundFiles.isEmpty else { return }
+        
+        // 创建索引数组 [0, 1, 2, ...]
+        shuffledQueue = Array(0..<backgroundFiles.count)
+        
+        // Fisher-Yates 洗牌算法
+        for i in stride(from: shuffledQueue.count - 1, through: 1, by: -1) {
+            let j = Int.random(in: 0...i)
+            shuffledQueue.swapAt(i, j)
+        }
+        
+        currentQueueIndex = 0
+        print("🎲 生成随机播放队列: \(shuffledQueue.map { backgroundFiles[$0].name })")
     }
     
     func getNextBackgroundIndex() -> Int {
         guard !backgroundFiles.isEmpty else { return 0 }
         
-        // 每次调用时切换到下一个背景
-        if backgroundFiles.count > 1 {
-            currentBackgroundIndex = (currentBackgroundIndex + 1) % backgroundFiles.count
-            print("🔄 切换到下一个背景: \(backgroundFiles[currentBackgroundIndex].name)")
+        if shuffleEnabled {
+            // 随机模式
+            if backgroundFiles.count == 1 {
+                currentBackgroundIndex = 0
+            } else {
+                // 如果队列为空或已播放完，重新生成随机队列
+                if shuffledQueue.isEmpty || currentQueueIndex >= shuffledQueue.count {
+                    generateShuffledQueue()
+                }
+                
+                // 从队列中获取下一个索引
+                currentBackgroundIndex = shuffledQueue[currentQueueIndex]
+                currentQueueIndex += 1
+                
+                print("🎲 随机播放 (\(currentQueueIndex)/\(shuffledQueue.count)): \(backgroundFiles[currentBackgroundIndex].name)")
+            }
         } else {
-            // 如果只有一个文件，确保索引为0
-            currentBackgroundIndex = 0
+            // 顺序模式
+            if backgroundFiles.count > 1 {
+                currentBackgroundIndex = (currentBackgroundIndex + 1) % backgroundFiles.count
+                print("🔄 顺序播放: \(backgroundFiles[currentBackgroundIndex].name)")
+            } else {
+                currentBackgroundIndex = 0
+            }
         }
         
         return currentBackgroundIndex
@@ -580,11 +650,21 @@ class PomodoroTimer: ObservableObject {
     internal func startShortBreak() {
         isLongBreak = false
         autoRestartStateMachine.setTimerType(.shortBreak)
-        remainingTime = breakTime
-        print("☕ 开始短休息，时长 \(Int(breakTime/60)) 分钟")
         
-        // 记录统计数据
-        statisticsManager.recordShortBreakStarted(duration: breakTime)
+        // 计算短休息时间（包括累积的时间）
+        var totalShortBreakTime = breakTime
+        if accumulateRestTime && accumulatedRestTime > 0 {
+            totalShortBreakTime += accumulatedRestTime
+            print("🎯 累加短休息中断时间 \(Int(accumulatedRestTime/60)) 分钟到短休息")
+            accumulatedRestTime = 0 // 重置累积时间
+        }
+        
+        remainingTime = totalShortBreakTime
+        currentRestDuration = totalShortBreakTime // 保存总休息时长供 getCurrentBreakInfo() 使用
+        print("☕ 开始短休息，时长 \(Int(totalShortBreakTime/60)) 分钟")
+        
+        // 记录统计数据（使用总时长）
+        statisticsManager.recordShortBreakStarted(duration: totalShortBreakTime)
         
         // 通过状态机处理休息开始事件
         processAutoRestartEvent(.restStarted)
@@ -605,6 +685,7 @@ class PomodoroTimer: ObservableObject {
         }
         
         remainingTime = totalLongBreakTime
+        currentRestDuration = totalLongBreakTime // 保存总休息时长供 getCurrentBreakInfo() 使用
         print("🌟 开始长休息（第 \(completedPomodoros/longBreakCycle) 次），时长 \(Int(totalLongBreakTime/60)) 分钟")
         
         // 记录统计数据
@@ -643,6 +724,7 @@ class PomodoroTimer: ObservableObject {
         
         stop()
         isLongBreak = false
+        currentRestDuration = 0 // 重置休息时长
         
         if source == "user" {
             print("🚫 Rest period cancelled by user")
@@ -680,6 +762,7 @@ class PomodoroTimer: ObservableObject {
         
         stop()
         isLongBreak = false
+        currentRestDuration = 0 // 重置休息时长
         
         // 通知状态机休息完成（与 timerFinished 中 .restFinished 一致）
         processAutoRestartEvent(.restFinished)

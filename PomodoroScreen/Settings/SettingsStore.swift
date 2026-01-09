@@ -36,6 +36,7 @@ final class SettingsStore {
         case accumulateRestTime = "AccumulateRestTime"
         // Background resources
         case backgroundFiles = "BackgroundFiles"
+        case shuffleBackgrounds = "ShuffleBackgrounds"
         // Stay up limit
         case stayUpLimitEnabled = "StayUpLimitEnabled"
         case stayUpLimitHour = "StayUpLimitHour"
@@ -47,6 +48,9 @@ final class SettingsStore {
         case autoDetectScreencastEnabled = "AutoDetectScreencastEnabled"
         // Onboarding
         case onboardingCompleted = "OnboardingCompleted"
+        // Overlay message
+        case overlayRestMessageTemplate = "OverlayRestMessageTemplate"
+        case overlayStayUpMessageTemplate = "OverlayStayUpMessageTemplate"
     }
     
     // MARK: - Typed Accessors with Defaults
@@ -140,6 +144,11 @@ final class SettingsStore {
         set { setData(newValue, for: .backgroundFiles) }
     }
     
+    static var shuffleBackgrounds: Bool {
+        get { bool(for: .shuffleBackgrounds, default: false) }
+        set { setBool(newValue, for: .shuffleBackgrounds) }
+    }
+    
     static var stayUpLimitEnabled: Bool {
         get { bool(for: .stayUpLimitEnabled, default: false) }
         set { setBool(newValue, for: .stayUpLimitEnabled) }
@@ -174,6 +183,16 @@ final class SettingsStore {
         get { bool(for: .onboardingCompleted, default: false) }
         set { setBool(newValue, for: .onboardingCompleted) }
     }
+
+    static var overlayRestMessageTemplate: String {
+        get { string(for: .overlayRestMessageTemplate, default: OverlayMessageTemplateRenderer.defaultRestTemplate) }
+        set { setString(newValue, for: .overlayRestMessageTemplate) }
+    }
+
+    static var overlayStayUpMessageTemplate: String {
+        get { string(for: .overlayStayUpMessageTemplate, default: OverlayMessageTemplateRenderer.defaultStayUpTemplate) }
+        set { setString(newValue, for: .overlayStayUpMessageTemplate) }
+    }
     
     // MARK: - Generic helpers
     private static func int(for key: Key, default def: Int) -> Int {
@@ -200,10 +219,42 @@ final class SettingsStore {
             UserDefaults.standard.removeObject(forKey: key.rawValue)
         }
     }
+
+    private static func string(for key: Key, default def: String) -> String {
+        return UserDefaults.standard.string(forKey: key.rawValue) ?? def
+    }
+
+    private static func setString(_ value: String, for key: Key) {
+        UserDefaults.standard.set(value, forKey: key.rawValue)
+    }
     
     // Utility
     static func remove(_ key: String) {
         UserDefaults.standard.removeObject(forKey: key)
+    }
+}
+
+/// 渲染遮罩层提示文案模板（仅做最小化的变量替换）。
+///
+/// 支持的占位符：
+/// - `{breakType}`: "休息" / "长休息"
+/// - `{breakMinutes}`: 休息分钟数（Int）
+struct OverlayMessageTemplateRenderer {
+    static let defaultRestTemplate = "番茄钟时间到！\n\n{breakType}时间，{breakMinutes}分钟后自动恢复"
+    static let defaultStayUpTemplate = "🌙 熬夜时间到了，该休息了！\n\n为了您的健康，请停止工作\n强制休息无法取消"
+
+    static func renderRestMessage(template: String?, breakType: String, breakMinutes: Int) -> String {
+        let trimmed = (template ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let base = trimmed.isEmpty ? defaultRestTemplate : trimmed
+
+        return base
+            .replacingOccurrences(of: "{breakType}", with: breakType)
+            .replacingOccurrences(of: "{breakMinutes}", with: "\(breakMinutes)")
+    }
+
+    static func renderStayUpMessage(template: String?) -> String {
+        let trimmed = (template ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? defaultStayUpTemplate : trimmed
     }
 }
 
