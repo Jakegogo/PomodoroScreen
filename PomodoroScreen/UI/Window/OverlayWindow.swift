@@ -520,9 +520,12 @@ class OverlayWindow: NSWindow {
             print("🌙 强制睡眠期间，禁用自动关闭定时器")
             return
         }
-        
-        // 设置3分钟（180秒）后自动隐藏
-        dismissTimer = Timer.scheduledTimer(withTimeInterval: 180.0, repeats: false) { [weak self] _ in
+
+        // 这里使用 PomodoroTimer 的当前剩余时间作为自动关闭时长：
+        // - 休息开始时：remainingTime = 本次休息总时长（含累加）
+        // - 因此遮罩层应在休息结束时自动关闭
+        let autoDismissInterval = max(1.0, timer?.getRemainingTime() ?? 180.0)
+        dismissTimer = Timer.scheduledTimer(withTimeInterval: autoDismissInterval, repeats: false) { [weak self] _ in
             self?.dismissOverlay(reason: .autoOverlay)
         }
     }
@@ -549,7 +552,9 @@ class OverlayWindow: NSWindow {
             case .user:
                 timer.cancelBreak(source: "user")
             case .autoOverlay:
-                timer.finishBreak()
+                // 修复：遮罩层自动关闭仅用于隐藏 UI，不应驱动休息结束。
+                // 休息结束应由 PomodoroTimer 自身倒计时到 0 后触发（避免重复/提前结束）。
+                break
             case .shutdownConfirmed:
                 // 关机确认：不去动计时器，立即隐藏遮罩以避免阻塞
                 break

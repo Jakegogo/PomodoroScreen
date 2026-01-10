@@ -690,11 +690,11 @@
             
             
 
-            <!-- 你的感受（移至底部） -->
+            <!-- 我的感受（移至底部） -->
             <div class="reflection-section">
                 <h2 class="reflection-title">
-                    <img src="smile.svg" alt="你的感受" class="section-icon" />
-                    你的感受
+                    <img src="smile.svg" alt="我的感受" class="section-icon" />
+                    我的感受
                 </h2>
                 <div class="reflection-grid">
                     <textarea id="moodNoteInput" class="reflection-input" placeholder="记录今天的想法与感受..."></textarea>
@@ -1877,7 +1877,11 @@
             const totalWorkTime = daily.totalWorkTime || 0;
 
             if (daily.workIntensityScore < 50) {
-                recommendations.push({ text: '💪 建议增加番茄钟数量，提高工作效率', type: 'work' });
+                // 当前时间是下午三点之后
+                const currentHour = new Date().getHours();
+                if (currentHour >= 15) {
+                    recommendations.push({ text: '💪 建议增加番茄钟数量，提高工作效率', type: 'work' });
+                }
             }
             
             if (daily.restAdequacyScore < 60) {
