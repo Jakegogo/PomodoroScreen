@@ -192,7 +192,7 @@ class PomodoroTimer: ObservableObject {
     }
     
     // MARK: - Public Methods
-
+    
     func start() {
         // 检查是否处于熬夜时间，如果是则直接触发熬夜遮罩
         if pomodoroStateMachine.isInStayUpTime() {
@@ -729,6 +729,9 @@ class PomodoroTimer: ObservableObject {
         // 重新开始番茄钟
         remainingTime = pomodoroTime
         start()
+
+        // 通知：休息被取消（用于 popupwindow 在打开状态下播放变更动画）
+        NotificationCenter.default.post(name: .pomodoroBreakCancelled, object: self)
     }
 
     /// 完成休息（与取消休息不同）：记录 break_finished，并进入下一阶段番茄钟
@@ -1141,4 +1144,9 @@ class PomodoroTimer: ObservableObject {
     func getStatusBarIconType() -> StatusBarIconType {
         return pomodoroStateMachine.deriveStatusBarIconType(meetingMode: meetingMode)
     }
+}
+
+// MARK: - Notifications
+extension Notification.Name {
+    static let pomodoroBreakCancelled = Notification.Name("PomodoroScreen.pomodoroBreakCancelled")
 }

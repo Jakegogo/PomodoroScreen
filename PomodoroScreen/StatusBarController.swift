@@ -8,10 +8,12 @@ class StatusBarController {
     private var pomodoroTimer: PomodoroTimer
     private var settingsWindow: SettingsWindow?
     private var popupWindow: StatusBarPopupWindow?
+    private let popupViewModel = PopupWindowViewModel()
     private var isPopupVisible = false
     private var globalEventMonitor: Any?
     private var appDeactivationObserver: Any?
     private var workspaceActivationObserver: Any?
+    private var breakCancelledObserver: Any?
     private var clockIconGenerator: ClockIconGenerator
     
     // 状态栏显示设置
@@ -31,6 +33,25 @@ class StatusBarController {
         
         setupStatusItem()
 
+        // 监听“取消休息”事件：如果 popupWindow 正在显示，则播放变更动画
+        breakCancelledObserver = NotificationCenter.default.addObserver(
+            forName: .pomodoroBreakCancelled,
+            object: timer,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self = self else { return }
+            guard self.isPopupVisible else { return }
+            self.updatePopupButtonStates()
+            self.updateRoundIndicator()
+            self.updateHealthRingsData(animateOnShow: true)
+        }
+
+    }
+
+    deinit {
+        if let breakCancelledObserver {
+            NotificationCenter.default.removeObserver(breakCancelledObserver)
+        }
     }
     
     // MARK: - Public Methods
@@ -271,18 +292,12 @@ class StatusBarController {
     func showPopup() {
         guard let popup = popupWindow,
               let button = statusItem.button else { return }
-        
-        // 更新健康环数据
-        updateHealthRingsData()
-        
+
         // 更新按钮状态
         updatePopupButtonStates()
         
         // 更新轮数指示器
         updateRoundIndicator()
-        
-        // 根据计时器状态设置健康环动画
-        popup.healthRingsView.setTimerRunning(pomodoroTimer.isRunning)
         
         // 更新窗口位置
         popup.updatePosition(relativeTo: button)
@@ -290,6 +305,13 @@ class StatusBarController {
         // 显示弹出窗口
         popup.showPopup()
         isPopupVisible = true
+
+        // 每次打开弹窗时：根据“上次打开”的快照对比，播放数值变更动画
+        updateHealthRingsData(animateOnShow: true)
+        
+        // 根据计时器状态设置健康环呼吸动画：
+        // - 若当前正处于进度变更动画中，HealthRingsView 会自动延迟启动呼吸动画，避免跳跃。
+        popup.healthRingsView.setTimerRunning(pomodoroTimer.isRunning)
         
         // 监听点击事件以隐藏弹出窗口 - 暂时禁用自动隐藏
         globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
@@ -348,7 +370,7 @@ class StatusBarController {
         }
     }
     
-    private func updateHealthRingsData() {
+    private func updateHealthRingsData(animateOnShow: Bool = false) {
         // 从统计管理器获取今日数据
         let reportData = StatisticsManager.shared.generateTodayReport()
         let daily = reportData.dailyStats
@@ -370,20 +392,46 @@ class StatusBarController {
         print("🔍 Health Ring Scores: rest=\(restAdequacyScore), work=\(workIntensityScore), focus=\(focusScore), health=\(healthScore)")
         print("🔍 Ring Progress Values (0-1): rest=\(restAdequacy), work=\(workIntensity), focus=\(focus), health=\(health)")
         
-        popupWindow?.updateHealthData(
-            restAdequacy: restAdequacy,
-            workIntensity: workIntensity,
-            focus: focus,
-            health: health
-        )
-
-        // 更新弹窗底部四个指标：完成番茄钟 / 工作时间 / 休息时间 / 健康评分
-        popupWindow?.updateBottomMetrics(
+        let snapshot = PopupWindowSnapshot(
+            ringProgress: [workIntensity, restAdequacy, focus, health],
             completedPomodoros: daily.completedPomodoros,
-            workTime: daily.totalWorkTime,
-            breakTime: daily.totalBreakTime,
+            totalWorkTime: daily.totalWorkTime,
+            totalBreakTime: daily.totalBreakTime,
             healthScore: daily.healthScore
         )
+
+        if animateOnShow, let popup = popupWindow {
+            let diff = popupViewModel.diffAndStoreForShow(current: snapshot)
+
+            popup.updateHealthData(
+                restAdequacy: restAdequacy,
+                workIntensity: workIntensity,
+                focus: focus,
+                health: health,
+                animated: diff.ringChanged.contains(true),
+                animateMask: diff.ringChanged
+            )
+            popup.updateBottomMetrics(
+                completedPomodoros: daily.completedPomodoros,
+                workTime: daily.totalWorkTime,
+                breakTime: daily.totalBreakTime,
+                healthScore: daily.healthScore,
+                animatedMask: diff.metricChanged
+            )
+        } else {
+            popupWindow?.updateHealthData(
+                restAdequacy: restAdequacy,
+                workIntensity: workIntensity,
+                focus: focus,
+                health: health
+            )
+            popupWindow?.updateBottomMetrics(
+                completedPomodoros: daily.completedPomodoros,
+                workTime: daily.totalWorkTime,
+                breakTime: daily.totalBreakTime,
+                healthScore: daily.healthScore
+            )
+        }
     }
     
     private func showContextMenu() {

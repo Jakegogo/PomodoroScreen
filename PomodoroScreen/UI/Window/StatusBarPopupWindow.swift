@@ -41,7 +41,8 @@ class StatusBarPopupWindow: NSWindow {
         ("健康评分", NSColor.healthLight)
     ]
     
-    // Bottom metric values (right-side).
+    // Bottom metric value views (right-side).
+    private var legendValueContainers: [NSView] = []
     private var legendValueLabels: [NSTextField] = []
     private var legendValueTexts: [String] = ["0", "0h 0m", "0h 0m", "0"] // 对应 bottomMetricItems 的顺序
     
@@ -499,6 +500,7 @@ class StatusBarPopupWindow: NSWindow {
         let valueWidth: CGFloat = 110
         
         // 重新创建前先清空引用，避免累积
+        legendValueContainers.removeAll()
         legendValueLabels.removeAll()
         
         for (index, item) in Self.bottomMetricItems.enumerated() {
@@ -520,11 +522,19 @@ class StatusBarPopupWindow: NSWindow {
             
             // 创建右侧指标值（右对齐）
             let valueText = index < legendValueTexts.count ? legendValueTexts[index] : "-"
-            let valueLabel = createLegendValueLabel(
-                text: valueText,
-                frame: NSRect(x: startX + rowWidth - valueWidth, y: y - 2, width: valueWidth, height: 22)
-            )
-            contentView.addSubview(valueLabel)
+            let valueFrame = NSRect(x: startX + rowWidth - valueWidth, y: y - 2, width: valueWidth, height: 22)
+
+            // Use a clipping container so we can animate "printer wheel" roll-up inside it.
+            let valueContainer = NSView(frame: valueFrame)
+            valueContainer.wantsLayer = true
+            valueContainer.layer?.masksToBounds = true
+            valueContainer.identifier = NSUserInterfaceItemIdentifier("legend-value-container-\(index)")
+            contentView.addSubview(valueContainer)
+            legendValueContainers.append(valueContainer)
+
+            let valueLabel = createLegendValueLabel(text: valueText, frame: valueContainer.bounds)
+            valueLabel.autoresizingMask = [.width, .height]
+            valueContainer.addSubview(valueLabel)
             legendValueLabels.append(valueLabel)
         }
     }
@@ -636,6 +646,17 @@ class StatusBarPopupWindow: NSWindow {
         )
     }
 
+    func updateHealthData(restAdequacy: Double, workIntensity: Double, focus: Double, health: Double, animated: Bool, animateMask: [Bool]?) {
+        healthRingsView.applyRingValues(
+            workIntensity: workIntensity,
+            restAdequacy: restAdequacy,
+            focus: focus,
+            health: health,
+            animateMask: animateMask,
+            animated: animated
+        )
+    }
+
     func updateBottomMetrics(completedPomodoros: Int, workTime: TimeInterval, breakTime: TimeInterval, healthScore: Double) {
         legendValueTexts = [
             Self.formatPomodoroCount(completedPomodoros),
@@ -646,12 +667,68 @@ class StatusBarPopupWindow: NSWindow {
         updateLegendValueLabels()
     }
 
-    private func updateLegendValueLabels() {
+    func updateBottomMetrics(completedPomodoros: Int, workTime: TimeInterval, breakTime: TimeInterval, healthScore: Double, animatedMask: [Bool]?) {
+        legendValueTexts = [
+            Self.formatPomodoroCount(completedPomodoros),
+            Self.formatDurationChinese(workTime),
+            Self.formatDurationChinese(breakTime),
+            Self.formatScore(healthScore)
+        ]
+        updateLegendValueLabels(animatedMask: animatedMask)
+    }
+
+    private func updateLegendValueLabels(animatedMask: [Bool]? = nil) {
         guard !legendValueLabels.isEmpty else { return }
         let count = min(legendValueLabels.count, legendValueTexts.count)
         for i in 0..<count {
-            legendValueLabels[i].stringValue = legendValueTexts[i]
+            let label = legendValueLabels[i]
+            let newText = legendValueTexts[i]
+            if label.stringValue == newText { continue }
+
+            let shouldAnimate = animatedMask != nil && (i < animatedMask!.count ? animatedMask![i] : false)
+            if shouldAnimate, i < legendValueContainers.count {
+                animatePrinterWheelRollUp(index: i, newText: newText)
+            } else {
+                label.stringValue = newText
+            }
         }
+    }
+
+    /// Printer-wheel roll animation: old value rolls up and out, new value rolls up from bottom into place.
+    private func animatePrinterWheelRollUp(index: Int, newText: String) {
+        guard index < legendValueContainers.count, index < legendValueLabels.count else { return }
+
+        let container = legendValueContainers[index]
+        let currentLabel = legendValueLabels[index]
+        let oldText = currentLabel.stringValue
+        if oldText == newText { return }
+
+        let h = container.bounds.height
+
+        // Outgoing label (snapshot)
+        let outgoing = createLegendValueLabel(text: oldText, frame: container.bounds)
+        outgoing.autoresizingMask = [.width, .height]
+
+        // Incoming label starts below and rolls up into place
+        let incoming = createLegendValueLabel(text: newText, frame: container.bounds.offsetBy(dx: 0, dy: -h))
+        incoming.autoresizingMask = [.width, .height]
+
+        // Clear container and add the two labels for animation
+        container.subviews.forEach { $0.removeFromSuperview() }
+        container.addSubview(outgoing)
+        container.addSubview(incoming)
+
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.38
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            outgoing.animator().setFrameOrigin(NSPoint(x: 0, y: h))
+            incoming.animator().setFrameOrigin(NSPoint(x: 0, y: 0))
+        }, completionHandler: { [weak self] in
+            guard let self = self else { return }
+            outgoing.removeFromSuperview()
+            // Keep incoming as the canonical label reference.
+            self.legendValueLabels[index] = incoming
+        })
     }
 
     // MARK: - Bottom Metric Formatting (Chinese)

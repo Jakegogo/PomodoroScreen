@@ -83,6 +83,10 @@ class HealthRingsView: NSView {
     // 计时器状态控制
     private var isTimerRunning = false
     private var frozenBreathingPhase: Double = 0.0 // 冻结时的呼吸相位
+
+    // Progress animation coordination (avoid fighting with breathing animation)
+    private var isProgressAnimating: Bool = false
+    private var shouldStartBreathingAfterProgressAnimation: Bool = false
     
     // 性能优化控制
     private var lastUpdateTime: CFTimeInterval = 0
@@ -1171,6 +1175,16 @@ class HealthRingsView: NSView {
     }
     
     func updateRingValues(workIntensity: Double, restAdequacy: Double, focus: Double, health: Double) {
+        applyRingValues(workIntensity: workIntensity, restAdequacy: restAdequacy, focus: focus, health: health, animateMask: nil, animated: true)
+    }
+
+    /// Update ring values with optional per-ring animation control.
+    ///
+    /// - Parameters:
+    ///   - animateMask: Optional per-ring flags, same order as `values` below.
+    ///     If provided and `animated == true`, rings with `false` will be updated immediately (no tween).
+    ///   - animated: When false, all rings update immediately without smooth animation.
+    func applyRingValues(workIntensity: Double, restAdequacy: Double, focus: Double, health: Double, animateMask: [Bool]?, animated: Bool) {
         // 保存原始数值用于显示（0-1范围）- 按新的环顺序映射
         ringValues = [workIntensity, restAdequacy, focus, health] // 工作强度, 休息充足度, 专注度, 健康度
         
@@ -1182,13 +1196,33 @@ class HealthRingsView: NSView {
         ]
         
         for (index, value) in values.enumerated() {
-            if index < rings.count {
-                // 限制在100%以内，不支持多圈显示（修复30%显示为整圈的问题）
-                rings[index].targetProgress = min(max(value, 0.0), 1.0)
+            guard index < rings.count else { continue }
+            
+            // 限制在100%以内，不支持多圈显示（修复30%显示为整圈的问题）
+            let clamped = min(max(value, 0.0), 1.0)
+            rings[index].targetProgress = clamped
+            
+            // If not animating, or per-ring mask says don't animate, snap immediately.
+            if !animated || (animateMask != nil && index < animateMask!.count && animateMask![index] == false) {
+                rings[index].progress = clamped
+                rings[index].animatedProgress = clamped
             }
         }
-        
-        startSmoothAnimation()
+
+        let shouldAnimateProgress: Bool = {
+            guard animated else { return false }
+            // If a mask is provided, only animate when at least one ring is marked as changed.
+            if let animateMask { return animateMask.contains(true) }
+            return true
+        }()
+
+        if shouldAnimateProgress {
+            startSmoothAnimation()
+        } else {
+            animationTimer?.invalidate()
+            animationTimer = nil
+            needsDisplay = true
+        }
         
         // 更新tooltip
         updateTooltip()
@@ -1204,8 +1238,8 @@ class HealthRingsView: NSView {
         breathingAnimationTimer = Timer.scheduledTimer(withTimeInterval: 1.0/15.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             
-            // 只在窗口可见时更新动画
-            guard self.window?.isVisible == true else { return }
+            // 只在窗口明确不可见时跳过（避免首次打开时 window 仍为 nil 导致永远不更新）
+            if let w = self.window, w.isVisible == false { return }
             
             // 智能节流：呼吸动画可以使用稍低的更新频率
             let currentTime = CACurrentMediaTime()
@@ -1224,7 +1258,7 @@ class HealthRingsView: NSView {
             }
             
             
-            // 优化：只有在没有进度动画时才触发重绘，避免冲突，并直接设置needsDisplay
+            // 优化：只有在没有进度动画时才触发重绘，避免冲突
             if self.animationTimer == nil {
                 self.needsDisplay = true
             }
@@ -1245,6 +1279,11 @@ class HealthRingsView: NSView {
         isTimerRunning = running
         
         if running {
+            // If progress animation is running, defer breathing until it finishes.
+            if isProgressAnimating {
+                shouldStartBreathingAfterProgressAnimation = true
+                return
+            }
             // 计时器运行时：从冻结状态恢复动画
             if frozenBreathingPhase != 0.0 {
                 // 从冻结的相位继续动画
@@ -1273,6 +1312,15 @@ class HealthRingsView: NSView {
         animationTimer?.invalidate()
         animationStartTime = CACurrentMediaTime()
         lastUpdateTime = 0  // 重置更新时间，确保立即开始
+        isProgressAnimating = true
+        
+        // Pause breathing during progress animation to avoid visual flicker/jitter.
+        if isBreathingAnimationActive {
+            frozenBreathingPhase = breathingPhase
+            isBreathingAnimationActive = false
+            breathingAnimationTimer?.invalidate()
+            breathingAnimationTimer = nil
+        }
         
         // Store initial progress values
         for i in 0..<rings.count {
@@ -1286,8 +1334,8 @@ class HealthRingsView: NSView {
                 return
             }
             
-            // 只在窗口可见时更新动画
-            guard self.window?.isVisible == true else { return }
+            // 只在窗口明确不可见时跳过（避免首次打开时 window 仍为 nil 导致永远不更新）
+            if let w = self.window, w.isVisible == false { return }
             
             // 智能节流：避免过度频繁的更新
             let currentTime = CACurrentMediaTime()
@@ -1344,6 +1392,14 @@ class HealthRingsView: NSView {
                 timer.invalidate()
                 self.animationTimer = nil
                 self.lastUpdateTime = 0  // 重置以便下次动画能立即开始
+
+                self.isProgressAnimating = false
+                
+                // Start breathing after progress animation if needed.
+                if self.shouldStartBreathingAfterProgressAnimation && self.isTimerRunning {
+                    self.shouldStartBreathingAfterProgressAnimation = false
+                    self.startBreathingAnimation()
+                }
             }
         }
     }
