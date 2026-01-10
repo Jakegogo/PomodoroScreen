@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>今日工作报告</title>
+    <title>今日时间</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -434,7 +434,7 @@
         </button>
         <header class="report-header">
             <h1>
-                今日工作报告
+                今日时间
             </h1>
             <p class="report-date" id="reportDate"></p>
             <p class="report-date" id="reportMoodLine"></p>
@@ -1869,7 +1869,7 @@
             if (!daily) {
                 console.warn('No daily data available for recommendations');
                 return [
-                    { text: '📊 欢迎使用番茄钟工作报告！', type: 'health' },
+                    { text: '📊 欢迎使用番茄钟时间报告！', type: 'health' },
                     { text: '🍅 开始使用番茄钟来记录您的工作数据', type: 'work' }
                 ];
             }

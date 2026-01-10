@@ -51,6 +51,8 @@ final class SettingsStore {
         // Overlay message
         case overlayRestMessageTemplate = "OverlayRestMessageTemplate"
         case overlayStayUpMessageTemplate = "OverlayStayUpMessageTemplate"
+        case overlayRestMessageTemplates = "OverlayRestMessageTemplates"
+        case overlayRestMessageTemplateRotationIndex = "OverlayRestMessageTemplateRotationIndex"
     }
     
     // MARK: - Typed Accessors with Defaults
@@ -193,6 +195,53 @@ final class SettingsStore {
         get { string(for: .overlayStayUpMessageTemplate, default: OverlayMessageTemplateRenderer.defaultStayUpTemplate) }
         set { setString(newValue, for: .overlayStayUpMessageTemplate) }
     }
+
+    /// Rest overlay message templates list (轮播文案列表).
+    ///
+    /// Backward-compatible behavior:
+    /// - If list is empty/missing, falls back to the legacy single-template setting if user ever saved it.
+    /// - If still empty, uses the default rest template.
+    static var overlayRestMessageTemplates: [String] {
+        get {
+            if let data = UserDefaults.standard.data(forKey: Key.overlayRestMessageTemplates.rawValue),
+               let decoded = try? JSONDecoder().decode([String].self, from: data) {
+                return normalizeOverlayTemplates(decoded)
+            }
+
+            // Migration path: if legacy key exists (even empty), prefer it; otherwise default.
+            if UserDefaults.standard.object(forKey: Key.overlayRestMessageTemplate.rawValue) != nil {
+                let legacy = UserDefaults.standard.string(forKey: Key.overlayRestMessageTemplate.rawValue) ?? ""
+                return normalizeOverlayTemplates([legacy])
+            }
+
+            return [OverlayMessageTemplateRenderer.defaultRestTemplate]
+        }
+        set {
+            let normalized = normalizeOverlayTemplates(newValue)
+            if let data = try? JSONEncoder().encode(normalized) {
+                UserDefaults.standard.set(data, forKey: Key.overlayRestMessageTemplates.rawValue)
+            }
+
+            // Keep legacy single-template in sync for backward compatibility with older call sites.
+            overlayRestMessageTemplate = normalized.first ?? OverlayMessageTemplateRenderer.defaultRestTemplate
+        }
+    }
+
+    /// Returns the next template for rest overlay (round-robin) and advances the rotation index.
+    static func nextOverlayRestMessageTemplate() -> String {
+        let templates = overlayRestMessageTemplates
+        guard !templates.isEmpty else {
+            return OverlayMessageTemplateRenderer.defaultRestTemplate
+        }
+
+        let rawIndex = UserDefaults.standard.integer(forKey: Key.overlayRestMessageTemplateRotationIndex.rawValue)
+        let safeIndex = rawIndex >= 0 ? rawIndex : 0
+        let idx = safeIndex % templates.count
+        let next = templates[idx]
+
+        UserDefaults.standard.set(idx + 1, forKey: Key.overlayRestMessageTemplateRotationIndex.rawValue)
+        return next
+    }
     
     // MARK: - Generic helpers
     private static func int(for key: Key, default def: Int) -> Int {
@@ -226,6 +275,14 @@ final class SettingsStore {
 
     private static func setString(_ value: String, for key: Key) {
         UserDefaults.standard.set(value, forKey: key.rawValue)
+    }
+
+    private static func normalizeOverlayTemplates(_ templates: [String]) -> [String] {
+        let cleaned = templates
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        return cleaned.isEmpty ? [OverlayMessageTemplateRenderer.defaultRestTemplate] : cleaned
     }
     
     // Utility

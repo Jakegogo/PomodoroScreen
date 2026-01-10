@@ -21,6 +21,9 @@ class PomodoroTimer: ObservableObject {
     private var accumulatedRestTime: TimeInterval = 0 // 累积的休息时间
     internal var isLongBreak: Bool = false // 当前是否为长休息
     private var currentRestDuration: TimeInterval = 0 // 当前休息周期的总时长（包括累积时间）
+    
+    /// 当前休息周期选中的遮罩层文案模板（每次休息只选择一次，避免多屏遮罩导致轮播多次递增）
+    private(set) var currentRestOverlayMessageTemplate: String?
     private var backgroundFiles: [BackgroundFile] = [] // 遮罩层背景文件列表
     private var currentBackgroundIndex: Int = -1 // 当前背景文件索引，从-1开始，第一次调用时变为0
     
@@ -493,7 +496,7 @@ class PomodoroTimer: ObservableObject {
     // 单例报告窗口引用
     private var reportWindowInstance: ReportWindow?
     
-    /// 显示今日工作报告
+    /// 显示今日时间分布情况
     func showTodayReport() {
         let reportData = statisticsManager.generateTodayReport()
         if reportWindowInstance == nil {
@@ -631,6 +634,9 @@ class PomodoroTimer: ObservableObject {
     internal func startShortBreak() {
         isLongBreak = false
         pomodoroStateMachine.setTimerType(.shortBreak)
+
+        // 轮播：每次进入休息，只选一次文案模板（多屏遮罩复用同一模板）
+        currentRestOverlayMessageTemplate = SettingsStore.nextOverlayRestMessageTemplate()
         
         // 计算短休息时间（包括累积的时间）
         var totalShortBreakTime = breakTime
@@ -656,6 +662,9 @@ class PomodoroTimer: ObservableObject {
     private func startLongBreak() {
         isLongBreak = true
         pomodoroStateMachine.setTimerType(.longBreak)
+
+        // 轮播：每次进入休息，只选一次文案模板（多屏遮罩复用同一模板）
+        currentRestOverlayMessageTemplate = SettingsStore.nextOverlayRestMessageTemplate()
         
         // 计算长休息时间（包括累积的时间）
         var totalLongBreakTime = longBreakTime
@@ -706,6 +715,7 @@ class PomodoroTimer: ObservableObject {
         stop()
         isLongBreak = false
         currentRestDuration = 0 // 重置休息时长
+        currentRestOverlayMessageTemplate = nil
         
         if source == "user" {
             print("🚫 Rest period cancelled by user")
@@ -744,6 +754,7 @@ class PomodoroTimer: ObservableObject {
         stop()
         isLongBreak = false
         currentRestDuration = 0 // 重置休息时长
+        currentRestOverlayMessageTemplate = nil
         
         // 通知状态机休息完成（与 timerFinished 中 .restFinished 一致）
         processPomodoroEvent(.restFinished)

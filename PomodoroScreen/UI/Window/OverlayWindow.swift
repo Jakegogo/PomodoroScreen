@@ -971,7 +971,8 @@ class OverlayView: NSView {
                 if let timer = timer {
                     let breakInfo = timer.getCurrentBreakInfo()
                     let breakType = breakInfo.isLongBreak ? "长休息" : "休息"
-                    let template = SettingsStore.overlayRestMessageTemplate
+                    // 休息文案：本次休息在 PomodoroTimer 中已选定（避免多屏遮罩触发轮播多次）
+                    let template = timer.currentRestOverlayMessageTemplate ?? SettingsStore.overlayRestMessageTemplate
                     messageLabel.stringValue = OverlayMessageTemplateRenderer.renderRestMessage(
                         template: template,
                         breakType: breakType,

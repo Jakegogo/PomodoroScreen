@@ -31,7 +31,7 @@ class ReportWindow: NSWindow {
     }
     
     private func setupWindow() {
-        self.title = "今日工作报告"
+        self.title = "今日时间"
         self.center()
         self.isReleasedWhenClosed = false
         self.minSize = NSSize(width: 800, height: 600)
@@ -43,7 +43,7 @@ class ReportWindow: NSWindow {
         // 在标题中间添加图标+标题
         centeredTitleContainer = TitlebarIconManager.setCenteredTitle(
             window: self,
-            text: "今日工作报告",
+            text: "今日时间",
             iconResource: "statistics",
             ext: "svg",
             iconSize: NSSize(width: 20, height: 20)
