@@ -175,9 +175,13 @@ class StatusBarPopupWindow: NSWindow {
         
         var legendX: CGFloat {
             // 动态计算图例宽度并居中
-            // UI优化：图例支持“左文字 + 右百分比”，需要更宽的布局
-            let legendWidth: CGFloat = 190
             return (windowWidth - legendWidth) / 2
+        }
+        
+        /// Bottom metrics width. Needs to fit Chinese values like “10小时50分钟”.
+        var legendWidth: CGFloat {
+            // Keep a reasonable max on narrow windows.
+            return min(210, windowWidth - horizontalPadding)
         }
         
         init(width: CGFloat, height: CGFloat = 500) {
@@ -491,8 +495,8 @@ class StatusBarPopupWindow: NSWindow {
         let startX = layoutConfig.legendX
         let startY = layoutConfig.legendStartY
         let itemHeight = layoutConfig.legendItemHeight + layoutConfig.legendSpacing
-        let rowWidth: CGFloat = 190
-        let valueWidth: CGFloat = 56
+        let rowWidth: CGFloat = layoutConfig.legendWidth
+        let valueWidth: CGFloat = 110
         
         // 重新创建前先清空引用，避免累积
         legendValueLabels.removeAll()
@@ -545,7 +549,8 @@ class StatusBarPopupWindow: NSWindow {
     
     private func createLegendValueLabel(text: String, frame: NSRect) -> NSTextField {
         let label = NSTextField(labelWithString: text)
-        label.font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium)
+        // Use normal system font so Chinese text width is measured and rendered naturally.
+        label.font = NSFont.systemFont(ofSize: 12, weight: .medium)
         label.textColor = NSColor.secondaryLabelColor
         label.alignment = .right
         label.frame = frame
@@ -633,10 +638,10 @@ class StatusBarPopupWindow: NSWindow {
 
     func updateBottomMetrics(completedPomodoros: Int, workTime: TimeInterval, breakTime: TimeInterval, healthScore: Double) {
         legendValueTexts = [
-            "\(completedPomodoros)",
-            formatHoursMinutes(workTime),
-            formatHoursMinutes(breakTime),
-            "\(Int(round(healthScore)))"
+            Self.formatPomodoroCount(completedPomodoros),
+            Self.formatDurationChinese(workTime),
+            Self.formatDurationChinese(breakTime),
+            Self.formatScore(healthScore)
         ]
         updateLegendValueLabels()
     }
@@ -649,12 +654,28 @@ class StatusBarPopupWindow: NSWindow {
         }
     }
 
-    private func formatHoursMinutes(_ seconds: TimeInterval) -> String {
+    // MARK: - Bottom Metric Formatting (Chinese)
+    internal static func formatDurationChinese(_ seconds: TimeInterval) -> String {
         let safeSeconds = max(0, seconds)
         let totalMinutes = Int(safeSeconds / 60)
         let hours = totalMinutes / 60
         let minutes = totalMinutes % 60
-        return "\(hours)h \(minutes)m"
+        
+        if hours == 0 {
+            return "\(minutes)分钟"
+        }
+        if minutes == 0 {
+            return "\(hours)小时"
+        }
+        return "\(hours)小时\(minutes)分钟"
+    }
+    
+    internal static func formatPomodoroCount(_ count: Int) -> String {
+        return "\(max(0, count)) 个"
+    }
+    
+    internal static func formatScore(_ score: Double) -> String {
+        return "\(Int(round(score)))分"
     }
     
     func updateCountdown(time: TimeInterval, title: String) {
