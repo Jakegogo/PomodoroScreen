@@ -32,16 +32,18 @@ class StatusBarPopupWindow: NSWindow {
     private var onMeetingModeChanged: ((Bool) -> Void)?  // 专注模式变更回调
     
     // MARK: - Constants
-    private static let legendItems: [(String, NSColor)] = [
-        ("休息充足度", NSColor.restLight),
-        ("工作强度", NSColor.workLight),
-        ("专注度", NSColor.focusLight),
-        ("健康度", NSColor.healthLight)
+    // Bottom metrics (requested):
+    // 完成番茄钟 / 工作时间 / 休息时间 / 健康评分
+    internal static let bottomMetricItems: [(String, NSColor)] = [
+        ("完成番茄钟", NSColor.workLight),
+        ("工作时间", NSColor.focusLight),
+        ("休息时间", NSColor.restLight),
+        ("健康评分", NSColor.healthLight)
     ]
     
-    // UI优化：图例右侧百分比展示
+    // Bottom metric values (right-side).
     private var legendValueLabels: [NSTextField] = []
-    private var legendValuePercents: [Int] = [0, 0, 0, 0] // 对应 legendItems 的顺序
+    private var legendValueTexts: [String] = ["0", "0h 0m", "0h 0m", "0"] // 对应 bottomMetricItems 的顺序
     
     // MARK: - Layout Configuration
     private struct LayoutConfig {
@@ -495,7 +497,7 @@ class StatusBarPopupWindow: NSWindow {
         // 重新创建前先清空引用，避免累积
         legendValueLabels.removeAll()
         
-        for (index, item) in Self.legendItems.enumerated() {
+        for (index, item) in Self.bottomMetricItems.enumerated() {
             let y = startY - CGFloat(index) * itemHeight
             
             // 创建颜色指示器
@@ -512,9 +514,8 @@ class StatusBarPopupWindow: NSWindow {
             )
             contentView.addSubview(label)
             
-            // 创建右侧百分比值（右对齐，留出更大的中间间距）
-            let percent = index < legendValuePercents.count ? legendValuePercents[index] : 0
-            let valueText = "\(percent)%"
+            // 创建右侧指标值（右对齐）
+            let valueText = index < legendValueTexts.count ? legendValueTexts[index] : "-"
             let valueLabel = createLegendValueLabel(
                 text: valueText,
                 frame: NSRect(x: startX + rowWidth - valueWidth, y: y - 2, width: valueWidth, height: 22)
@@ -628,23 +629,32 @@ class StatusBarPopupWindow: NSWindow {
             focus: focus,
             health: health
         )
-        
-        // UI优化：同步更新底部图例右侧百分比（与 legendItems 顺序一致）
-        legendValuePercents = [
-            Int(restAdequacy * 100),
-            Int(workIntensity * 100),
-            Int(focus * 100),
-            Int(health * 100)
+    }
+
+    func updateBottomMetrics(completedPomodoros: Int, workTime: TimeInterval, breakTime: TimeInterval, healthScore: Double) {
+        legendValueTexts = [
+            "\(completedPomodoros)",
+            formatHoursMinutes(workTime),
+            formatHoursMinutes(breakTime),
+            "\(Int(round(healthScore)))"
         ]
         updateLegendValueLabels()
     }
 
     private func updateLegendValueLabels() {
         guard !legendValueLabels.isEmpty else { return }
-        let count = min(legendValueLabels.count, legendValuePercents.count)
+        let count = min(legendValueLabels.count, legendValueTexts.count)
         for i in 0..<count {
-            legendValueLabels[i].stringValue = "\(legendValuePercents[i])%"
+            legendValueLabels[i].stringValue = legendValueTexts[i]
         }
+    }
+
+    private func formatHoursMinutes(_ seconds: TimeInterval) -> String {
+        let safeSeconds = max(0, seconds)
+        let totalMinutes = Int(safeSeconds / 60)
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        return "\(hours)h \(minutes)m"
     }
     
     func updateCountdown(time: TimeInterval, title: String) {

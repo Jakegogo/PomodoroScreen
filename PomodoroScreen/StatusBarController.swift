@@ -376,6 +376,14 @@ class StatusBarController {
             focus: focus,
             health: health
         )
+
+        // 更新弹窗底部四个指标：完成番茄钟 / 工作时间 / 休息时间 / 健康评分
+        popupWindow?.updateBottomMetrics(
+            completedPomodoros: daily.completedPomodoros,
+            workTime: daily.totalWorkTime,
+            breakTime: daily.totalBreakTime,
+            healthScore: daily.healthScore
+        )
     }
     
     private func showContextMenu() {
