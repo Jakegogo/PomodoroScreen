@@ -24,7 +24,7 @@
 		23249BA62E82662F00F45D58 /* icon_video.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 23249BA52E82662F00F45D58 /* icon_video.mp4 */; };
 		23249BA82E826FCF00F45D58 /* IOSSwitchButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23249BA72E826FCF00F45D58 /* IOSSwitchButton.swift */; };
 		2338559B2E8CA7A600809053 /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2338559A2E8CA7A600809053 /* AppLogger.swift */; };
-		234823262E7EAAC500DC507E /* AutoRestartStateMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 234823252E7EAAC500DC507E /* AutoRestartStateMachine.swift */; };
+		234823262E7EAAC500DC507E /* PomodoroStateMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 234823252E7EAAC500DC507E /* PomodoroStateMachine.swift */; };
 		23905D092E9DFC060033DA01 /* StayUpConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23905D082E9DFC060033DA01 /* StayUpConstants.swift */; };
 		2398F36A2F109FCC00BD0BC0 /* SF-Pro-Rounded-Heavy.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2398F3692F109FCC00BD0BC0 /* SF-Pro-Rounded-Heavy.ttf */; };
 		23BD5A8B2E80F742008AEE45 /* BeautifulPoliceOfficer-rvv8x.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 23BD5A892E80F742008AEE45 /* BeautifulPoliceOfficer-rvv8x.ttf */; };
@@ -82,7 +82,7 @@
 		23249BA52E82662F00F45D58 /* icon_video.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = icon_video.mp4; sourceTree = "<group>"; };
 		23249BA72E826FCF00F45D58 /* IOSSwitchButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSSwitchButton.swift; sourceTree = "<group>"; };
 		2338559A2E8CA7A600809053 /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLogger.swift; sourceTree = "<group>"; };
-		234823252E7EAAC500DC507E /* AutoRestartStateMachine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoRestartStateMachine.swift; sourceTree = "<group>"; };
+		234823252E7EAAC500DC507E /* PomodoroStateMachine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PomodoroStateMachine.swift; sourceTree = "<group>"; };
 		2348232B2E7EAAF800DC507E /* PomodoroScreenTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PomodoroScreenTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		23905D082E9DFC060033DA01 /* StayUpConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StayUpConstants.swift; sourceTree = "<group>"; };
 		2398F3692F109FCC00BD0BC0 /* SF-Pro-Rounded-Heavy.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "SF-Pro-Rounded-Heavy.ttf"; sourceTree = "<group>"; };
@@ -117,6 +117,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		2341D2402F12010C00797EA2 /* Model */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Model; sourceTree = "<group>"; };
 		2348232C2E7EAAF800DC507E /* PomodoroScreenTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = PomodoroScreenTests; sourceTree = "<group>"; };
 		23CE750C2E9FE03D00C94EC7 /* Statistics */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Statistics; sourceTree = "<group>"; };
 		23CE750D2E9FE12000C94EC7 /* Window */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Window; sourceTree = "<group>"; };
@@ -259,11 +260,12 @@
 				23FA66032E9B5101000F9F07 /* Debug */,
 				23DAFA662E8B7C5C00DD6B6C /* Settings */,
 				23DAFA632E8B6E8C00DD6B6C /* Migration */,
+				2341D2402F12010C00797EA2 /* Model */,
 				JS1234567890ABCDEF003 /* Resources */,
 				233855982E8CA10C00809053 /* Utils */,
 				23BD5B2E2E818E48008AEE45 /* UI */,
 				23CE750C2E9FE03D00C94EC7 /* Statistics */,
-				234823252E7EAAC500DC507E /* AutoRestartStateMachine.swift */,
+				234823252E7EAAC500DC507E /* PomodoroStateMachine.swift */,
 				A1234567890ABCDEF002 /* AppDelegate.swift */,
 				A1234567890ABCDEF004 /* PomodoroTimer.swift */,
 				A1234567890ABCDEF006 /* StatusBarController.swift */,
@@ -345,6 +347,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
+				2341D2402F12010C00797EA2 /* Model */,
 				23CE750C2E9FE03D00C94EC7 /* Statistics */,
 				23CE750D2E9FE12000C94EC7 /* Window */,
 				23CE750E2E9FE16E00C94EC7 /* Manager */,
@@ -465,7 +468,7 @@
 				23BD5C352E824FE6008AEE45 /* RoundIndicatorView.swift in Sources */,
 				23DAFA672E8B7C5C00DD6B6C /* SettingsStore.swift in Sources */,
 				2338559B2E8CA7A600809053 /* AppLogger.swift in Sources */,
-				234823262E7EAAC500DC507E /* AutoRestartStateMachine.swift in Sources */,
+				234823262E7EAAC500DC507E /* PomodoroStateMachine.swift in Sources */,
 				A1234567890ABCDEF015 /* SettingsWindow.swift in Sources */,
 				FDF3445FA03D44929CE879D5 /* LaunchAtLogin.swift in Sources */,
 			);

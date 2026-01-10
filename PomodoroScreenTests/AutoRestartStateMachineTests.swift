@@ -3,12 +3,12 @@ import XCTest
 
 class AutoRestartStateMachineTests: XCTestCase {
     
-    var stateMachine: AutoRestartStateMachine!
+    var stateMachine: PomodoroStateMachine!
     
     override func setUp() {
         super.setUp()
         // 创建默认设置：所有功能都启用，都设置为停止计时模式
-        let settings = AutoRestartStateMachine.AutoRestartSettings(
+        let settings = PomodoroStateMachine.PomodoroSettings(
             idleEnabled: true,
             idleActionIsRestart: false,  // 停止计时模式
             screenLockEnabled: true,
@@ -19,7 +19,7 @@ class AutoRestartStateMachineTests: XCTestCase {
             stayUpLimitHour: 23,
             stayUpLimitMinute: 0
         )
-        stateMachine = AutoRestartStateMachine(settings: settings)
+        stateMachine = PomodoroStateMachine(settings: settings)
     }
     
     override func tearDown() {
@@ -115,7 +115,7 @@ class AutoRestartStateMachineTests: XCTestCase {
     
     func testScreensaverRestartMode() {
         // 创建重新计时模式的设置
-        let restartSettings = AutoRestartStateMachine.AutoRestartSettings(
+        let restartSettings = PomodoroStateMachine.PomodoroSettings(
             idleEnabled: true,
             idleActionIsRestart: true,
             screenLockEnabled: true,
@@ -168,7 +168,7 @@ class AutoRestartStateMachineTests: XCTestCase {
     
     func testScreenLockRestartMode() {
         // 创建重新计时模式的设置
-        let restartSettings = AutoRestartStateMachine.AutoRestartSettings(
+        let restartSettings = PomodoroStateMachine.PomodoroSettings(
             idleEnabled: true,
             idleActionIsRestart: true,
             screenLockEnabled: true,
@@ -199,7 +199,7 @@ class AutoRestartStateMachineTests: XCTestCase {
     
     func testIdleDisabled() {
         // 创建禁用无操作检测的设置
-        let disabledSettings = AutoRestartStateMachine.AutoRestartSettings(
+        let disabledSettings = PomodoroStateMachine.PomodoroSettings(
             idleEnabled: false,  // 禁用无操作检测
             idleActionIsRestart: false,
             screenLockEnabled: true,
@@ -223,7 +223,7 @@ class AutoRestartStateMachineTests: XCTestCase {
     
     func testScreensaverDisabled() {
         // 创建禁用屏保处理的设置
-        let disabledSettings = AutoRestartStateMachine.AutoRestartSettings(
+        let disabledSettings = PomodoroStateMachine.PomodoroSettings(
             idleEnabled: true,
             idleActionIsRestart: false,
             screenLockEnabled: true,
@@ -317,7 +317,7 @@ class AutoRestartStateMachineTests: XCTestCase {
         // 测试设置更新功能
         
         // 创建新的设置
-        let newSettings = AutoRestartStateMachine.AutoRestartSettings(
+        let newSettings = PomodoroStateMachine.PomodoroSettings(
             idleEnabled: false,
             idleActionIsRestart: true,
             screenLockEnabled: false,
@@ -345,7 +345,7 @@ class AutoRestartStateMachineTests: XCTestCase {
     
     func testIdleRestartMode() {
         // 创建无操作重新计时模式的设置
-        let restartSettings = AutoRestartStateMachine.AutoRestartSettings(
+        let restartSettings = PomodoroStateMachine.PomodoroSettings(
             idleEnabled: true,
             idleActionIsRestart: true,  // 重新计时模式
             screenLockEnabled: true,
@@ -374,7 +374,7 @@ class AutoRestartStateMachineTests: XCTestCase {
         // 专门验证屏保暂停计时模式：进入屏保暂停计时，退出屏保继续计时
         
         // 确保使用停止计时模式的设置
-        let pauseSettings = AutoRestartStateMachine.AutoRestartSettings(
+        let pauseSettings = PomodoroStateMachine.PomodoroSettings(
             idleEnabled: true,
             idleActionIsRestart: false,
             screenLockEnabled: true,

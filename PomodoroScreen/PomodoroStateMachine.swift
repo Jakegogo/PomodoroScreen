@@ -4,7 +4,7 @@ import AppKit // 用于 NSWorkspace 睡眠通知
 // MARK: - State Machine for Auto Restart Logic
 
 /// 自动重新计时的状态
-enum AutoRestartState {
+enum PomodoroState {
     case idle                    // 空闲状态，等待事件
     case timerRunning           // 计时器运行中
     case timerPausedByUser      // 因用户手动暂停
@@ -19,7 +19,7 @@ enum AutoRestartState {
 }
 
 /// 自动重新计时的事件
-enum AutoRestartEvent {
+enum PomodoroEvent {
     case timerStarted           // 计时器启动
     case timerStopped           // 计时器停止
     case timerPaused            // 计时器暂停
@@ -38,7 +38,7 @@ enum AutoRestartEvent {
 }
 
 /// 自动重新计时的动作
-enum AutoRestartAction {
+enum PomodoroAction {
     case none               // 无动作
     case pauseTimer         // 暂停计时器
     case resumeTimer        // 恢复计时器
@@ -65,9 +65,9 @@ enum StatusBarIconType {
 }
 
 /// 自动重新计时状态机
-class AutoRestartStateMachine {
-    private var currentState: AutoRestartState = .idle
-    private var settings: AutoRestartSettings
+class PomodoroStateMachine {
+    private var currentState: PomodoroState = .idle
+    private var settings: PomodoroSettings
     private var lastScreensaverResumeTime: Date?
     private var currentTimerType: TimerType = .pomodoro // 当前计时器类型
     
@@ -77,7 +77,7 @@ class AutoRestartStateMachine {
     private var lastStayUpLoggedSlot: Date? // 上一次记录的半小时槽起始时间
     private var isSystemSleeping: Bool = false // 系统是否处于睡眠状态
     
-    struct AutoRestartSettings {
+    struct PomodoroSettings {
         let idleEnabled: Bool
         let idleActionIsRestart: Bool
         let screenLockEnabled: Bool
@@ -91,7 +91,7 @@ class AutoRestartStateMachine {
         let stayUpLimitMinute: Int // 限制分钟（0, 15, 30, 45）
     }
     
-    init(settings: AutoRestartSettings) {
+    init(settings: PomodoroSettings) {
         self.settings = settings
         setupSleepNotifications()
     }
@@ -159,11 +159,11 @@ class AutoRestartStateMachine {
         onSystemWakeup?()
     }
     
-    func updateSettings(_ newSettings: AutoRestartSettings) {
+    func updateSettings(_ newSettings: PomodoroSettings) {
         self.settings = newSettings
     }
     
-    func getCurrentState() -> AutoRestartState {
+    func getCurrentState() -> PomodoroState {
         return currentState
     }
     
@@ -227,7 +227,7 @@ class AutoRestartStateMachine {
         return Date().timeIntervalSince(lastResumeTime) < 1.0
     }
     
-    func processEvent(_ event: AutoRestartEvent) -> AutoRestartAction {
+    func processEvent(_ event: PomodoroEvent) -> PomodoroAction {
         let action = determineAction(for: event, in: currentState)
         let newState = determineNewState(for: event, in: currentState)
         
@@ -237,7 +237,7 @@ class AutoRestartStateMachine {
         return action
     }
     
-    private func determineAction(for event: AutoRestartEvent, in state: AutoRestartState) -> AutoRestartAction {
+    private func determineAction(for event: PomodoroEvent, in state: PomodoroState) -> PomodoroAction {
         switch (event, state) {
         // 计时器状态变化
         case (.timerStarted, _):
@@ -260,7 +260,7 @@ class AutoRestartStateMachine {
                 print("🔄 State Machine: 无操作功能未启用，忽略用户活动")
                 return .none 
             }
-            let action: AutoRestartAction = settings.idleActionIsRestart ? .restartTimer : .resumeTimer
+            let action: PomodoroAction = settings.idleActionIsRestart ? .restartTimer : .resumeTimer
             print("🔄 State Machine: 用户活动检测到，从无操作暂停状态执行动作: \(action)")
             return action
         case (.userActivityDetected, .timerPausedBySystem):
@@ -395,7 +395,7 @@ class AutoRestartStateMachine {
         }
     }
     
-    private func determineNewState(for event: AutoRestartEvent, in state: AutoRestartState) -> AutoRestartState {
+    private func determineNewState(for event: PomodoroEvent, in state: PomodoroState) -> PomodoroState {
         switch event {
         case .timerStarted:
             // 根据当前计时器类型决定状态
