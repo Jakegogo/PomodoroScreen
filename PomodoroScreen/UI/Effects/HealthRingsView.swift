@@ -1395,8 +1395,9 @@ class HealthRingsView: NSView {
 
                 self.isProgressAnimating = false
                 
-                // Start breathing after progress animation if needed.
-                if self.shouldStartBreathingAfterProgressAnimation && self.isTimerRunning {
+                // Progress animation finished: resume breathing if timer is running.
+                // This guarantees "value tween -> breathing" even when updates happen while popup is already open.
+                if self.isTimerRunning && !self.isBreathingAnimationActive {
                     self.shouldStartBreathingAfterProgressAnimation = false
                     self.startBreathingAnimation()
                 }
