@@ -10,6 +10,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var screenDetectionManager: ScreenDetectionManager!
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
+        // 修复：设置窗口“文案”输入框无法使用 Cmd+V 粘贴
+        // 根因：MainMenu.xib 只有 App 菜单（About/Quit），缺少 Edit 菜单，导致系统无法路由 paste:/copy: 等快捷键到响应链。
+        installStandardEditMenuIfNeeded()
+        
         // 初始化开机自启动管理
         // 确保LaunchAtLogin的状态与UserDefaults同步
         let savedLaunchAtLoginEnabled = SettingsStore.launchAtLoginEnabled
@@ -75,6 +79,43 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // OnboardingWindow.resetOnboarding()
         showOnboardingIfNeeded()
     }
+
+    /// 安装标准 Edit 菜单（Undo/Redo/Cut/Copy/Paste/Select All），以支持 Cmd+V 等系统快捷键。
+    /// - Note: target 设为 nil，让 NSTextView / NSTextField 通过 responder chain 处理 paste:/copy: 等 action。
+    private func installStandardEditMenuIfNeeded() {
+        guard let mainMenu = NSApp.mainMenu else { return }
+        
+        // 避免重复添加
+        if mainMenu.items.contains(where: { $0.title == "Edit" }) {
+            return
+        }
+        
+        let editMenu = NSMenu(title: "Edit")
+        
+        func item(_ title: String, _ action: Selector?, _ key: String, modifiers: NSEvent.ModifierFlags = [.command]) -> NSMenuItem {
+            let m = NSMenuItem(title: title, action: action, keyEquivalent: key)
+            m.keyEquivalentModifierMask = modifiers
+            m.target = nil
+            return m
+        }
+        
+        editMenu.addItem(item("Undo", Selector(("undo:")), "z"))
+        editMenu.addItem(item("Redo", Selector(("redo:")), "Z", modifiers: [.command, .shift]))
+        editMenu.addItem(.separator())
+        editMenu.addItem(item("Cut", #selector(NSText.cut(_:)), "x"))
+        editMenu.addItem(item("Copy", #selector(NSText.copy(_:)), "c"))
+        editMenu.addItem(item("Paste", #selector(NSText.paste(_:)), "v"))
+        editMenu.addItem(item("Delete", #selector(NSText.delete(_:)), ""))
+        editMenu.addItem(.separator())
+        editMenu.addItem(item("Select All", #selector(NSText.selectAll(_:)), "a"))
+        
+        let editMenuItem = NSMenuItem(title: "Edit", action: nil, keyEquivalent: "")
+        editMenuItem.submenu = editMenu
+        
+        // 通常 App 菜单在 index 0，将 Edit 插到后面
+        let insertIndex = min(1, mainMenu.items.count)
+        mainMenu.insertItem(editMenuItem, at: insertIndex)
+    }
     
     func applicationWillTerminate(_ aNotification: Notification) {
         // 清理资源
@@ -116,6 +157,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
            let loadedBackgroundFiles = try? JSONDecoder().decode([BackgroundFile].self, from: backgroundData) {
             backgroundFiles = loadedBackgroundFiles
         }
+        let shuffleBackgrounds = SettingsStore.shuffleBackgrounds
         
         // 加载熬夜限制设置
         let stayUpLimitEnabled = SettingsStore.stayUpLimitEnabled
@@ -126,7 +168,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let meetingModeEnabled = SettingsStore.meetingModeEnabled
         
         // 应用设置到计时器
-        pomodoroTimer.updateSettings(pomodoroMinutes: pomodoroTime, breakMinutes: breakTime, idleRestart: idleRestartEnabled, idleTime: idleTime, idleActionIsRestart: idleActionIsRestart, screenLockRestart: screenLockRestartEnabled, screenLockActionIsRestart: screenLockActionIsRestart, screensaverRestart: screensaverRestartEnabled, screensaverActionIsRestart: screensaverActionIsRestart, showCancelRestButton: showCancelRestButton, longBreakCycle: longBreakCycle, longBreakTimeMinutes: longBreakTimeMinutes, showLongBreakCancelButton: showLongBreakCancelButton, accumulateRestTime: accumulateRestTime, backgroundFiles: backgroundFiles, stayUpLimitEnabled: stayUpLimitEnabled, stayUpLimitHour: stayUpHour, stayUpLimitMinute: stayUpLimitMinute, meetingMode: meetingModeEnabled)
+        pomodoroTimer.updateSettings(pomodoroMinutes: pomodoroTime, breakMinutes: breakTime, idleRestart: idleRestartEnabled, idleTime: idleTime, idleActionIsRestart: idleActionIsRestart, screenLockRestart: screenLockRestartEnabled, screenLockActionIsRestart: screenLockActionIsRestart, screensaverRestart: screensaverRestartEnabled, screensaverActionIsRestart: screensaverActionIsRestart, showCancelRestButton: showCancelRestButton, longBreakCycle: longBreakCycle, longBreakTimeMinutes: longBreakTimeMinutes, showLongBreakCancelButton: showLongBreakCancelButton, accumulateRestTime: accumulateRestTime, backgroundFiles: backgroundFiles, shuffleBackgrounds: shuffleBackgrounds, stayUpLimitEnabled: stayUpLimitEnabled, stayUpLimitHour: stayUpHour, stayUpLimitMinute: stayUpLimitMinute, meetingMode: meetingModeEnabled)
         
         // 如果启用自动启动，则启动计时器
         if autoStartEnabled {

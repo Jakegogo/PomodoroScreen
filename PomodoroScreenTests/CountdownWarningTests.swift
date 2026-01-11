@@ -10,7 +10,7 @@ import XCTest
 
 class CountdownWarningTests: XCTestCase {
     var pomodoroTimer: PomodoroTimer!
-    var mockStateMachine: AutoRestartStateMachine!
+    var mockStateMachine: PomodoroStateMachine!
     
     override func setUp() {
         super.setUp()

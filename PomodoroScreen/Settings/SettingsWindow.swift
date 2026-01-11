@@ -15,6 +15,17 @@ class SettingsWindow: NSWindow {
     private var breakTimeSlider: NSSlider!
     private var breakTimeLabel: NSTextField!
     private var showCancelRestButtonCheckbox: NSButton!
+    private var overlayRestMessageTemplateTextViews: [NSTextView] = []
+    private var overlayRestMessageTemplatesStackView: NSStackView!
+    private var overlayRestMessageTemplatesContainerView: NSView!
+    private var overlayRestMessageTemplatesScrollView: NSScrollView!
+    private var overlayRestMessageTemplatesDocumentView: NSView!
+    private var overlayRestMessageTemplatesAddButton: NSButton!
+    private var overlayMessageTabBottomY: CGFloat = 0
+    private var overlayStayUpTemplateLabelForLayout: NSTextField!
+    private var overlayStayUpTemplateHintForLayout: NSTextField!
+    private var overlayStayUpInputContainerView: NSView!
+    private var overlayStayUpMessageTemplateTextView: NSTextView!
     
     // 熬夜限制设置 UI 控件
     private var stayUpLimitCheckbox: NSButton!
@@ -60,6 +71,7 @@ class SettingsWindow: NSWindow {
     private var moveDownButton: NSButton!
     private var previewButton: NSButton!  // 预览按钮
     private var backgroundTypeLabel: NSTextField!
+    private var shuffleBackgroundsCheckbox: NSButton! // 随机播放复选框
     
     // 通用控件
     private var saveButton: NSButton!
@@ -77,6 +89,9 @@ class SettingsWindow: NSWindow {
     var screensaverRestartEnabled: Bool = true
     var screensaverActionIsRestart: Bool = false // true: 重新计时, false: 暂停计时
     var showCancelRestButton: Bool = true // 是否显示取消休息按钮
+    var overlayRestMessageTemplate: String = "" // 遮罩层提示文案模板（兼容旧逻辑，保存时会同步为列表第一条）
+    var overlayRestMessageTemplates: [String] = [] // 遮罩层提示文案模板列表（轮播）
+    var overlayStayUpMessageTemplate: String = "" // 熬夜强制休息文案模板
     
     // 计划设置值
     var longBreakCycle: Int = 2 // 间隔N次后进行长休息
@@ -86,6 +101,7 @@ class SettingsWindow: NSWindow {
     
     // 背景设置值
     var backgroundFiles: [BackgroundFile] = [] // 背景文件列表
+    var shuffleBackgrounds: Bool = false // 是否随机播放背景
     
     // 熬夜限制设置值
     var stayUpLimitEnabled: Bool = false // 是否启用熬夜限制
@@ -102,7 +118,7 @@ class SettingsWindow: NSWindow {
     var autoDetectScreencastEnabled: Bool = false // 是否启用自动检测投屏进入专注模式
     
     // 回调
-    var onSettingsChanged: ((Bool, Int, Int, Bool, Int, Bool, Bool, Bool, Bool, Bool, Bool, Int, Int, Bool, Bool, [BackgroundFile], Bool, Int, Int, Bool) -> Void)?
+    var onSettingsChanged: ((Bool, Int, Int, Bool, Int, Bool, Bool, Bool, Bool, Bool, Bool, Int, Int, Bool, Bool, [BackgroundFile], Bool, Bool, Int, Int, Bool) -> Void)?
     
     override init(contentRect: NSRect, styleMask style: NSWindow.StyleMask, backing backingStoreType: NSWindow.BackingStoreType, defer flag: Bool) {
         super.init(contentRect: contentRect, styleMask: style, backing: backingStoreType, defer: flag)
@@ -130,11 +146,12 @@ class SettingsWindow: NSWindow {
         tabView = NSTabView(frame: NSRect(x: 20, y: 60, width: 440, height: 500))
         contentView.addSubview(tabView)
         
-        // 创建四个标签页
+        // 创建标签页（“文案”放到最后，避免打扰常用设置）
         setupBasicSettingsTab()
         setupAutoHandlingTab()
         setupPlanTab()
         setupBackgroundTab()
+        setupOverlayMessageTab()
         
         // 添加保存和取消按钮
         setupButtons(in: contentView)
@@ -149,7 +166,7 @@ class SettingsWindow: NSWindow {
         let basicView = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 460))
         basicTabItem.view = basicView
         
-        var yPosition = 400
+        var yPosition: CGFloat = 400
         
         // 自动启动设置
         autoStartCheckbox = NSButton(checkboxWithTitle: "启动应用时自动开始番茄钟", target: self, action: #selector(autoStartChanged))
@@ -218,6 +235,316 @@ class SettingsWindow: NSWindow {
         
         tabView.addTabViewItem(basicTabItem)
     }
+
+    private func setupOverlayMessageTab() {
+        let copyTabItem = NSTabViewItem(identifier: "copy")
+        copyTabItem.label = "文案"
+
+        let copyView = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 460))
+        copyTabItem.view = copyView
+
+        var yPosition: CGFloat = 400
+
+        // 普通休息/长休息提示文案（可自定义）
+        let overlayTemplateLabel = NSTextField(labelWithString: "遮罩层提示文案:")
+        overlayTemplateLabel.frame = NSRect(x: 20, y: yPosition, width: 200, height: 20)
+        copyView.addSubview(overlayTemplateLabel)
+        // 更紧凑：标题与占位符提示之间减少间距
+        yPosition -= 14
+
+        let overlayTemplateHint = NSTextField(labelWithString: "支持占位符：{breakType}、{breakMinutes}")
+        overlayTemplateHint.frame = NSRect(x: 20, y: yPosition, width: 360, height: 14)
+        overlayTemplateHint.font = NSFont.systemFont(ofSize: 10)
+        overlayTemplateHint.textColor = NSColor.secondaryLabelColor
+        copyView.addSubview(overlayTemplateHint)
+        yPosition -= 16
+
+        // 轮播文案列表：不使用滚动条，新增后向下挤压后续内容
+        // 先用一个最小高度占位，后续根据内容高度动态调整 container 的 frame
+        let listMinHeight: CGFloat = 56
+        let listY = yPosition - listMinHeight
+        let templatesContainerView = NSView(frame: NSRect(x: 20, y: listY, width: 390, height: listMinHeight))
+        // Outer container does NOT need background; only each item has background.
+
+        // Inner scroll view: <=3 items -> expand container (no scroller); >3 items -> fixed height + inner scroll.
+        // 内部滚动区域加宽，给滚动条留空间，确保输入框内容宽度与“强制休息”一致
+        let templatesScrollView = NSScrollView(frame: NSRect(x: 0, y: 6, width: 390, height: listMinHeight))
+        templatesScrollView.hasVerticalScroller = false
+        templatesScrollView.hasHorizontalScroller = false
+        templatesScrollView.autohidesScrollers = false // 显式展示滚动条（当开启滚动时）
+        templatesScrollView.borderType = .noBorder
+        templatesScrollView.drawsBackground = false
+        templatesScrollView.autoresizingMask = [.width, .height]
+        templatesContainerView.addSubview(templatesScrollView)
+
+        let templatesDocumentView = NSView(frame: NSRect(x: 0, y: 0, width: 390, height: 1))
+        templatesScrollView.documentView = templatesDocumentView
+
+        let templatesStackView = NSStackView()
+        templatesStackView.orientation = .vertical
+        templatesStackView.alignment = .leading
+        templatesStackView.spacing = 4
+        // 顶部/底部更紧凑一些
+        templatesStackView.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 6, right: 0)
+        templatesStackView.translatesAutoresizingMaskIntoConstraints = false
+        templatesDocumentView.addSubview(templatesStackView)
+
+        NSLayoutConstraint.activate([
+            templatesStackView.leadingAnchor.constraint(equalTo: templatesDocumentView.leadingAnchor, constant: 0),
+            templatesStackView.trailingAnchor.constraint(equalTo: templatesDocumentView.trailingAnchor, constant: 0),
+            templatesStackView.topAnchor.constraint(equalTo: templatesDocumentView.topAnchor, constant: 0),
+            // 与熬夜强制休息输入框内容宽度保持一致（364）
+            templatesStackView.widthAnchor.constraint(equalToConstant: 390)
+        ])
+
+        copyView.addSubview(templatesContainerView)
+        overlayRestMessageTemplatesStackView = templatesStackView
+        overlayRestMessageTemplatesContainerView = templatesContainerView
+        overlayRestMessageTemplatesScrollView = templatesScrollView
+        overlayRestMessageTemplatesDocumentView = templatesDocumentView
+
+        // 初始化列表（兼容：如果还没加载列表，就回退到旧单条文案）
+        let initialTemplates = overlayRestMessageTemplates.isEmpty ? SettingsStore.overlayRestMessageTemplates : overlayRestMessageTemplates
+        rebuildOverlayRestMessageTemplateInputs(templates: initialTemplates)
+
+        // “+”按钮：在输入框下方新增一个文本框（确保完全显示）
+        let addTemplateButton = NSButton(title: "+", target: self, action: #selector(addOverlayRestMessageTemplateField))
+        addTemplateButton.frame = NSRect(x: 360, y: templatesContainerView.frame.minY - 30, width: 45, height: 28)
+        addTemplateButton.bezelStyle = .rounded
+        copyView.addSubview(addTemplateButton)
+        overlayRestMessageTemplatesAddButton = addTemplateButton
+
+        // 记录后续布局的基准线（用于动态挤压）
+        overlayMessageTabBottomY = addTemplateButton.frame.minY - 30
+        yPosition = overlayMessageTabBottomY
+
+        // 熬夜强制休息提示文案（可自定义）
+        let stayUpTemplateLabel = NSTextField(labelWithString: "熬夜强制休息提示文案:")
+        stayUpTemplateLabel.frame = NSRect(x: 20, y: yPosition, width: 240, height: 20)
+        copyView.addSubview(stayUpTemplateLabel)
+        overlayStayUpTemplateLabelForLayout = stayUpTemplateLabel
+        // 更紧凑：缩小标题与说明文字间距
+        yPosition -= 14
+
+        let stayUpTemplateHint = NSTextField(labelWithString: "强制休息时显示，留空则使用默认文案")
+        stayUpTemplateHint.frame = NSRect(x: 20, y: yPosition, width: 360, height: 14)
+        stayUpTemplateHint.font = NSFont.systemFont(ofSize: 10)
+        stayUpTemplateHint.textColor = NSColor.secondaryLabelColor
+        copyView.addSubview(stayUpTemplateHint)
+        overlayStayUpTemplateHintForLayout = stayUpTemplateHint
+        yPosition -= 16
+
+        // 强制休息输入框（圆角背景，且不显示滚动条）
+        let stayUpContainer = NSView(frame: NSRect(x: 20, y: yPosition - 40, width: 380, height: 56))
+        stayUpContainer.wantsLayer = true
+        stayUpContainer.layer?.cornerRadius = 10
+        stayUpContainer.layer?.masksToBounds = true
+        // White rounded background, no border (per requirement).
+        stayUpContainer.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.95).cgColor
+
+        let stayUpTextView = NSTextView(frame: NSRect(x: 8, y: 8, width: 364, height: 40))
+        stayUpTextView.isRichText = false
+        stayUpTextView.isEditable = true
+        stayUpTextView.font = NSFont.systemFont(ofSize: 13)
+        stayUpTextView.string = overlayStayUpMessageTemplate
+        stayUpTextView.drawsBackground = false
+        stayUpTextView.textContainerInset = NSSize(width: 4, height: 4)
+        stayUpTextView.autoresizingMask = [.width, .height]
+        stayUpContainer.addSubview(stayUpTextView)
+        copyView.addSubview(stayUpContainer)
+        overlayStayUpInputContainerView = stayUpContainer
+        overlayStayUpMessageTemplateTextView = stayUpTextView
+
+        tabView.addTabViewItem(copyTabItem)
+    }
+
+    // MARK: - Overlay Message Templates (Rest) - Dynamic Inputs
+    
+    @objc private func addOverlayRestMessageTemplateField() {
+        // 先收集当前内容，再整体重建（用于：从 1 条变 2 条时自动补上标题行）
+        var templates = overlayRestMessageTemplateTextViews.map { $0.string }
+        templates.append("")
+        rebuildOverlayRestMessageTemplateInputs(templates: templates)
+        relayoutOverlayMessageTabForTemplates()
+    }
+
+    @objc private func removeOverlayRestMessageTemplateField(_ sender: NSButton) {
+        var templates = overlayRestMessageTemplateTextViews.map { $0.string }
+        let idx = sender.tag
+        guard idx >= 0 && idx < templates.count else { return }
+        templates.remove(at: idx)
+        
+        // Ensure there is always at least 1 input row (empty allowed; save will normalize).
+        if templates.isEmpty {
+            templates = [""]
+        }
+        
+        // Update in-memory state; persistence happens on Save (保持与现有“保存”按钮行为一致)
+        overlayRestMessageTemplates = templates
+        overlayRestMessageTemplate = templates.first ?? overlayRestMessageTemplate
+        
+        rebuildOverlayRestMessageTemplateInputs(templates: templates)
+        relayoutOverlayMessageTabForTemplates()
+    }
+    
+    private func rebuildOverlayRestMessageTemplateInputs(templates: [String]) {
+        overlayRestMessageTemplateTextViews.removeAll()
+        
+        guard let stackView = overlayRestMessageTemplatesStackView else { return }
+        
+        for view in stackView.arrangedSubviews {
+            stackView.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        
+        let initial = templates.isEmpty ? [OverlayMessageTemplateRenderer.defaultRestTemplate] : templates
+        let shouldShowTitle = initial.count > 1
+        for (idx, template) in initial.enumerated() {
+            createOverlayRestMessageTemplateInputRow(initialText: template, index: idx, shouldShowTitle: shouldShowTitle)
+        }
+        
+        relayoutOverlayMessageTabForTemplates()
+    }
+    
+    @discardableResult
+    private func createOverlayRestMessageTemplateInputRow(initialText: String, index: Int, shouldShowTitle: Bool) -> NSTextView {
+        guard let stackView = overlayRestMessageTemplatesStackView else {
+            let placeholder = NSTextView()
+            return placeholder
+        }
+        
+        // Row container to visually separate each template input.
+        let rowContainer = NSStackView()
+        rowContainer.orientation = .vertical
+        rowContainer.alignment = .leading
+        // 多条文案之间更紧凑
+        rowContainer.spacing = shouldShowTitle ? 2 : 0
+        rowContainer.edgeInsets = NSEdgeInsets(top: 4, left: 0, bottom: 4, right: 0)
+        rowContainer.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            // 与熬夜强制休息输入框内容宽度保持一致（364）
+            rowContainer.widthAnchor.constraint(equalToConstant: 380)
+        ])
+        
+        if shouldShowTitle {
+            let headerRow = NSStackView()
+            headerRow.orientation = .horizontal
+            headerRow.alignment = .centerY
+            headerRow.spacing = 8
+            headerRow.translatesAutoresizingMaskIntoConstraints = false
+            
+            let titleLabel = NSTextField(labelWithString: "文案 \(index + 1)")
+            titleLabel.font = NSFont.systemFont(ofSize: 11, weight: .semibold)
+            titleLabel.textColor = NSColor.secondaryLabelColor
+            
+            let spacer = NSView()
+            
+            let deleteButton = NSButton(title: "−", target: self, action: #selector(removeOverlayRestMessageTemplateField(_:)))
+            deleteButton.tag = index
+            deleteButton.bezelStyle = .rounded
+            deleteButton.setButtonType(.momentaryPushIn)
+            deleteButton.font = NSFont.systemFont(ofSize: 14, weight: .bold)
+            deleteButton.toolTip = "删除该文案"
+            
+            headerRow.addArrangedSubview(titleLabel)
+            headerRow.addArrangedSubview(spacer)
+            headerRow.addArrangedSubview(deleteButton)
+            rowContainer.addArrangedSubview(headerRow)
+        }
+
+        // Rounded background container (no scrollbars)
+        let inputContainer = NSView()
+        inputContainer.wantsLayer = true
+        inputContainer.layer?.cornerRadius = 10
+        inputContainer.layer?.masksToBounds = true
+        // White rounded background, no border (per requirement).
+        inputContainer.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.95).cgColor
+        inputContainer.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            inputContainer.widthAnchor.constraint(equalToConstant: 380),
+            inputContainer.heightAnchor.constraint(equalToConstant: 52)
+        ])
+        
+        // No scrollbars: use a plain NSTextView inside the rounded container.
+        let textView = NSTextView(frame: NSRect(x: 8, y: 6, width: 380, height: 40))
+        textView.isRichText = false
+        textView.isEditable = true
+        textView.font = NSFont.systemFont(ofSize: 13)
+        textView.string = initialText
+        textView.drawsBackground = false
+        textView.textContainerInset = NSSize(width: 4, height: 4)
+        textView.autoresizingMask = [.width, .height]
+        
+        inputContainer.addSubview(textView)
+        rowContainer.addArrangedSubview(inputContainer)
+        stackView.addArrangedSubview(rowContainer)
+        overlayRestMessageTemplateTextViews.append(textView)
+        return textView
+    }
+
+    /// Re-layout the bottom section (stay-up template) after the rest-template list grows/shrinks.
+    private func relayoutOverlayMessageTabForTemplates() {
+        guard
+            let container = overlayRestMessageTemplatesContainerView,
+            let stackView = overlayRestMessageTemplatesStackView,
+            let scrollView = overlayRestMessageTemplatesScrollView,
+            let documentView = overlayRestMessageTemplatesDocumentView,
+            let addButton = overlayRestMessageTemplatesAddButton,
+            let stayUpLabel = overlayStayUpTemplateLabelForLayout,
+            let stayUpHint = overlayStayUpTemplateHintForLayout,
+            let stayUpInput = overlayStayUpInputContainerView
+        else { return }
+
+        stackView.layoutSubtreeIfNeeded()
+
+        // Fit document view to stack content (for inner scrolling mode).
+        let desiredDocumentHeight = max(56, stackView.fittingSize.height)
+        var docFrame = documentView.frame
+        docFrame.size.height = desiredDocumentHeight
+        documentView.frame = docFrame
+
+        // Up to 2 templates: expand container and push content down.
+        // 3+ templates: keep container fixed height (2 rows) and enable inner scroll.
+        let visibleRows = min(2, max(1, overlayRestMessageTemplateTextViews.count))
+        let maxContainerHeight: CGFloat = {
+            // Estimate max height by summing first N arranged subviews (row containers) + spacing + edge insets.
+            let rows = Array(stackView.arrangedSubviews.prefix(visibleRows))
+            rows.forEach { $0.layoutSubtreeIfNeeded() }
+            let rowsHeight = rows.reduce(CGFloat(0)) { $0 + $1.fittingSize.height }
+            let spacingHeight = stackView.spacing * CGFloat(max(0, rows.count - 1))
+            let insetsHeight = stackView.edgeInsets.top + stackView.edgeInsets.bottom
+            return max(56, rowsHeight + spacingHeight + insetsHeight)
+        }()
+
+        let shouldEnableInnerScroll = overlayRestMessageTemplateTextViews.count > 2
+        scrollView.hasVerticalScroller = shouldEnableInnerScroll
+        // 显式展示滚动条
+        scrollView.autohidesScrollers = false
+        scrollView.verticalScroller?.alphaValue = shouldEnableInnerScroll ? 1.0 : 0.0
+
+        // Container height: either full content (<=3) or capped (4+).
+        let contentHeight = max(56, desiredDocumentHeight)
+        let desiredContainerHeight = shouldEnableInnerScroll ? min(contentHeight, maxContainerHeight) : contentHeight
+        let containerTopY = container.frame.maxY
+        container.frame = NSRect(x: container.frame.origin.x, y: containerTopY - desiredContainerHeight, width: container.frame.width, height: desiredContainerHeight)
+
+        // Place "+" right under the list.
+        // 顶部/底部更紧凑一些：缩短列表到底部按钮的距离
+        addButton.frame.origin.y = container.frame.minY - 26
+
+        // Push stay-up section down.
+        // 注意：这里会覆盖 setupOverlayMessageTab() 中的 yPosition 计算，因此间距要在这里调整才会生效。
+        let y0 = addButton.frame.minY - 22
+        stayUpLabel.frame.origin.y = y0
+        // 更紧凑：标题与说明文字间距
+        let stayUpLabelToHintSpacing: CGFloat = 14
+        // 说明文字与输入框间距
+        let stayUpHintToInputSpacing: CGFloat = 16
+        stayUpHint.frame.origin.y = y0 - stayUpLabelToHintSpacing
+        stayUpInput.frame.origin.y = y0 - stayUpLabelToHintSpacing - stayUpHintToInputSpacing - 56
+    }
     
     private func setupAutoHandlingTab() {
         let autoTabItem = NSTabViewItem(identifier: "auto")
@@ -246,7 +573,7 @@ class SettingsWindow: NSWindow {
         autoView.addSubview(idleLabel)
         
         idleTimeSlider = NSSlider(frame: NSRect(x: 150, y: yPosition, width: 160, height: 20))
-        idleTimeSlider.minValue = 5
+        idleTimeSlider.minValue = 1
         idleTimeSlider.maxValue = 30
         idleTimeSlider.integerValue = idleTimeMinutes
         idleTimeSlider.target = self
@@ -496,9 +823,14 @@ class SettingsWindow: NSWindow {
         previewButton.keyEquivalent = "p"  // 快捷键 Cmd+P
         backgroundView.addSubview(previewButton)
         
+        // 随机播放复选框（放在预览按钮下方）
+        shuffleBackgroundsCheckbox = NSButton(checkboxWithTitle: "随机播放", target: self, action: #selector(shuffleBackgroundsChanged))
+        shuffleBackgroundsCheckbox.frame = NSRect(x: 20, y: 120, width: 150, height: 20)
+        backgroundView.addSubview(shuffleBackgroundsCheckbox)
+        
         // 说明文字
-        let infoLabel = NSTextField(labelWithString: "支持图片格式：jpg, png, gif\n支持视频格式：mp4, mov, avi\n多个文件将按顺序轮播显示")
-        infoLabel.frame = NSRect(x: 20, y: 50, width: 380, height: 60)
+        let infoLabel = NSTextField(labelWithString: "支持图片格式：jpg, png, gif\n支持视频格式：mp4, mov, avi\n随机播放：每轮播放所有文件一次，但顺序随机")
+        infoLabel.frame = NSRect(x: 20, y: 20, width: 380, height: 80)
         infoLabel.font = NSFont.systemFont(ofSize: 11)
         infoLabel.textColor = NSColor.secondaryLabelColor
         backgroundView.addSubview(infoLabel)
@@ -837,6 +1169,10 @@ class SettingsWindow: NSWindow {
         previewOverlay.showOverlay()
     }
     
+    @objc private func shuffleBackgroundsChanged() {
+        shuffleBackgrounds = shuffleBackgroundsCheckbox.state == .on
+    }
+    
     @objc private func saveSettings() {
         // 保存到 SettingsStore
         SettingsStore.autoStartEnabled = autoStartEnabled
@@ -851,6 +1187,11 @@ class SettingsWindow: NSWindow {
         SettingsStore.screensaverActionIsRestart = screensaverActionIsRestart
         SettingsStore.showCancelRestButton = showCancelRestButton
         
+        // 保存遮罩层文案列表（轮播）
+        let templates = overlayRestMessageTemplateTextViews.map { $0.string }
+        SettingsStore.overlayRestMessageTemplates = templates
+        SettingsStore.overlayStayUpMessageTemplate = overlayStayUpMessageTemplateTextView?.string ?? overlayStayUpMessageTemplate
+        
         // 保存计划设置
         SettingsStore.longBreakCycle = longBreakCycle
         SettingsStore.longBreakTimeMinutes = longBreakTimeMinutes
@@ -863,6 +1204,7 @@ class SettingsWindow: NSWindow {
         } else {
             SettingsStore.backgroundFilesData = nil
         }
+        SettingsStore.shuffleBackgrounds = shuffleBackgrounds
         
         // 保存熬夜限制设置
         SettingsStore.stayUpLimitEnabled = stayUpLimitEnabled
@@ -878,7 +1220,7 @@ class SettingsWindow: NSWindow {
         LaunchAtLogin.shared.isEnabled = launchAtLoginEnabled
         
         // 通知回调
-        onSettingsChanged?(autoStartEnabled, pomodoroTimeMinutes, breakTimeMinutes, idleRestartEnabled, idleTimeMinutes, idleActionIsRestart, screenLockRestartEnabled, screenLockActionIsRestart, screensaverRestartEnabled, screensaverActionIsRestart, showCancelRestButton, longBreakCycle, longBreakTimeMinutes, showLongBreakCancelButton, accumulateRestTime, backgroundFiles, stayUpLimitEnabled, stayUpLimitHour, stayUpLimitMinute, showStatusBarText)
+        onSettingsChanged?(autoStartEnabled, pomodoroTimeMinutes, breakTimeMinutes, idleRestartEnabled, idleTimeMinutes, idleActionIsRestart, screenLockRestartEnabled, screenLockActionIsRestart, screensaverRestartEnabled, screensaverActionIsRestart, showCancelRestButton, longBreakCycle, longBreakTimeMinutes, showLongBreakCancelButton, accumulateRestTime, backgroundFiles, shuffleBackgrounds, stayUpLimitEnabled, stayUpLimitHour, stayUpLimitMinute, showStatusBarText)
         
         close()
     }
@@ -905,6 +1247,9 @@ class SettingsWindow: NSWindow {
         screensaverActionIsRestart = SettingsStore.screensaverActionIsRestart
         
         showCancelRestButton = SettingsStore.showCancelRestButton
+        overlayRestMessageTemplates = SettingsStore.overlayRestMessageTemplates
+        overlayRestMessageTemplate = overlayRestMessageTemplates.first ?? SettingsStore.overlayRestMessageTemplate
+        overlayStayUpMessageTemplate = SettingsStore.overlayStayUpMessageTemplate
         
         // 加载计划设置
         longBreakCycle = SettingsStore.longBreakCycle
@@ -920,6 +1265,7 @@ class SettingsWindow: NSWindow {
         } else {
             backgroundFiles = [] // 默认为空数组
         }
+        shuffleBackgrounds = SettingsStore.shuffleBackgrounds
         
         // 加载熬夜限制设置
         stayUpLimitEnabled = SettingsStore.stayUpLimitEnabled
@@ -970,6 +1316,12 @@ class SettingsWindow: NSWindow {
         if showCancelRestButtonCheckbox != nil {
             showCancelRestButtonCheckbox.state = showCancelRestButton ? .on : .off
         }
+        if overlayRestMessageTemplatesStackView != nil {
+            rebuildOverlayRestMessageTemplateInputs(templates: overlayRestMessageTemplates)
+        }
+        if overlayStayUpMessageTemplateTextView != nil {
+            overlayStayUpMessageTemplateTextView.string = overlayStayUpMessageTemplate
+        }
         
         // 更新计划设置UI
         if longBreakCycleSlider != nil {
@@ -990,6 +1342,9 @@ class SettingsWindow: NSWindow {
         // 更新背景设置UI
         if backgroundFilesList != nil {
             backgroundFilesList.reloadData()
+        }
+        if shuffleBackgroundsCheckbox != nil {
+            shuffleBackgroundsCheckbox.state = shuffleBackgrounds ? .on : .off
         }
         
         // 更新熬夜限制设置UI

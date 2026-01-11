@@ -14,9 +14,9 @@
             filePath = "PomodoroScreen/PomodoroTimer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "296"
-            endingLineNumber = "296"
-            landmarkName = "updateSettings(pomodoroMinutes:breakMinutes:idleRestart:idleTime:idleActionIsRestart:screenLockRestart:screenLockActionIsRestart:screensaverRestart:screensaverActionIsRestart:showCancelRestButton:longBreakCycle:longBreakTimeMinutes:showLongBreakCancelButton:accumulateRestTime:backgroundFiles:stayUpLimitEnabled:stayUpLimitHour:stayUpLimitMinute:meetingMode:)"
+            startingLineNumber = "277"
+            endingLineNumber = "277"
+            landmarkName = "reset()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -30,9 +30,9 @@
             filePath = "PomodoroScreen/PomodoroTimer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "101"
-            endingLineNumber = "101"
-            landmarkName = "isRestTimerRunning"
+            startingLineNumber = "82"
+            endingLineNumber = "82"
+            landmarkName = "shouldShowCancelRestButton"
             landmarkType = "24">
          </BreakpointContent>
       </BreakpointProxy>
@@ -46,9 +46,9 @@
             filePath = "PomodoroScreen/PomodoroTimer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "136"
-            endingLineNumber = "136"
-            landmarkName = "simulateUserActivity()"
+            startingLineNumber = "117"
+            endingLineNumber = "117"
+            landmarkName = "simulateScreenUnlock()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -62,10 +62,10 @@
             filePath = "PomodoroScreen/PomodoroTimer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "150"
-            endingLineNumber = "150"
-            landmarkName = "init()"
-            landmarkType = "7">
+            startingLineNumber = "131"
+            endingLineNumber = "131"
+            landmarkName = "PomodoroTimer"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -78,10 +78,10 @@
             filePath = "PomodoroScreen/PomodoroTimer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "194"
-            endingLineNumber = "194"
-            landmarkName = "PomodoroTimer"
-            landmarkType = "3">
+            startingLineNumber = "175"
+            endingLineNumber = "175"
+            landmarkName = "init()"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -94,9 +94,9 @@
             filePath = "PomodoroScreen/PomodoroTimer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "208"
-            endingLineNumber = "208"
-            landmarkName = "start()"
+            startingLineNumber = "189"
+            endingLineNumber = "189"
+            landmarkName = "deinit"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -110,9 +110,9 @@
             filePath = "PomodoroScreen/PomodoroTimer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "225"
-            endingLineNumber = "225"
-            landmarkName = "stop()"
+            startingLineNumber = "206"
+            endingLineNumber = "206"
+            landmarkName = "start()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -126,9 +126,9 @@
             filePath = "PomodoroScreen/PomodoroTimer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "99"
-            endingLineNumber = "99"
-            landmarkName = "isInRestPeriod"
+            startingLineNumber = "80"
+            endingLineNumber = "80"
+            landmarkName = "shouldShowCancelRestButton"
             landmarkType = "24">
          </BreakpointContent>
       </BreakpointProxy>
@@ -142,9 +142,9 @@
             filePath = "PomodoroScreen/PomodoroTimer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "230"
-            endingLineNumber = "230"
-            landmarkName = "stop()"
+            startingLineNumber = "211"
+            endingLineNumber = "211"
+            landmarkName = "start()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -160,7 +160,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "101"
             endingLineNumber = "101"
-            landmarkName = "getCurrentState()"
+            landmarkName = "deinit"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -174,9 +174,9 @@
             filePath = "PomodoroScreen/PomodoroTimer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "289"
-            endingLineNumber = "289"
-            landmarkName = "updateSettings(pomodoroMinutes:breakMinutes:idleRestart:idleTime:idleActionIsRestart:screenLockRestart:screenLockActionIsRestart:screensaverRestart:screensaverActionIsRestart:showCancelRestButton:longBreakCycle:longBreakTimeMinutes:showLongBreakCancelButton:accumulateRestTime:backgroundFiles:stayUpLimitEnabled:stayUpLimitHour:stayUpLimitMinute:meetingMode:)"
+            startingLineNumber = "270"
+            endingLineNumber = "270"
+            landmarkName = "resume()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -190,9 +190,9 @@
             filePath = "PomodoroScreen/PomodoroTimer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "298"
-            endingLineNumber = "298"
-            landmarkName = "updateSettings(pomodoroMinutes:breakMinutes:idleRestart:idleTime:idleActionIsRestart:screenLockRestart:screenLockActionIsRestart:screensaverRestart:screensaverActionIsRestart:showCancelRestButton:longBreakCycle:longBreakTimeMinutes:showLongBreakCancelButton:accumulateRestTime:backgroundFiles:stayUpLimitEnabled:stayUpLimitHour:stayUpLimitMinute:meetingMode:)"
+            startingLineNumber = "279"
+            endingLineNumber = "279"
+            landmarkName = "reset()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -206,9 +206,9 @@
             filePath = "PomodoroScreen/PomodoroTimer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "274"
-            endingLineNumber = "274"
-            landmarkName = "reset()"
+            startingLineNumber = "255"
+            endingLineNumber = "255"
+            landmarkName = "resume()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -222,9 +222,9 @@
             filePath = "PomodoroScreen/PomodoroTimer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "275"
-            endingLineNumber = "275"
-            landmarkName = "reset()"
+            startingLineNumber = "256"
+            endingLineNumber = "256"
+            landmarkName = "resume()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -238,9 +238,9 @@
             filePath = "PomodoroScreen/PomodoroTimer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "297"
-            endingLineNumber = "297"
-            landmarkName = "updateSettings(pomodoroMinutes:breakMinutes:idleRestart:idleTime:idleActionIsRestart:screenLockRestart:screenLockActionIsRestart:screensaverRestart:screensaverActionIsRestart:showCancelRestButton:longBreakCycle:longBreakTimeMinutes:showLongBreakCancelButton:accumulateRestTime:backgroundFiles:stayUpLimitEnabled:stayUpLimitHour:stayUpLimitMinute:meetingMode:)"
+            startingLineNumber = "278"
+            endingLineNumber = "278"
+            landmarkName = "reset()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -254,9 +254,9 @@
             filePath = "PomodoroScreen/PomodoroTimer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "314"
-            endingLineNumber = "314"
-            landmarkName = "updateSettings(pomodoroMinutes:breakMinutes:idleRestart:idleTime:idleActionIsRestart:screenLockRestart:screenLockActionIsRestart:screensaverRestart:screensaverActionIsRestart:showCancelRestButton:longBreakCycle:longBreakTimeMinutes:showLongBreakCancelButton:accumulateRestTime:backgroundFiles:stayUpLimitEnabled:stayUpLimitHour:stayUpLimitMinute:meetingMode:)"
+            startingLineNumber = "295"
+            endingLineNumber = "295"
+            landmarkName = "updateSettings(pomodoroMinutes:breakMinutes:idleRestart:idleTime:idleActionIsRestart:screenLockRestart:screenLockActionIsRestart:screensaverRestart:screensaverActionIsRestart:showCancelRestButton:longBreakCycle:longBreakTimeMinutes:showLongBreakCancelButton:accumulateRestTime:backgroundFiles:shuffleBackgrounds:stayUpLimitEnabled:stayUpLimitHour:stayUpLimitMinute:meetingMode:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -335,9 +335,9 @@
             filePath = "PomodoroScreen/PomodoroTimer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "457"
-            endingLineNumber = "457"
-            landmarkName = "updateTimer()"
+            startingLineNumber = "438"
+            endingLineNumber = "438"
+            landmarkName = "generateShuffledQueue()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -351,9 +351,9 @@
             filePath = "PomodoroScreen/PomodoroTimer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "234"
-            endingLineNumber = "234"
-            landmarkName = "stop()"
+            startingLineNumber = "215"
+            endingLineNumber = "215"
+            landmarkName = "start()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -367,10 +367,10 @@
             filePath = "PomodoroScreen/PomodoroTimer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "223"
-            endingLineNumber = "223"
-            landmarkName = "PomodoroTimer"
-            landmarkType = "3">
+            startingLineNumber = "204"
+            endingLineNumber = "204"
+            landmarkName = "start()"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -383,9 +383,9 @@
             filePath = "PomodoroScreen/PomodoroTimer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "233"
-            endingLineNumber = "233"
-            landmarkName = "stop()"
+            startingLineNumber = "214"
+            endingLineNumber = "214"
+            landmarkName = "start()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -591,9 +591,105 @@
             filePath = "PomodoroScreen/PomodoroTimer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "555"
-            endingLineNumber = "555"
-            landmarkName = "startBreak()"
+            startingLineNumber = "536"
+            endingLineNumber = "536"
+            landmarkName = "handleCountdownNotification()"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "C02ED65F-B00E-4C5A-815F-15797167A98B"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "PomodoroScreen/PomodoroTimer.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "657"
+            endingLineNumber = "657"
+            landmarkName = "startShortBreak()"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "CC602569-5EB2-4B3A-A567-3C92D29CE64B"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "PomodoroScreen/StatusBarController.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "599"
+            endingLineNumber = "599"
+            landmarkName = "testFinishTimer()"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "5E718DD5-D330-4F77-80AF-268D4F087D1C"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "PomodoroScreen/AppDelegate.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "56"
+            endingLineNumber = "56"
+            landmarkName = "applicationDidFinishLaunching(_:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "ED11E8BF-6A68-4E65-8834-79DACED0DEB5"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "PomodoroScreen/AppDelegate.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "226"
+            endingLineNumber = "226"
+            landmarkName = "showOverlay()"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "4D1AF1D8-C85B-43CB-8ED3-EBC590044D3A"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "PomodoroScreen/AppDelegate.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "194"
+            endingLineNumber = "194"
+            landmarkName = "showOverlay()"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "F8373373-83BE-4D65-B485-152CB0B29D03"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "PomodoroScreen/AppDelegate.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "225"
+            endingLineNumber = "225"
+            landmarkName = "showOverlay()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

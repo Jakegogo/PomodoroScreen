@@ -85,7 +85,7 @@ final class StatusBarIconIntegrationTests: XCTestCase {
             longBreakTimeMinutes: 5,
             showLongBreakCancelButton: true,
             accumulateRestTime: false,
-            backgroundFiles: [],
+            backgroundFiles: [], shuffleBackgrounds: false,
             stayUpLimitEnabled: false,
             stayUpLimitHour: 23,
             stayUpLimitMinute: 0,

@@ -83,10 +83,22 @@ class HealthRingsView: NSView {
     // 计时器状态控制
     private var isTimerRunning = false
     private var frozenBreathingPhase: Double = 0.0 // 冻结时的呼吸相位
+
+    // Progress animation coordination (avoid fighting with breathing animation)
+    private var isProgressAnimating: Bool = false
+    private var shouldStartBreathingAfterProgressAnimation: Bool = false
     
     // 性能优化控制
-    private var lastUpdateTime: CFTimeInterval = 0
-    private let minUpdateInterval: CFTimeInterval = 1.0 / 20.0  // 最大20fps，避免过度更新
+    // NOTE: breathing 与 progress 动画必须使用独立节流时钟，避免互相干扰导致卡顿/跳帧。
+    private var lastBreathingUpdateTime: CFTimeInterval = 0
+    private var lastProgressUpdateTime: CFTimeInterval = 0
+    private let minProgressUpdateInterval: CFTimeInterval = 1.0 / 20.0  // 目标最多20fps（progress tween）
+
+    // 呼吸动画自适应：弹窗刚出现/刚恢复时短暂更高帧率，之后自动降载
+    private let breathingHighFpsInterval: CFTimeInterval = 1.0 / 15.0
+    private let breathingLowFpsInterval: CFTimeInterval = 1.0 / 10.0
+    private let breathingHighFpsDuration: CFTimeInterval = 1.2
+    private var breathingHighFpsUntil: CFTimeInterval = 0
     
     // 倒计时显示
     private var countdownTime: TimeInterval = 0
@@ -133,7 +145,8 @@ class HealthRingsView: NSView {
     }
     
     private func preloadCustomFont() {
-        let fontSize: CGFloat = 24
+        // UI优化：弹窗中心倒计时更大更粗
+        let fontSize: CGFloat = 36
         
         // 尝试加载自定义字体，如果失败则使用系统字体作为备选
         if let customFont = NSFont(name: "BeautifulPoliceOfficer", size: fontSize) {
@@ -156,7 +169,7 @@ class HealthRingsView: NSView {
         
         // 如果自定义字体加载失败，使用系统字体作为备选
         if countdownFont == nil {
-            countdownFont = NSFont.monospacedDigitSystemFont(ofSize: fontSize, weight: .bold)
+            countdownFont = NSFont.monospacedDigitSystemFont(ofSize: fontSize, weight: .heavy)
         }
     }
     
@@ -1023,11 +1036,14 @@ class HealthRingsView: NSView {
         // 格式化倒计时时间
         let minutes = Int(countdownTime) / 60
         let seconds = Int(countdownTime) % 60
-        // 使用普通冒号，稍微增加字距来提升视觉宽度
-        let timeText = String(format: "%02d:%02d", minutes, seconds)
+        
+        // UI优化：分钟不补0（例如 08:53 -> 8:53），秒始终两位
+        let minutesText = String(minutes)
+        let secondsText = String(format: "%02d", seconds)
+        let timeText = "\(minutesText):\(secondsText)"
         
         // 使用预加载的自定义字体
-        let font = countdownFont ?? NSFont.monospacedDigitSystemFont(ofSize: 24, weight: .bold)
+        let font = countdownFont ?? NSFont.monospacedDigitSystemFont(ofSize: 30, weight: .heavy)
         
         // 闪烁冒号：基于当前秒的奇偶切换可见性
         let colonVisible = (max(0, Int(countdownTime)) % 2 == 0)
@@ -1039,11 +1055,14 @@ class HealthRingsView: NSView {
             .strokeWidth: 3.0
         ]
         let strokeMutable = NSMutableAttributedString(string: timeText, attributes: strokeAttributes)
-        // 冒号范围位于索引2（两位分钟后）
-        let colonRange = NSRange(location: 2, length: 1)
+        // 冒号位置与分钟位数相关，动态计算（避免假定两位分钟）
+        let colonIndex = minutesText.count
+        let colonRange = NSRange(location: colonIndex, length: 1)
         // 为冒号增加少量字距以稍微加宽
-        strokeMutable.addAttributes([.kern: 0.2], range: colonRange)
-        if !colonVisible, timeText.count >= 3 {
+        if timeText.count > colonIndex {
+            strokeMutable.addAttributes([.kern: 0.2], range: colonRange)
+        }
+        if !colonVisible, timeText.count > colonIndex {
             // 将冒号的描边颜色设为透明，保持占位但不显示
             strokeMutable.addAttributes([.strokeColor: NSColor.clear], range: colonRange)
         }
@@ -1064,8 +1083,10 @@ class HealthRingsView: NSView {
             .foregroundColor: NSColor.labelColor
         ]
         let fillMutable = NSMutableAttributedString(string: timeText, attributes: fillAttributes)
-        fillMutable.addAttributes([.kern: 0.2], range: colonRange)
-        if !colonVisible, timeText.count >= 3 {
+        if timeText.count > colonIndex {
+            fillMutable.addAttributes([.kern: 0.2], range: colonRange)
+        }
+        if !colonVisible, timeText.count > colonIndex {
             // 将冒号的填充颜色设为透明
             fillMutable.addAttributes([.foregroundColor: NSColor.clear], range: colonRange)
         }
@@ -1162,6 +1183,16 @@ class HealthRingsView: NSView {
     }
     
     func updateRingValues(workIntensity: Double, restAdequacy: Double, focus: Double, health: Double) {
+        applyRingValues(workIntensity: workIntensity, restAdequacy: restAdequacy, focus: focus, health: health, animateMask: nil, animated: true)
+    }
+
+    /// Update ring values with optional per-ring animation control.
+    ///
+    /// - Parameters:
+    ///   - animateMask: Optional per-ring flags, same order as `values` below.
+    ///     If provided and `animated == true`, rings with `false` will be updated immediately (no tween).
+    ///   - animated: When false, all rings update immediately without smooth animation.
+    func applyRingValues(workIntensity: Double, restAdequacy: Double, focus: Double, health: Double, animateMask: [Bool]?, animated: Bool) {
         // 保存原始数值用于显示（0-1范围）- 按新的环顺序映射
         ringValues = [workIntensity, restAdequacy, focus, health] // 工作强度, 休息充足度, 专注度, 健康度
         
@@ -1173,13 +1204,33 @@ class HealthRingsView: NSView {
         ]
         
         for (index, value) in values.enumerated() {
-            if index < rings.count {
-                // 限制在100%以内，不支持多圈显示（修复30%显示为整圈的问题）
-                rings[index].targetProgress = min(max(value, 0.0), 1.0)
+            guard index < rings.count else { continue }
+            
+            // 限制在100%以内，不支持多圈显示（修复30%显示为整圈的问题）
+            let clamped = min(max(value, 0.0), 1.0)
+            rings[index].targetProgress = clamped
+            
+            // If not animating, or per-ring mask says don't animate, snap immediately.
+            if !animated || (animateMask != nil && index < animateMask!.count && animateMask![index] == false) {
+                rings[index].progress = clamped
+                rings[index].animatedProgress = clamped
             }
         }
-        
-        startSmoothAnimation()
+
+        let shouldAnimateProgress: Bool = {
+            guard animated else { return false }
+            // If a mask is provided, only animate when at least one ring is marked as changed.
+            if let animateMask { return animateMask.contains(true) }
+            return true
+        }()
+
+        if shouldAnimateProgress {
+            startSmoothAnimation()
+        } else {
+            animationTimer?.invalidate()
+            animationTimer = nil
+            needsDisplay = true
+        }
         
         // 更新tooltip
         updateTooltip()
@@ -1190,20 +1241,22 @@ class HealthRingsView: NSView {
         
         isBreathingAnimationActive = true
         // 不重置breathingPhase，保持当前值（可能是从冻结状态恢复的值）
+        breathingHighFpsUntil = CACurrentMediaTime() + breathingHighFpsDuration
         
         // 优化：呼吸动画使用智能频率控制
         breathingAnimationTimer = Timer.scheduledTimer(withTimeInterval: 1.0/15.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             
-            // 只在窗口可见时更新动画
-            guard self.window?.isVisible == true else { return }
+            // 只在窗口明确不可见时跳过（避免首次打开时 window 仍为 nil 导致永远不更新）
+            if let w = self.window, w.isVisible == false { return }
             
-            // 智能节流：呼吸动画可以使用稍低的更新频率
+            // 智能节流：呼吸动画自适应帧率（短暂高帧率 + 常态低帧率）
             let currentTime = CACurrentMediaTime()
-            if currentTime - self.lastUpdateTime < self.minUpdateInterval * 1.2 {  // 呼吸动画允许更低频率
+            let targetInterval = (currentTime <= self.breathingHighFpsUntil) ? self.breathingHighFpsInterval : self.breathingLowFpsInterval
+            if currentTime - self.lastBreathingUpdateTime < targetInterval {
                 return
             }
-            self.lastUpdateTime = currentTime
+            self.lastBreathingUpdateTime = currentTime
             
             // 使用完全连续的时间累积，避免任何重置跳跃
             self.breathingPhase += (1.0/15.0) * 2 * Double.pi / self.breathingCycleDuration
@@ -1215,7 +1268,7 @@ class HealthRingsView: NSView {
             }
             
             
-            // 优化：只有在没有进度动画时才触发重绘，避免冲突，并直接设置needsDisplay
+            // 优化：只有在没有进度动画时才触发重绘，避免冲突
             if self.animationTimer == nil {
                 self.needsDisplay = true
             }
@@ -1236,6 +1289,11 @@ class HealthRingsView: NSView {
         isTimerRunning = running
         
         if running {
+            // If progress animation is running, defer breathing until it finishes.
+            if isProgressAnimating {
+                shouldStartBreathingAfterProgressAnimation = true
+                return
+            }
             // 计时器运行时：从冻结状态恢复动画
             if frozenBreathingPhase != 0.0 {
                 // 从冻结的相位继续动画
@@ -1263,7 +1321,16 @@ class HealthRingsView: NSView {
     private func startSmoothAnimation() {
         animationTimer?.invalidate()
         animationStartTime = CACurrentMediaTime()
-        lastUpdateTime = 0  // 重置更新时间，确保立即开始
+        lastProgressUpdateTime = 0  // 重置更新时间，确保立即开始
+        isProgressAnimating = true
+        
+        // Pause breathing during progress animation to avoid visual flicker/jitter.
+        if isBreathingAnimationActive {
+            frozenBreathingPhase = breathingPhase
+            isBreathingAnimationActive = false
+            breathingAnimationTimer?.invalidate()
+            breathingAnimationTimer = nil
+        }
         
         // Store initial progress values
         for i in 0..<rings.count {
@@ -1277,15 +1344,15 @@ class HealthRingsView: NSView {
                 return
             }
             
-            // 只在窗口可见时更新动画
-            guard self.window?.isVisible == true else { return }
+            // 只在窗口明确不可见时跳过（避免首次打开时 window 仍为 nil 导致永远不更新）
+            if let w = self.window, w.isVisible == false { return }
             
             // 智能节流：避免过度频繁的更新
             let currentTime = CACurrentMediaTime()
-            if currentTime - self.lastUpdateTime < self.minUpdateInterval {
+            if currentTime - self.lastProgressUpdateTime < self.minProgressUpdateInterval {
                 return
             }
-            self.lastUpdateTime = currentTime
+            self.lastProgressUpdateTime = currentTime
             
             let elapsed = CACurrentMediaTime() - self.animationStartTime
             let progress = min(elapsed / self.animationDuration, 1.0)
@@ -1334,7 +1401,17 @@ class HealthRingsView: NSView {
                 // 优化：清理定时器状态，重置更新时间
                 timer.invalidate()
                 self.animationTimer = nil
-                self.lastUpdateTime = 0  // 重置以便下次动画能立即开始
+                self.lastProgressUpdateTime = 0  // 重置以便下次动画能立即开始
+
+                self.isProgressAnimating = false
+                
+                // Progress animation finished: resume breathing if timer is running.
+                // This guarantees "value tween -> breathing" even when updates happen while popup is already open.
+                if self.isTimerRunning && !self.isBreathingAnimationActive {
+                    self.shouldStartBreathingAfterProgressAnimation = false
+                    self.breathingHighFpsUntil = CACurrentMediaTime() + self.breathingHighFpsDuration
+                    self.startBreathingAnimation()
+                }
             }
         }
     }

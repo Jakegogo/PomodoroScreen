@@ -32,12 +32,19 @@ class StatusBarPopupWindow: NSWindow {
     private var onMeetingModeChanged: ((Bool) -> Void)?  // 专注模式变更回调
     
     // MARK: - Constants
-    private static let legendItems: [(String, NSColor)] = [
-        ("休息充足度", NSColor.restLight),
-        ("工作强度", NSColor.workLight),
-        ("专注度", NSColor.focusLight),
-        ("健康度", NSColor.healthLight)
+    // Bottom metrics (requested):
+    // 完成番茄钟 / 工作时间 / 休息时间 / 健康评分
+    internal static let bottomMetricItems: [(String, NSColor)] = [
+        ("完成番茄钟", NSColor.workLight),
+        ("工作时间", NSColor.focusLight),
+        ("休息时间", NSColor.restLight),
+        ("健康评分", NSColor.healthLight)
     ]
+    
+    // Bottom metric value views (right-side).
+    private var legendValueContainers: [NSView] = []
+    private var legendValueLabels: [NSTextField] = []
+    private var legendValueTexts: [String] = ["0", "0h 0m", "0h 0m", "0"] // 对应 bottomMetricItems 的顺序
     
     // MARK: - Layout Configuration
     private struct LayoutConfig {
@@ -139,14 +146,15 @@ class StatusBarPopupWindow: NSWindow {
         // 健康环水平居中
         var healthRingX: CGFloat { (windowWidth - healthRingSize) / 2 }
 
-        // 专注模式开关位置（在最底部，标签和开关作为整体靠右）
+        // 专注模式开关位置（在最底部，标签和开关作为整体居中）
         var meetingModeSwitchY: CGFloat { 
             contentBaseY - meetingModeSwitchHeight - verticalSpacing
         }
         // 计算标签和开关的总宽度
         private var meetingModeGroupWidth: CGFloat { meetingModeLabelWidth + 4 + meetingModeSwitchWidth }
-        // 整体靠右，标签在左，开关在右
-        var meetingModeSwitchX: CGFloat { windowWidth - horizontalPadding - meetingModeGroupWidth + 10 }
+        // 整体居中：以窗口中心为基准放置整个组件组
+        private var meetingModeGroupX: CGFloat { (windowWidth - meetingModeGroupWidth) / 2 }
+        var meetingModeSwitchX: CGFloat { meetingModeGroupX }
         var meetingModeLabelX: CGFloat { meetingModeSwitchX + meetingModeSwitchWidth + 4 }
         
         
@@ -168,8 +176,13 @@ class StatusBarPopupWindow: NSWindow {
         
         var legendX: CGFloat {
             // 动态计算图例宽度并居中
-            let legendWidth: CGFloat = 120 // 图例文字大概宽度
             return (windowWidth - legendWidth) / 2
+        }
+        
+        /// Bottom metrics width. Needs to fit Chinese values like “10小时50分钟”.
+        var legendWidth: CGFloat {
+            // Keep a reasonable max on narrow windows.
+            return min(210, windowWidth - horizontalPadding)
         }
         
         init(width: CGFloat, height: CGFloat = 500) {
@@ -483,8 +496,14 @@ class StatusBarPopupWindow: NSWindow {
         let startX = layoutConfig.legendX
         let startY = layoutConfig.legendStartY
         let itemHeight = layoutConfig.legendItemHeight + layoutConfig.legendSpacing
+        let rowWidth: CGFloat = layoutConfig.legendWidth
+        let valueWidth: CGFloat = 110
         
-        for (index, item) in Self.legendItems.enumerated() {
+        // 重新创建前先清空引用，避免累积
+        legendValueContainers.removeAll()
+        legendValueLabels.removeAll()
+        
+        for (index, item) in Self.bottomMetricItems.enumerated() {
             let y = startY - CGFloat(index) * itemHeight
             
             // 创建颜色指示器
@@ -497,9 +516,26 @@ class StatusBarPopupWindow: NSWindow {
             // 创建标签
             let label = createLegendLabel(
                 text: item.0,
-                frame: NSRect(x: startX + 20, y: y - 2, width: 180, height: 22)
+                frame: NSRect(x: startX + 20, y: y - 2, width: rowWidth - valueWidth - 20, height: 22)
             )
             contentView.addSubview(label)
+            
+            // 创建右侧指标值（右对齐）
+            let valueText = index < legendValueTexts.count ? legendValueTexts[index] : "-"
+            let valueFrame = NSRect(x: startX + rowWidth - valueWidth, y: y - 2, width: valueWidth, height: 22)
+
+            // Use a clipping container so we can animate "printer wheel" roll-up inside it.
+            let valueContainer = NSView(frame: valueFrame)
+            valueContainer.wantsLayer = true
+            valueContainer.layer?.masksToBounds = true
+            valueContainer.identifier = NSUserInterfaceItemIdentifier("legend-value-container-\(index)")
+            contentView.addSubview(valueContainer)
+            legendValueContainers.append(valueContainer)
+
+            let valueLabel = createLegendValueLabel(text: valueText, frame: valueContainer.bounds)
+            valueLabel.autoresizingMask = [.width, .height]
+            valueContainer.addSubview(valueLabel)
+            legendValueLabels.append(valueLabel)
         }
     }
     
@@ -518,6 +554,17 @@ class StatusBarPopupWindow: NSWindow {
         label.textColor = NSColor.secondaryLabelColor
         label.frame = frame
         label.identifier = NSUserInterfaceItemIdentifier("legend-label")
+        return label
+    }
+    
+    private func createLegendValueLabel(text: String, frame: NSRect) -> NSTextField {
+        let label = NSTextField(labelWithString: text)
+        // Use normal system font so Chinese text width is measured and rendered naturally.
+        label.font = NSFont.systemFont(ofSize: 12, weight: .medium)
+        label.textColor = NSColor.secondaryLabelColor
+        label.alignment = .right
+        label.frame = frame
+        label.identifier = NSUserInterfaceItemIdentifier("legend-value")
         return label
     }
     
@@ -597,6 +644,115 @@ class StatusBarPopupWindow: NSWindow {
             focus: focus,
             health: health
         )
+    }
+
+    func updateHealthData(restAdequacy: Double, workIntensity: Double, focus: Double, health: Double, animated: Bool, animateMask: [Bool]?) {
+        healthRingsView.applyRingValues(
+            workIntensity: workIntensity,
+            restAdequacy: restAdequacy,
+            focus: focus,
+            health: health,
+            animateMask: animateMask,
+            animated: animated
+        )
+    }
+
+    func updateBottomMetrics(completedPomodoros: Int, workTime: TimeInterval, breakTime: TimeInterval, healthScore: Double) {
+        legendValueTexts = [
+            Self.formatPomodoroCount(completedPomodoros),
+            Self.formatDurationChinese(workTime),
+            Self.formatDurationChinese(breakTime),
+            Self.formatScore(healthScore)
+        ]
+        updateLegendValueLabels()
+    }
+
+    func updateBottomMetrics(completedPomodoros: Int, workTime: TimeInterval, breakTime: TimeInterval, healthScore: Double, animatedMask: [Bool]?) {
+        legendValueTexts = [
+            Self.formatPomodoroCount(completedPomodoros),
+            Self.formatDurationChinese(workTime),
+            Self.formatDurationChinese(breakTime),
+            Self.formatScore(healthScore)
+        ]
+        updateLegendValueLabels(animatedMask: animatedMask)
+    }
+
+    private func updateLegendValueLabels(animatedMask: [Bool]? = nil) {
+        guard !legendValueLabels.isEmpty else { return }
+        let count = min(legendValueLabels.count, legendValueTexts.count)
+        for i in 0..<count {
+            let label = legendValueLabels[i]
+            let newText = legendValueTexts[i]
+            if label.stringValue == newText { continue }
+
+            let shouldAnimate = animatedMask != nil && (i < animatedMask!.count ? animatedMask![i] : false)
+            if shouldAnimate, i < legendValueContainers.count {
+                animatePrinterWheelRollUp(index: i, newText: newText)
+            } else {
+                label.stringValue = newText
+            }
+        }
+    }
+
+    /// Printer-wheel roll animation: old value rolls up and out, new value rolls up from bottom into place.
+    private func animatePrinterWheelRollUp(index: Int, newText: String) {
+        guard index < legendValueContainers.count, index < legendValueLabels.count else { return }
+
+        let container = legendValueContainers[index]
+        let currentLabel = legendValueLabels[index]
+        let oldText = currentLabel.stringValue
+        if oldText == newText { return }
+
+        let h = container.bounds.height
+
+        // Outgoing label (snapshot)
+        let outgoing = createLegendValueLabel(text: oldText, frame: container.bounds)
+        outgoing.autoresizingMask = [.width, .height]
+
+        // Incoming label starts below and rolls up into place
+        let incoming = createLegendValueLabel(text: newText, frame: container.bounds.offsetBy(dx: 0, dy: -h))
+        incoming.autoresizingMask = [.width, .height]
+
+        // Clear container and add the two labels for animation
+        container.subviews.forEach { $0.removeFromSuperview() }
+        container.addSubview(outgoing)
+        container.addSubview(incoming)
+
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.38
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            outgoing.animator().setFrameOrigin(NSPoint(x: 0, y: h))
+            incoming.animator().setFrameOrigin(NSPoint(x: 0, y: 0))
+        }, completionHandler: { [weak self] in
+            guard let self = self else { return }
+            outgoing.removeFromSuperview()
+            // Keep incoming as the canonical label reference.
+            self.legendValueLabels[index] = incoming
+        })
+    }
+
+    // MARK: - Bottom Metric Formatting (Chinese)
+    internal static func formatDurationChinese(_ seconds: TimeInterval) -> String {
+        let safeSeconds = max(0, seconds)
+        let totalMinutes = Int(safeSeconds / 60)
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        
+        if hours == 0 {
+            return "\(minutes)分钟"
+        }
+        if minutes == 0 {
+            return "\(hours)小时"
+        }
+        return "\(hours)小时\(minutes)分钟"
+    }
+    
+    internal static func formatPomodoroCount(_ count: Int) -> String {
+        return "\(max(0, count)) 个"
+    }
+    
+    internal static func formatScore(_ score: Double) -> String {
+        return "\(Int(round(score)))分"
     }
     
     func updateCountdown(time: TimeInterval, title: String) {
@@ -715,7 +871,9 @@ class StatusBarPopupWindow: NSWindow {
     
     private func removeLegendElements(from contentView: NSView) {
         contentView.subviews.forEach { subview in
-            if subview.identifier?.rawValue == "legend-color" || subview.identifier?.rawValue == "legend-label" {
+            if subview.identifier?.rawValue == "legend-color"
+                || subview.identifier?.rawValue == "legend-label"
+                || subview.identifier?.rawValue == "legend-value" {
                 subview.removeFromSuperview()
             }
         }

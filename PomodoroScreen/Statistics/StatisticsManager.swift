@@ -268,7 +268,11 @@ class StatisticsManager {
         
         // 工作强度建议
         if stats.workIntensityScore < 50 {
-            recommendations.append("💪 建议增加番茄钟数量，提高工作效率")
+            // 当前时间是下午三点之后
+            let currentHour = Calendar.current.component(.hour, from: Date())
+            if currentHour >= 15 {
+                recommendations.append("💪 建议增加番茄钟数量，提高工作效率")
+            }
         } else if stats.workIntensityScore > 80 {
             recommendations.append("⚠️ 工作强度较高，注意适当休息")
         }

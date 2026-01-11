@@ -8,10 +8,12 @@ class StatusBarController {
     private var pomodoroTimer: PomodoroTimer
     private var settingsWindow: SettingsWindow?
     private var popupWindow: StatusBarPopupWindow?
+    private let popupViewModel = PopupWindowViewModel()
     private var isPopupVisible = false
     private var globalEventMonitor: Any?
     private var appDeactivationObserver: Any?
     private var workspaceActivationObserver: Any?
+    private var breakCancelledObserver: Any?
     private var clockIconGenerator: ClockIconGenerator
     
     // 状态栏显示设置
@@ -31,6 +33,25 @@ class StatusBarController {
         
         setupStatusItem()
 
+        // 监听“取消休息”事件：如果 popupWindow 正在显示，则播放变更动画
+        breakCancelledObserver = NotificationCenter.default.addObserver(
+            forName: .pomodoroBreakCancelled,
+            object: timer,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self = self else { return }
+            guard self.isPopupVisible else { return }
+            self.updatePopupButtonStates()
+            self.updateRoundIndicator()
+            self.updateHealthRingsData(animateOnShow: true)
+        }
+
+    }
+
+    deinit {
+        if let breakCancelledObserver {
+            NotificationCenter.default.removeObserver(breakCancelledObserver)
+        }
     }
     
     // MARK: - Public Methods
@@ -271,18 +292,12 @@ class StatusBarController {
     func showPopup() {
         guard let popup = popupWindow,
               let button = statusItem.button else { return }
-        
-        // 更新健康环数据
-        updateHealthRingsData()
-        
+
         // 更新按钮状态
         updatePopupButtonStates()
         
         // 更新轮数指示器
         updateRoundIndicator()
-        
-        // 根据计时器状态设置健康环动画
-        popup.healthRingsView.setTimerRunning(pomodoroTimer.isRunning)
         
         // 更新窗口位置
         popup.updatePosition(relativeTo: button)
@@ -290,6 +305,13 @@ class StatusBarController {
         // 显示弹出窗口
         popup.showPopup()
         isPopupVisible = true
+
+        // 每次打开弹窗时：根据“上次打开”的快照对比，播放数值变更动画
+        updateHealthRingsData(animateOnShow: true)
+        
+        // 根据计时器状态设置健康环呼吸动画：
+        // - 若当前正处于进度变更动画中，HealthRingsView 会自动延迟启动呼吸动画，避免跳跃。
+        popup.healthRingsView.setTimerRunning(pomodoroTimer.isRunning)
         
         // 监听点击事件以隐藏弹出窗口 - 暂时禁用自动隐藏
         globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
@@ -348,7 +370,7 @@ class StatusBarController {
         }
     }
     
-    private func updateHealthRingsData() {
+    private func updateHealthRingsData(animateOnShow: Bool = false) {
         // 从统计管理器获取今日数据
         let reportData = StatisticsManager.shared.generateTodayReport()
         let daily = reportData.dailyStats
@@ -370,12 +392,46 @@ class StatusBarController {
         print("🔍 Health Ring Scores: rest=\(restAdequacyScore), work=\(workIntensityScore), focus=\(focusScore), health=\(healthScore)")
         print("🔍 Ring Progress Values (0-1): rest=\(restAdequacy), work=\(workIntensity), focus=\(focus), health=\(health)")
         
-        popupWindow?.updateHealthData(
-            restAdequacy: restAdequacy,
-            workIntensity: workIntensity,
-            focus: focus,
-            health: health
+        let snapshot = PopupWindowSnapshot(
+            ringProgress: [workIntensity, restAdequacy, focus, health],
+            completedPomodoros: daily.completedPomodoros,
+            totalWorkTime: daily.totalWorkTime,
+            totalBreakTime: daily.totalBreakTime,
+            healthScore: daily.healthScore
         )
+
+        if animateOnShow, let popup = popupWindow {
+            let diff = popupViewModel.diffAndStoreForShow(current: snapshot)
+
+            popup.updateHealthData(
+                restAdequacy: restAdequacy,
+                workIntensity: workIntensity,
+                focus: focus,
+                health: health,
+                animated: diff.ringChanged.contains(true),
+                animateMask: diff.ringChanged
+            )
+            popup.updateBottomMetrics(
+                completedPomodoros: daily.completedPomodoros,
+                workTime: daily.totalWorkTime,
+                breakTime: daily.totalBreakTime,
+                healthScore: daily.healthScore,
+                animatedMask: diff.metricChanged
+            )
+        } else {
+            popupWindow?.updateHealthData(
+                restAdequacy: restAdequacy,
+                workIntensity: workIntensity,
+                focus: focus,
+                health: health
+            )
+            popupWindow?.updateBottomMetrics(
+                completedPomodoros: daily.completedPomodoros,
+                workTime: daily.totalWorkTime,
+                breakTime: daily.totalBreakTime,
+                healthScore: daily.healthScore
+            )
+        }
     }
     
     private func showContextMenu() {
@@ -612,10 +668,10 @@ class StatusBarController {
                 defer: false
             )
             
-            settingsWindow?.onSettingsChanged = { [weak self] autoStart, pomodoroTime, breakTime, idleRestart, idleTime, idleActionIsRestart, screenLockRestart, screenLockActionIsRestart, screensaverRestart, screensaverActionIsRestart, showCancelRestButton, longBreakCycle, longBreakTimeMinutes, showLongBreakCancelButton, accumulateRestTime, backgroundFiles, stayUpLimitEnabled, stayUpLimitHour, stayUpLimitMinute, showStatusBarText in
+            settingsWindow?.onSettingsChanged = { [weak self] autoStart, pomodoroTime, breakTime, idleRestart, idleTime, idleActionIsRestart, screenLockRestart, screenLockActionIsRestart, screensaverRestart, screensaverActionIsRestart, showCancelRestButton, longBreakCycle, longBreakTimeMinutes, showLongBreakCancelButton, accumulateRestTime, backgroundFiles, shuffleBackgrounds, stayUpLimitEnabled, stayUpLimitHour, stayUpLimitMinute, showStatusBarText in
                 // 从 SettingsStore 获取专注模式设置
                 let meetingModeEnabled = SettingsStore.meetingModeEnabled
-                self?.applySettings(autoStart: autoStart, pomodoroTime: pomodoroTime, breakTime: breakTime, idleRestart: idleRestart, idleTime: idleTime, idleActionIsRestart: idleActionIsRestart, screenLockRestart: screenLockRestart, screenLockActionIsRestart: screenLockActionIsRestart, screensaverRestart: screensaverRestart, screensaverActionIsRestart: screensaverActionIsRestart, showCancelRestButton: showCancelRestButton, longBreakCycle: longBreakCycle, longBreakTimeMinutes: longBreakTimeMinutes, showLongBreakCancelButton: showLongBreakCancelButton, accumulateRestTime: accumulateRestTime, backgroundFiles: backgroundFiles, stayUpLimitEnabled: stayUpLimitEnabled, stayUpLimitHour: stayUpLimitHour, stayUpLimitMinute: stayUpLimitMinute, showStatusBarText: showStatusBarText, meetingMode: meetingModeEnabled)
+                self?.applySettings(autoStart: autoStart, pomodoroTime: pomodoroTime, breakTime: breakTime, idleRestart: idleRestart, idleTime: idleTime, idleActionIsRestart: idleActionIsRestart, screenLockRestart: screenLockRestart, screenLockActionIsRestart: screenLockActionIsRestart, screensaverRestart: screensaverRestart, screensaverActionIsRestart: screensaverActionIsRestart, showCancelRestButton: showCancelRestButton, longBreakCycle: longBreakCycle, longBreakTimeMinutes: longBreakTimeMinutes, showLongBreakCancelButton: showLongBreakCancelButton, accumulateRestTime: accumulateRestTime, backgroundFiles: backgroundFiles, shuffleBackgrounds: shuffleBackgrounds, stayUpLimitEnabled: stayUpLimitEnabled, stayUpLimitHour: stayUpLimitHour, stayUpLimitMinute: stayUpLimitMinute, showStatusBarText: showStatusBarText, meetingMode: meetingModeEnabled)
             }
         }
         
@@ -644,13 +700,13 @@ class StatusBarController {
         NSApp.activate(ignoringOtherApps: true)
     }
     
-    private func applySettings(autoStart: Bool, pomodoroTime: Int, breakTime: Int, idleRestart: Bool, idleTime: Int, idleActionIsRestart: Bool, screenLockRestart: Bool, screenLockActionIsRestart: Bool, screensaverRestart: Bool, screensaverActionIsRestart: Bool, showCancelRestButton: Bool, longBreakCycle: Int, longBreakTimeMinutes: Int, showLongBreakCancelButton: Bool, accumulateRestTime: Bool, backgroundFiles: [BackgroundFile], stayUpLimitEnabled: Bool, stayUpLimitHour: Int, stayUpLimitMinute: Int, showStatusBarText: Bool, meetingMode: Bool) {
+    private func applySettings(autoStart: Bool, pomodoroTime: Int, breakTime: Int, idleRestart: Bool, idleTime: Int, idleActionIsRestart: Bool, screenLockRestart: Bool, screenLockActionIsRestart: Bool, screensaverRestart: Bool, screensaverActionIsRestart: Bool, showCancelRestButton: Bool, longBreakCycle: Int, longBreakTimeMinutes: Int, showLongBreakCancelButton: Bool, accumulateRestTime: Bool, backgroundFiles: [BackgroundFile], shuffleBackgrounds: Bool, stayUpLimitEnabled: Bool, stayUpLimitHour: Int, stayUpLimitMinute: Int, showStatusBarText: Bool, meetingMode: Bool) {
         // 记录当前计时器状态
         let wasRunning = pomodoroTimer.isRunning
         let wasPaused = pomodoroTimer.isPausedState
         
         // 更新计时器设置
-        pomodoroTimer.updateSettings(pomodoroMinutes: pomodoroTime, breakMinutes: breakTime, idleRestart: idleRestart, idleTime: idleTime, idleActionIsRestart: idleActionIsRestart, screenLockRestart: screenLockRestart, screenLockActionIsRestart: screenLockActionIsRestart, screensaverRestart: screensaverRestart, screensaverActionIsRestart: screensaverActionIsRestart, showCancelRestButton: showCancelRestButton, longBreakCycle: longBreakCycle, longBreakTimeMinutes: longBreakTimeMinutes, showLongBreakCancelButton: showLongBreakCancelButton, accumulateRestTime: accumulateRestTime, backgroundFiles: backgroundFiles, stayUpLimitEnabled: stayUpLimitEnabled, stayUpLimitHour: stayUpLimitHour, stayUpLimitMinute: stayUpLimitMinute, meetingMode: meetingMode)
+        pomodoroTimer.updateSettings(pomodoroMinutes: pomodoroTime, breakMinutes: breakTime, idleRestart: idleRestart, idleTime: idleTime, idleActionIsRestart: idleActionIsRestart, screenLockRestart: screenLockRestart, screenLockActionIsRestart: screenLockActionIsRestart, screensaverRestart: screensaverRestart, screensaverActionIsRestart: screensaverActionIsRestart, showCancelRestButton: showCancelRestButton, longBreakCycle: longBreakCycle, longBreakTimeMinutes: longBreakTimeMinutes, showLongBreakCancelButton: showLongBreakCancelButton, accumulateRestTime: accumulateRestTime, backgroundFiles: backgroundFiles, shuffleBackgrounds: shuffleBackgrounds, stayUpLimitEnabled: stayUpLimitEnabled, stayUpLimitHour: stayUpLimitHour, stayUpLimitMinute: stayUpLimitMinute, meetingMode: meetingMode)
         
         // 更新状态栏文字显示设置
         self.showStatusBarText = showStatusBarText
