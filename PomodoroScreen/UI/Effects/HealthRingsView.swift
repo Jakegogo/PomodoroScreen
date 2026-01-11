@@ -89,8 +89,16 @@ class HealthRingsView: NSView {
     private var shouldStartBreathingAfterProgressAnimation: Bool = false
     
     // 性能优化控制
-    private var lastUpdateTime: CFTimeInterval = 0
-    private let minUpdateInterval: CFTimeInterval = 1.0 / 20.0  // 最大20fps，避免过度更新
+    // NOTE: breathing 与 progress 动画必须使用独立节流时钟，避免互相干扰导致卡顿/跳帧。
+    private var lastBreathingUpdateTime: CFTimeInterval = 0
+    private var lastProgressUpdateTime: CFTimeInterval = 0
+    private let minProgressUpdateInterval: CFTimeInterval = 1.0 / 20.0  // 目标最多20fps（progress tween）
+
+    // 呼吸动画自适应：弹窗刚出现/刚恢复时短暂更高帧率，之后自动降载
+    private let breathingHighFpsInterval: CFTimeInterval = 1.0 / 15.0
+    private let breathingLowFpsInterval: CFTimeInterval = 1.0 / 10.0
+    private let breathingHighFpsDuration: CFTimeInterval = 1.2
+    private var breathingHighFpsUntil: CFTimeInterval = 0
     
     // 倒计时显示
     private var countdownTime: TimeInterval = 0
@@ -1233,6 +1241,7 @@ class HealthRingsView: NSView {
         
         isBreathingAnimationActive = true
         // 不重置breathingPhase，保持当前值（可能是从冻结状态恢复的值）
+        breathingHighFpsUntil = CACurrentMediaTime() + breathingHighFpsDuration
         
         // 优化：呼吸动画使用智能频率控制
         breathingAnimationTimer = Timer.scheduledTimer(withTimeInterval: 1.0/15.0, repeats: true) { [weak self] _ in
@@ -1241,12 +1250,13 @@ class HealthRingsView: NSView {
             // 只在窗口明确不可见时跳过（避免首次打开时 window 仍为 nil 导致永远不更新）
             if let w = self.window, w.isVisible == false { return }
             
-            // 智能节流：呼吸动画可以使用稍低的更新频率
+            // 智能节流：呼吸动画自适应帧率（短暂高帧率 + 常态低帧率）
             let currentTime = CACurrentMediaTime()
-            if currentTime - self.lastUpdateTime < self.minUpdateInterval * 1.2 {  // 呼吸动画允许更低频率
+            let targetInterval = (currentTime <= self.breathingHighFpsUntil) ? self.breathingHighFpsInterval : self.breathingLowFpsInterval
+            if currentTime - self.lastBreathingUpdateTime < targetInterval {
                 return
             }
-            self.lastUpdateTime = currentTime
+            self.lastBreathingUpdateTime = currentTime
             
             // 使用完全连续的时间累积，避免任何重置跳跃
             self.breathingPhase += (1.0/15.0) * 2 * Double.pi / self.breathingCycleDuration
@@ -1311,7 +1321,7 @@ class HealthRingsView: NSView {
     private func startSmoothAnimation() {
         animationTimer?.invalidate()
         animationStartTime = CACurrentMediaTime()
-        lastUpdateTime = 0  // 重置更新时间，确保立即开始
+        lastProgressUpdateTime = 0  // 重置更新时间，确保立即开始
         isProgressAnimating = true
         
         // Pause breathing during progress animation to avoid visual flicker/jitter.
@@ -1339,10 +1349,10 @@ class HealthRingsView: NSView {
             
             // 智能节流：避免过度频繁的更新
             let currentTime = CACurrentMediaTime()
-            if currentTime - self.lastUpdateTime < self.minUpdateInterval {
+            if currentTime - self.lastProgressUpdateTime < self.minProgressUpdateInterval {
                 return
             }
-            self.lastUpdateTime = currentTime
+            self.lastProgressUpdateTime = currentTime
             
             let elapsed = CACurrentMediaTime() - self.animationStartTime
             let progress = min(elapsed / self.animationDuration, 1.0)
@@ -1391,7 +1401,7 @@ class HealthRingsView: NSView {
                 // 优化：清理定时器状态，重置更新时间
                 timer.invalidate()
                 self.animationTimer = nil
-                self.lastUpdateTime = 0  // 重置以便下次动画能立即开始
+                self.lastProgressUpdateTime = 0  // 重置以便下次动画能立即开始
 
                 self.isProgressAnimating = false
                 
@@ -1399,6 +1409,7 @@ class HealthRingsView: NSView {
                 // This guarantees "value tween -> breathing" even when updates happen while popup is already open.
                 if self.isTimerRunning && !self.isBreathingAnimationActive {
                     self.shouldStartBreathingAfterProgressAnimation = false
+                    self.breathingHighFpsUntil = CACurrentMediaTime() + self.breathingHighFpsDuration
                     self.startBreathingAnimation()
                 }
             }
