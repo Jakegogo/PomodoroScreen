@@ -3,6 +3,10 @@
 #include "DpiUtilsWin32.h"
 
 #include <iostream>
+#include <cstdarg>
+#include <cstdio>
+#include <string>
+#include <windows.h>
 #include <gdiplus.h>
 #include <mfapi.h>
 #include <mferror.h>
@@ -27,6 +31,123 @@ namespace {
 
     // Posted from MFPlay callback thread to UI thread: show poster shield to cover loop gap.
     constexpr UINT kMsgShowPosterForLoop = WM_APP + 10;
+
+    // Minimal file logger for overlay debug traces.
+    // Goal: make it easy to capture loop flicker diagnostics without relying on console output.
+    static CRITICAL_SECTION g_overlayDbgLogCs;
+    static bool g_overlayDbgLogCsInited = false;
+
+    void EnsureOverlayDbgLogLockInited() {
+        if (g_overlayDbgLogCsInited) return;
+        InitializeCriticalSection(&g_overlayDbgLogCs);
+        g_overlayDbgLogCsInited = true;
+    }
+
+    std::wstring OverlayDbgLogFilePath() {
+        wchar_t tempPath[MAX_PATH + 1]{};
+        DWORD n = GetTempPathW(static_cast<DWORD>(std::size(tempPath)), tempPath);
+        if (n == 0 || n > MAX_PATH) {
+            return L"";
+        }
+
+        std::wstring dir = std::wstring(tempPath);
+        if (!dir.empty() && (dir.back() == L'\\' || dir.back() == L'/')) {
+            // keep as-is
+        } else {
+            dir.push_back(L'\\');
+        }
+        dir += L"PomodoroScreen";
+
+        // Best-effort: ignore if exists.
+        CreateDirectoryW(dir.c_str(), nullptr);
+
+        std::wstring file = dir + L"\\PomodoroScreenWin.log";
+        return file;
+    }
+
+    std::string WideToUtf8(const std::wstring& s) {
+        if (s.empty()) return {};
+        const int needed = WideCharToMultiByte(CP_UTF8, 0, s.c_str(), -1, nullptr, 0, nullptr, nullptr);
+        if (needed <= 0) return {};
+        // Allocate including the trailing '\0' produced when passing -1 as input length.
+        std::string out(static_cast<std::size_t>(needed), '\0');
+        WideCharToMultiByte(CP_UTF8, 0, s.c_str(), -1, &out[0], needed, nullptr, nullptr);
+        if (!out.empty() && out.back() == '\0') {
+            out.pop_back();
+        }
+        return out;
+    }
+
+    bool AppendLineToFile(const std::wstring& filePath, const char* bytes, DWORD len) {
+        if (filePath.empty() || !bytes || len == 0) return false;
+
+        HANDLE h = CreateFileW(
+            filePath.c_str(),
+            FILE_APPEND_DATA,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            nullptr,
+            OPEN_ALWAYS,
+            FILE_ATTRIBUTE_NORMAL,
+            nullptr
+        );
+        if (h == INVALID_HANDLE_VALUE) {
+            return false;
+        }
+
+        DWORD written = 0;
+        const BOOL ok = WriteFile(h, bytes, len, &written, nullptr);
+        CloseHandle(h);
+        return ok && written == len;
+    }
+
+    void OverlayDbgLog(const char* fmt, ...) {
+        char msg[1024];
+        va_list args;
+        va_start(args, fmt);
+        vsnprintf(msg, sizeof(msg), fmt, args);
+        va_end(args);
+
+        // Prefix with local wall-clock time so logs can be correlated with other subsystems.
+        SYSTEMTIME st{};
+        GetLocalTime(&st);
+        char line[1400];
+        const unsigned long long tick = static_cast<unsigned long long>(GetTickCount64());
+        const int n = snprintf(
+            line,
+            sizeof(line),
+            "%04u-%02u-%02u %02u:%02u:%02u.%03u [OverlayDbg] t=%llu %s\r\n",
+            static_cast<unsigned>(st.wYear),
+            static_cast<unsigned>(st.wMonth),
+            static_cast<unsigned>(st.wDay),
+            static_cast<unsigned>(st.wHour),
+            static_cast<unsigned>(st.wMinute),
+            static_cast<unsigned>(st.wSecond),
+            static_cast<unsigned>(st.wMilliseconds),
+            tick,
+            msg
+        );
+
+        const std::wstring path = OverlayDbgLogFilePath();
+        static bool s_printedPathToConsole = false;
+        if (!s_printedPathToConsole) {
+            s_printedPathToConsole = true;
+            const std::string utf8Path = WideToUtf8(path);
+            if (!utf8Path.empty()) {
+                std::cerr << "[OverlayDbg] logFile=\"" << utf8Path << "\"\n";
+            } else {
+                std::cerr << "[OverlayDbg] logFile=<unavailable>\n";
+            }
+        }
+        EnsureOverlayDbgLogLockInited();
+        EnterCriticalSection(&g_overlayDbgLogCs);
+        const bool wrote = (n > 0) ? AppendLineToFile(path, line, static_cast<DWORD>(n)) : false;
+        LeaveCriticalSection(&g_overlayDbgLogCs);
+
+        if (!wrote) {
+            // Fallback so we don't lose diagnostics if file IO fails.
+            std::cerr << "[OverlayDbg] t=" << tick << " " << msg << "\n";
+        }
+    }
 
     // 全局 GDI+ 初始化
     ULONG_PTR g_gdiplusToken = 0;
@@ -458,6 +579,7 @@ namespace pomodoro {
             // Some decoders briefly tear down the video surface at loop boundary; show poster to cover.
             // Must post to UI thread; MFPlay callback may come from a non-UI thread.
             if (hwnd_) {
+                OverlayDbgLog("MFPlay PLAYBACK_ENDED hwnd=%p pos100ns=%lld -> PostMessage(kMsgShowPosterForLoop)", hwnd_, static_cast<long long>(currentPosition100ns()));
                 PostMessageW(hwnd_, kMsgShowPosterForLoop, 0, 0);
             }
 
@@ -470,6 +592,7 @@ namespace pomodoro {
 
             player_->Play();
             player_->SetRate(static_cast<float>(playbackRate_));
+            OverlayDbgLog("MFPlay loop restart issued hwnd=%p", hwnd_);
         }
 
         void updateVideoWindowLayout() {
@@ -744,6 +867,7 @@ namespace pomodoro {
         }
         const bool isVideo = (g_preparedKind == PreparedKind::Video && !g_preparedVideoPath.empty());
         const bool willShowPoster = isVideo && (g_videoPoster != nullptr);
+        OverlayDbgLog("show enter isVideo=%d willShowPoster=%d", isVideo ? 1 : 0, willShowPoster ? 1 : 0);
 
         // For video + poster mode, avoid showing the main window until the poster shield is visible.
         // This prevents a brief black paint of the main window before the poster appears.
@@ -796,8 +920,10 @@ namespace pomodoro {
                     );
                     // Render after the window is shown to avoid a one-frame blank layered surface.
                     renderPosterShield();
+                    OverlayDbgLog("poster shown (initial) posterVisible=1");
                 } else {
                     ShowWindow(posterShieldWindow_, SW_HIDE);
+                    OverlayDbgLog("poster not available (initial)");
                 }
             }
 
@@ -805,6 +931,7 @@ namespace pomodoro {
             if (willShowPoster) {
                 ShowWindow(hwnd_, SW_SHOW);
                 UpdateWindow(hwnd_);
+                OverlayDbgLog("main hwnd shown after poster");
             }
 
             if (uiOverlayWindow_) {
@@ -815,6 +942,7 @@ namespace pomodoro {
                 }
                 if (posterVisible_) {
                     revealUiAfterPosterTimerId_ = SetTimer(hwnd_, kTimerRevealUiAfterPoster, 16, nullptr);
+                    OverlayDbgLog("timer start revealUiAfterPoster");
                 } else {
                     // No poster available -> show UI immediately.
                     layoutUiOverlay();
@@ -828,6 +956,7 @@ namespace pomodoro {
                 KillTimer(hwnd_, posterTimerId_);
             }
             posterTimerId_ = SetTimer(hwnd_, kTimerHidePoster, 50, nullptr);
+            OverlayDbgLog("timer start hidePoster");
         } else {
             // Non-video: show UI overlay immediately.
             if (uiOverlayWindow_) {
@@ -922,6 +1051,7 @@ namespace pomodoro {
         switch (msg) {
         case kMsgShowPosterForLoop: {
             // Re-show poster shield to mask any transient frame gap during loop restart.
+            OverlayDbgLog("msg kMsgShowPosterForLoop received posterShield=%p posterBmp=%p", posterShieldWindow_, g_videoPoster.get());
             if (posterShieldWindow_ && g_videoPoster) {
                 posterVisible_ = true;
                 posterShownTick_ = GetTickCount64();
@@ -935,7 +1065,11 @@ namespace pomodoro {
                     bounds_.bottom - bounds_.top,
                     SWP_NOACTIVATE | SWP_SHOWWINDOW
                 );
-                renderPosterShield();
+                // IMPORTANT:
+                // Do NOT re-render the layered bitmap here. `renderPosterShield()` can be expensive (GDI+ scale),
+                // which delays returning to the message pump and delays composition. For loop masking we prefer
+                // to show the previously-rendered layered content immediately.
+                OverlayDbgLog("poster shown (loop) posterVisible=1 (no re-render)");
 
                 // Ensure z-order: poster below UI overlay.
                 if (uiOverlayWindow_) {
@@ -945,6 +1079,7 @@ namespace pomodoro {
                 // Ensure hide timer is running to remove poster once video is rolling again.
                 if (posterTimerId_ == 0) {
                     posterTimerId_ = SetTimer(hwnd_, kTimerHidePoster, 50, nullptr);
+                    OverlayDbgLog("timer start hidePoster (loop)");
                 }
             }
             return 0;
@@ -1168,6 +1303,14 @@ namespace pomodoro {
                 const LONGLONG pos100ns = videoPlayer_ ? videoPlayer_->currentPosition100ns() : 0;
 
                 const bool shouldHide = ((pos100ns > 5'000'000) && (elapsed > 300)) || (elapsed > 3000);
+                static ULONGLONG s_lastPosterLogTick = 0;
+                if ((elapsed < 250 || shouldHide) && (now - s_lastPosterLogTick) > 120) {
+                    s_lastPosterLogTick = now;
+                    OverlayDbgLog("hidePoster tick pos100ns=%lld elapsedMs=%llu shouldHide=%d",
+                        static_cast<long long>(pos100ns),
+                        static_cast<unsigned long long>(elapsed),
+                        shouldHide ? 1 : 0);
+                }
                 if (shouldHide) {
                     posterVisible_ = false;
                     posterShownTick_ = 0;
@@ -1178,6 +1321,7 @@ namespace pomodoro {
                         KillTimer(hwnd_, posterTimerId_);
                         posterTimerId_ = 0;
                     }
+                    OverlayDbgLog("poster hidden");
                 }
                 return 0;
             }
