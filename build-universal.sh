@@ -4,6 +4,7 @@
 # 
 # 作者: AI Assistant
 # 创建时间: 2024-09-23
+# 修改时间: 2026-01-14
 # 
 # 功能：构建同时支持 ARM64 和 x86_64 架构的通用二进制包
 
@@ -49,6 +50,21 @@ check_command() {
         print_message $RED "错误: $1 命令未找到，请确保已安装 Xcode Command Line Tools"
         exit 1
     fi
+}
+
+# 函数：清理会导致 codesign 失败的扩展属性/杂项文件
+sanitize_workspace_for_codesign() {
+    print_title "🧽 清理资源扩展属性 (codesign 预处理)"
+
+    if command -v find &> /dev/null; then
+        find "$PWD/PomodoroScreen" -name ".DS_Store" -delete 2>/dev/null || true
+    fi
+
+    if command -v xattr &> /dev/null; then
+        xattr -cr "$PWD/PomodoroScreen/Resources" 2>/dev/null || true
+    fi
+
+    print_message $GREEN "✅ 资源预处理完成"
 }
 
 # 函数：清理构建目录
@@ -196,6 +212,9 @@ main() {
     check_command "xcodebuild"
     check_command "lipo"
     check_command "hdiutil"
+
+    # 预处理：避免 codesign 因资源扩展属性失败
+    sanitize_workspace_for_codesign
     
     # 记录开始时间
     local start_time=$(date +%s)

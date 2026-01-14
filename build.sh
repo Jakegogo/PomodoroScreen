@@ -4,6 +4,7 @@
 # 
 # 作者: AI Assistant
 # 创建时间: 2024-09-21
+# 修改时间: 2026-01-14
 # 
 # 功能：
 # - 清理构建缓存
@@ -58,6 +59,24 @@ check_command() {
         print_message $RED "错误: $1 命令未找到，请确保已安装 Xcode Command Line Tools"
         exit 1
     fi
+}
+
+# 函数：清理会导致 codesign 失败的扩展属性/杂项文件
+sanitize_workspace_for_codesign() {
+    print_title "🧽 清理资源扩展属性 (codesign 预处理)"
+
+    # 1) 删除 .DS_Store（可能被当作资源拷进 .app，从而影响签名）
+    if command -v find &> /dev/null; then
+        find "$PWD/PomodoroScreen" -name ".DS_Store" -delete 2>/dev/null || true
+    fi
+
+    # 2) 清理资源文件的 xattr（常见于 com.apple.FinderInfo / ResourceFork）
+    if command -v xattr &> /dev/null; then
+        # 只清理资源目录，避免对源码/工程文件做不必要的处理
+        xattr -cr "$PWD/PomodoroScreen/Resources" 2>/dev/null || true
+    fi
+
+    print_message $GREEN "✅ 资源预处理完成"
 }
 
 # 函数：清理构建目录
@@ -279,6 +298,9 @@ main() {
     # 检查必要的命令
     check_command "xcodebuild"
     check_command "hdiutil"
+
+    # 预处理：避免 codesign 因资源扩展属性失败
+    sanitize_workspace_for_codesign
     
     # 解析命令行参数
     local action="all"

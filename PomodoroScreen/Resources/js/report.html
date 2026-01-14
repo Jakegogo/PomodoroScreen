@@ -40,8 +40,8 @@
             width: 280px;
             height: 280px;
             border-radius: 50%;
-            /* 使用头像作为背景，叠加轻微渐变提升层次 */
-            background: radial-gradient(closest-side, rgba(200, 200, 200, 0.08) 0%, rgba(0,0,0,0.18) 100%), url('avatar.png');
+            /* 使用头像作为背景：不需要灰黑遮罩层 */
+            background: url('avatar.png');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -124,7 +124,7 @@
         }
         @media (max-width: 768px) {
             .report-header { grid-template-columns: 1fr; min-height: auto; }
-            .report-header::before { width: 220px; height: 220px; left: calc(50% - 110px); top: -20px; opacity: .25; }
+            .report-header::before { width: 220px; height: 220px; left: calc(50% - 110px); top: -20px; opacity: 1; }
             .report-header h1, .report-header .report-date { grid-column: 1; text-align: center; }
         }
         .title-icon { width: 28px; height: 28px; display: inline-block; }

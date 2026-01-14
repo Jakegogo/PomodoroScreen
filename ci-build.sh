@@ -4,6 +4,7 @@
 # 
 # 作者: AI Assistant
 # 创建时间: 2024-09-21
+# 修改时间: 2026-01-14
 # 
 # 用于持续集成环境的自动化测试和构建
 
@@ -57,6 +58,21 @@ check_environment() {
     log "Xcode版本: $xcode_version"
     
     success "环境检查通过"
+}
+
+# 清理可能导致 codesign 失败的扩展属性/杂项文件
+sanitize_workspace_for_codesign() {
+    log "清理资源扩展属性 (codesign 预处理)..."
+
+    if command -v find &> /dev/null; then
+        find "$PWD/PomodoroScreen" -name ".DS_Store" -delete 2>/dev/null || true
+    fi
+
+    if command -v xattr &> /dev/null; then
+        xattr -cr "$PWD/PomodoroScreen/Resources" 2>/dev/null || true
+    fi
+
+    success "资源预处理完成"
 }
 
 # 运行代码检查
@@ -178,6 +194,7 @@ main() {
     
     # 执行构建流程
     check_environment
+    sanitize_workspace_for_codesign
     run_lint
     run_tests
     build_app

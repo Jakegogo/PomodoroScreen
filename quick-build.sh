@@ -4,6 +4,7 @@
 # 
 # 作者: AI Assistant
 # 创建时间: 2024-09-21
+# 修改时间: 2026-01-14
 # 
 # 快速构建Release版本并创建DMG安装包
 
@@ -20,6 +21,14 @@ VERSION=$(defaults read "$PWD/PomodoroScreen/Info.plist" CFBundleShortVersionStr
 
 echo -e "${CYAN}🍅 快速构建 PomodoroScreen v$VERSION${NC}"
 echo ""
+
+# 0. 预处理：避免 codesign 因资源扩展属性失败
+if command -v find &> /dev/null; then
+    find "$PWD/PomodoroScreen" -name ".DS_Store" -delete 2>/dev/null || true
+fi
+if command -v xattr &> /dev/null; then
+    xattr -cr "$PWD/PomodoroScreen/Resources" 2>/dev/null || true
+fi
 
 # 1. 清理并构建Release版本
 echo -e "${YELLOW}🔨 构建Release版本...${NC}"

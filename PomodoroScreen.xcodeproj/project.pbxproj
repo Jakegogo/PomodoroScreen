@@ -19,10 +19,10 @@
 		231168CF2E8BF3AA004386D2 /* banner_time.png in Resources */ = {isa = PBXBuildFile; fileRef = 231168CD2E8BF3AA004386D2 /* banner_time.png */; };
 		231168D02E8BF3AA004386D2 /* banner_health.png in Resources */ = {isa = PBXBuildFile; fileRef = 231168CA2E8BF3AA004386D2 /* banner_health.png */; };
 		231168D12E8BF3AA004386D2 /* banner_pomodoro.png in Resources */ = {isa = PBXBuildFile; fileRef = 231168CB2E8BF3AA004386D2 /* banner_pomodoro.png */; };
-		231DE49B2E8C07540007D7B5 /* avatar.png in Resources */ = {isa = PBXBuildFile; fileRef = 231DE49A2E8C07540007D7B5 /* avatar.png */; };
 		231DE49D2E8C28440007D7B5 /* idea.svg in Resources */ = {isa = PBXBuildFile; fileRef = 231DE49C2E8C28440007D7B5 /* idea.svg */; };
 		23249BA62E82662F00F45D58 /* icon_video.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 23249BA52E82662F00F45D58 /* icon_video.mp4 */; };
 		23249BA82E826FCF00F45D58 /* IOSSwitchButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23249BA72E826FCF00F45D58 /* IOSSwitchButton.swift */; };
+		2325AED32F179FA800E203A5 /* avatar1.png in Resources */ = {isa = PBXBuildFile; fileRef = 2325AED22F179FA800E203A5 /* avatar1.png */; };
 		2338559B2E8CA7A600809053 /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2338559A2E8CA7A600809053 /* AppLogger.swift */; };
 		234823262E7EAAC500DC507E /* PomodoroStateMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 234823252E7EAAC500DC507E /* PomodoroStateMachine.swift */; };
 		23905D092E9DFC060033DA01 /* StayUpConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23905D082E9DFC060033DA01 /* StayUpConstants.swift */; };
@@ -34,7 +34,6 @@
 		23BD5DPE2E864ABA00691DCC /* DevicePerformanceDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BD5DPD2E864ABA00691DCC /* DevicePerformanceDetector.swift */; };
 		23CD00252E8E266F00290908 /* share.svg in Resources */ = {isa = PBXBuildFile; fileRef = 23CD00242E8E266F00290908 /* share.svg */; };
 		23CD00272E8E2EEB00290908 /* chart.umd.js.map in Resources */ = {isa = PBXBuildFile; fileRef = 23CD00262E8E2EAF00290908 /* chart.umd.js.map */; };
-		23CD005F2E8EBE0E00290908 /* avatar.png in Resources */ = {isa = PBXBuildFile; fileRef = 23CD005E2E8EBE0E00290908 /* avatar.png */; };
 		23D3CD282E879D1000E45C03 /* rest_video_dark.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 23D3CD262E879D1000E45C03 /* rest_video_dark.mp4 */; };
 		23D3CD292E879D1000E45C03 /* rest_video_light.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 23D3CD272E879D1000E45C03 /* rest_video_light.mp4 */; };
 		23D3CD2D2E879D1800E45C03 /* rest_image_light.png in Resources */ = {isa = PBXBuildFile; fileRef = 23D3CD2B2E879D1800E45C03 /* rest_image_light.png */; };
@@ -42,6 +41,8 @@
 		23D95B752E8BF8870049726C /* smile.svg in Resources */ = {isa = PBXBuildFile; fileRef = 23D95B742E8BF8870049726C /* smile.svg */; };
 		23DAFA642E8B6E8C00DD6B6C /* DatabaseMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23DAFA622E8B6E8C00DD6B6C /* DatabaseMigration.swift */; };
 		23DAFA672E8B7C5C00DD6B6C /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23DAFA652E8B7C5C00DD6B6C /* SettingsStore.swift */; };
+		23F529692F179B8A00D7CF78 /* avatar.png in Resources */ = {isa = PBXBuildFile; fileRef = 23F529682F179B8A00D7CF78 /* avatar.png */; };
+		23F5296B2F179B9300D7CF78 /* avatar0.png in Resources */ = {isa = PBXBuildFile; fileRef = 23F5296A2F179B9300D7CF78 /* avatar0.png */; };
 		23FA66042E9B5101000F9F07 /* DebugStatisticsDatabaseProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23FA66022E9B5101000F9F07 /* DebugStatisticsDatabaseProvider.swift */; };
 		A1234567890ABCDEF001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF002 /* AppDelegate.swift */; };
 		A1234567890ABCDEF003 /* PomodoroTimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF004 /* PomodoroTimer.swift */; };
@@ -77,10 +78,10 @@
 		231168CB2E8BF3AA004386D2 /* banner_pomodoro.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = banner_pomodoro.png; sourceTree = "<group>"; };
 		231168CC2E8BF3AA004386D2 /* banner_relax.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = banner_relax.png; sourceTree = "<group>"; };
 		231168CD2E8BF3AA004386D2 /* banner_time.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = banner_time.png; sourceTree = "<group>"; };
-		231DE49A2E8C07540007D7B5 /* avatar.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = avatar.png; sourceTree = "<group>"; };
 		231DE49C2E8C28440007D7B5 /* idea.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = idea.svg; sourceTree = "<group>"; };
 		23249BA52E82662F00F45D58 /* icon_video.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = icon_video.mp4; sourceTree = "<group>"; };
 		23249BA72E826FCF00F45D58 /* IOSSwitchButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSSwitchButton.swift; sourceTree = "<group>"; };
+		2325AED22F179FA800E203A5 /* avatar1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = avatar1.png; sourceTree = "<group>"; };
 		2338559A2E8CA7A600809053 /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLogger.swift; sourceTree = "<group>"; };
 		234823252E7EAAC500DC507E /* PomodoroStateMachine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PomodoroStateMachine.swift; sourceTree = "<group>"; };
 		2348232B2E7EAAF800DC507E /* PomodoroScreenTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PomodoroScreenTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -93,7 +94,6 @@
 		23BD5DPD2E864ABA00691DCC /* DevicePerformanceDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicePerformanceDetector.swift; sourceTree = "<group>"; };
 		23CD00242E8E266F00290908 /* share.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = share.svg; sourceTree = "<group>"; };
 		23CD00262E8E2EAF00290908 /* chart.umd.js.map */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; path = chart.umd.js.map; sourceTree = "<group>"; };
-		23CD005E2E8EBE0E00290908 /* avatar.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = avatar.png; sourceTree = "<group>"; };
 		23D3CD262E879D1000E45C03 /* rest_video_dark.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = rest_video_dark.mp4; sourceTree = "<group>"; };
 		23D3CD272E879D1000E45C03 /* rest_video_light.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = rest_video_light.mp4; sourceTree = "<group>"; };
 		23D3CD2A2E879D1800E45C03 /* rest_image_dark.jpeg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = rest_image_dark.jpeg; sourceTree = "<group>"; };
@@ -101,6 +101,8 @@
 		23D95B742E8BF8870049726C /* smile.svg */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = smile.svg; sourceTree = "<group>"; };
 		23DAFA622E8B6E8C00DD6B6C /* DatabaseMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseMigration.swift; sourceTree = "<group>"; };
 		23DAFA652E8B7C5C00DD6B6C /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
+		23F529682F179B8A00D7CF78 /* avatar.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = avatar.png; sourceTree = "<group>"; };
+		23F5296A2F179B9300D7CF78 /* avatar0.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = avatar0.png; sourceTree = "<group>"; };
 		23FA66022E9B5101000F9F07 /* DebugStatisticsDatabaseProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugStatisticsDatabaseProvider.swift; sourceTree = "<group>"; };
 		5F523799673D4942B090EFE3 /* LaunchAtLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLogin.swift; sourceTree = "<group>"; };
 		A1234567890ABCDEF000 /* PomodoroScreen.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PomodoroScreen.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -198,10 +200,11 @@
 		23D3CD2C2E879D1800E45C03 /* image */ = {
 			isa = PBXGroup;
 			children = (
-				23CD005E2E8EBE0E00290908 /* avatar.png */,
+				2325AED22F179FA800E203A5 /* avatar1.png */,
+				23F5296A2F179B9300D7CF78 /* avatar0.png */,
+				23F529682F179B8A00D7CF78 /* avatar.png */,
 				23CD00242E8E266F00290908 /* share.svg */,
 				231DE49C2E8C28440007D7B5 /* idea.svg */,
-				231DE49A2E8C07540007D7B5 /* avatar.png */,
 				23D95B742E8BF8870049726C /* smile.svg */,
 				231168CA2E8BF3AA004386D2 /* banner_health.png */,
 				231168CB2E8BF3AA004386D2 /* banner_pomodoro.png */,
@@ -408,9 +411,12 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				23F5296B2F179B9300D7CF78 /* avatar0.png in Resources */,
+				2325AED32F179FA800E203A5 /* avatar1.png in Resources */,
 				23CD00272E8E2EEB00290908 /* chart.umd.js.map in Resources */,
 				23BD5A8B2E80F742008AEE45 /* BeautifulPoliceOfficer-rvv8x.ttf in Resources */,
 				231DE49D2E8C28440007D7B5 /* idea.svg in Resources */,
+				23F529692F179B8A00D7CF78 /* avatar.png in Resources */,
 				2398F36A2F109FCC00BD0BC0 /* SF-Pro-Rounded-Heavy.ttf in Resources */,
 				A1234567890ABCDEF009 /* Assets.xcassets in Resources */,
 				23249BA62E82662F00F45D58 /* icon_video.mp4 in Resources */,
@@ -418,7 +424,6 @@
 				JS1234567890ABCDEF001 /* chart.js in Resources */,
 				23D95B752E8BF8870049726C /* smile.svg in Resources */,
 				HTML1234567890ABCDEF01 /* report.html in Resources */,
-				23CD005F2E8EBE0E00290908 /* avatar.png in Resources */,
 				23D3CD282E879D1000E45C03 /* rest_video_dark.mp4 in Resources */,
 				23D3CD292E879D1000E45C03 /* rest_video_light.mp4 in Resources */,
 				23D3CD2D2E879D1800E45C03 /* rest_image_light.png in Resources */,
@@ -427,7 +432,6 @@
 				231168BF2E8BE938004386D2 /* diagram.svg in Resources */,
 				231168C72E8BEC96004386D2 /* pie-chart.svg in Resources */,
 				231168CE2E8BF3AA004386D2 /* banner_relax.png in Resources */,
-				231DE49B2E8C07540007D7B5 /* avatar.png in Resources */,
 				231168CF2E8BF3AA004386D2 /* banner_time.png in Resources */,
 				231168D02E8BF3AA004386D2 /* banner_health.png in Resources */,
 				231168D12E8BF3AA004386D2 /* banner_pomodoro.png in Resources */,
